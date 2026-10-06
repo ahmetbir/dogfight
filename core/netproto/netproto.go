@@ -35,6 +35,7 @@ const (
 	TChat   = "chat"
 )
 
+// Pong answers a ping, echoing its timestamp.
 type Pong struct {
 	T  string  `json:"t"` // "pong"
 	TS float64 `json:"ts"`
@@ -54,16 +55,23 @@ type NoticeMsg struct {
 	Code string `json:"code,omitempty"`
 }
 
-// ChatMsg relays quick chat preset ID from player From.
+// ChatMsg relays quick chat preset ID (1..ChatMax, the game's preset count; CheckHeader's chatMax) from player From.
 type ChatMsg struct {
 	T    string   `json:"t"` // "chat"
 	From PlayerID `json:"from"`
 	ID   int      `json:"id"`
 }
 
-func NewPong(ts float64) Pong               { return Pong{T: "pong", TS: ts} }
-func NewError(code, msg string) ErrorMsg    { return ErrorMsg{T: "error", Msg: msg, Code: code} }
-func NewNotice(code, msg string) NoticeMsg  { return NoticeMsg{T: "notice", Msg: msg, Code: code} }
+// NewPong answers a ping with its timestamp.
+func NewPong(ts float64) Pong { return Pong{T: "pong", TS: ts} }
+
+// NewError builds the fatal error message for a failure code.
+func NewError(code, msg string) ErrorMsg { return ErrorMsg{T: "error", Msg: msg, Code: code} }
+
+// NewNotice builds a non-fatal notice for the player.
+func NewNotice(code, msg string) NoticeMsg { return NoticeMsg{T: "notice", Msg: msg, Code: code} }
+
+// NewChat builds the relay of quick chat preset id from player from.
 func NewChat(from PlayerID, id int) ChatMsg { return ChatMsg{T: "chat", From: from, ID: id} }
 
 var (

@@ -111,7 +111,7 @@ func TestDroppedPressSurvivesBothLatches(t *testing.T) {
 	s := newSession(1, nil)
 	s.push(1, protocol.ClientMsg{T: protocol.TIn, Seq: 1}.Input())
 	s.push(admitted.Seq, admitted.Input())
-	for seq := uint32(4); seq <= 9; seq++ { // backlog: the trim drops seq 1 and 3
+	for seq := uint32(4); seq <= 9; seq++ { // backlog: the trim drops seqs 1, 3, 4 and 5
 		s.push(seq, protocol.ClientMsg{T: protocol.TIn, Seq: seq}.Input())
 	}
 	fired := 0

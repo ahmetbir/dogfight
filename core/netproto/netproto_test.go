@@ -56,17 +56,18 @@ func TestNewCodesRefusesCollisions(t *testing.T) {
 
 func TestCleanName(t *testing.T) {
 	for in, want := range map[string]string{
-		"  Ace  ":                    "Ace",
-		"":                           "Pilot",
-		"‮​\t":                       "Pilot",
-		"​​":                         "Pilot",
-		"a‮b⁦c‏d\x00e":               "abcde",
-		"abcdefghijklmnopqrstuvwxyz": "abcdefghijklmnop",
-		"ÇğüşİöÇğüşİöÇğüşİöXYZ": "ÇğüşİöÇğüşİöÇğüş",
-		"\xff\xfeok": "ok",
-		"ㅤᅟᅠﾠ⠀":      "Pilot", // blank-looking fillers
-		"aㅤb":        "ab",
-		"á́́́́b̀":   "á́b̀", // at most 2 marks per letter
+		"  Ace  ":                     "Ace",
+		"":                            "Pilot",
+		"\u202e\u200b\t":              "Pilot",
+		"\u200b\u200b":                "Pilot",
+		"a\u202eb\u2066c\u200fd\x00e": "abcde",
+		"abcdefghijklmnopqrstuvwxyz":  "abcdefghijklmnop",
+		"\u00e7\u011f\u00fc\u015f\u0130\u00f6\u00e7\u011f\u00fc\u015f\u0130\u00f6\u00e7\u011f\u00fc\u015f\u0130\u00f6XYZ": "\u00e7\u011f\u00fc\u015f\u0130\u00f6\u00e7\u011f\u00fc\u015f\u0130\u00f6\u00e7\u011f\u00fc\u015f",
+		"\xff\xfeok":                             "ok",
+		"\u3164\u115f\u1160\uffa0\u2800":         "Pilot", // blank-looking fillers
+		"a\u3164b":                               "ab",
+		"a\u0301\u0301\u0301\u0301\u0301b\u0300": "a\u0301\u0301b\u0300", // at most 2 marks per letter
+		"\u00e9\u0301\u0301\u0301":               "\u00e9\u0301\u0301",   // precomposed letter plus marks: 2 marks kept
 	} {
 		if got := CleanName(in); got != want {
 			t.Errorf("CleanName(%q) = %q, want %q", in, got, want)
