@@ -17,16 +17,14 @@ import (
 // everyone else (WebSocket close 1012, /api 503), closes its stats store at
 // once (final snapshot, lock released, so the new server's store opens)
 // and exits when its last game socket closes or after drainMax. SIGUSR2
-// (rollback to this server) undoes a drain or a release: it serves again
-// and waits for the stats lock. SIGWINCH (legacy rollback) only releases the
-// stats store (flush, final snapshot, lock free) and keeps serving: another
-// server may then open the volume while this one still answers nginx.
+// (rollback to this server) undoes a drain: it serves again and waits for
+// the stats lock. Drain/undrain is the only stats handoff.
 const (
 	drainEvery     = time.Second
 	flushWait      = 2 * time.Second // a stuck room must not hold the stats handoff
 	statsRetry     = time.Second
 	defaultDrain   = 30 * time.Minute
-	defaultStatsWt = 40 * time.Minute // > drainMax: a draining legacy server may hold the lock that long
+	defaultStatsWt = 40 * time.Minute // > drainMax: an old server that never drains holds the lock until it exits
 )
 
 // drainable is the server side of a drain (*server.Server).
@@ -53,31 +51,21 @@ func (d drainer) run(ctx context.Context, sig <-chan os.Signal) {
 	t := time.NewTicker(d.every)
 	defer t.Stop()
 	var since time.Time // zero = not draining
-	released := false   // the stats store was handed off (SIGWINCH or SIGUSR1)
-	release := func() {
-		if !released {
-			released = true
-			stopAcquire()
-			d.flushRooms(ctx)
-			d.closeStats()
-		}
-	}
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case s := <-sig:
 			switch {
-			case s == syscall.SIGWINCH && since.IsZero() && !released:
-				release()
-				slog.Info("stats released: serving on")
 			case s == syscall.SIGUSR1 && since.IsZero():
 				since = d.now()
 				d.srv.Drain(true)
-				release()
+				stopAcquire()
+				d.flushRooms(ctx)
+				d.closeStats()
 				slog.Info("draining", "conns", d.srv.Conns(), "max", d.max.String())
-			case s == syscall.SIGUSR2 && (!since.IsZero() || released):
-				since, released = time.Time{}, false
+			case s == syscall.SIGUSR2 && !since.IsZero():
+				since = time.Time{}
 				d.srv.Drain(false)
 				if d.slot != nil {
 					d.slot.Reopen()

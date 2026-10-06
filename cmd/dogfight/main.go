@@ -100,7 +100,7 @@ func run(cfg config) error {
 	o.Metrics = reg
 	h := server.New(lb, o)
 	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGUSR1, syscall.SIGUSR2, syscall.SIGWINCH)
+	signal.Notify(sig, syscall.SIGUSR1, syscall.SIGUSR2)
 	defer signal.Stop(sig)
 	d := drainer{srv: h, slot: st, quit: quit, every: drainEvery, max: cfg.drainMax, now: time.Now,
 		acquire: func(ctx context.Context) { acquireStats(ctx, st, cfg.dataDir, statsRetry, cfg.statsWait) }}

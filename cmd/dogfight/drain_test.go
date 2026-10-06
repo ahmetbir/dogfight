@@ -216,28 +216,3 @@ func TestDrainFlushesTalliesBeforeHandoff(t *testing.T) {
 		t.Fatalf("flushed tally lost in the handoff: %+v %v", p, ok)
 	}
 }
-
-// SIGWINCH releases the stats store (flushed, lock free for another
-// server) but keeps serving and never quits; SIGUSR1 then drains as usual,
-// SIGUSR2 takes the stats back.
-func TestReleaseStatsKeepsServing(t *testing.T) {
-	r := startDrainer(t, 0, time.Hour)
-	r.srv.flush = func() { r.slot.Record(stats.Delta{Pilot: "aa", Name: "Ace", Kills: 1, Flight: 3600}) }
-	r.sig <- syscall.SIGWINCH
-	var other *stats.Store // e.g. the legacy server opening the same volume
-	eventually(t, func() bool { other, _ = stats.Open(r.dir, stats.Options{}); return other != nil }, "lock not released")
-	if p, ok := other.Me("aa"); !ok || p.Kills != 1 {
-		t.Fatalf("release did not flush: %+v %v", p, ok)
-	}
-	time.Sleep(30 * time.Millisecond)
-	if r.srv.draining() || closed(r.quit)() {
-		t.Fatal("release must keep serving (no drain, no quit with 0 conns)")
-	}
-	other.Close()
-	r.sig <- syscall.SIGUSR2
-	eventually(t, r.slot.Ready, "stats not taken back after SIGUSR2")
-	r.sig <- syscall.SIGWINCH
-	eventually(t, func() bool { return !r.slot.Ready() }, "second release")
-	r.sig <- syscall.SIGUSR1
-	eventually(t, closed(r.quit), "drain after release must quit when empty")
-}

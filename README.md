@@ -143,10 +143,7 @@ Other routes: `/` (the client), `/r/{code}` (room link), `/healthz`, `/ws` (game
   remaining players then also get `1012`. On `1012` the client shows a reconnecting notice and
   rejoins the same room code; if the room does not exist on the new server, it offers to return
   to the home page.
-- `SIGUSR2`: undo a drain or a stats release (rollback): accept new players again and wait for
-  the stats lock.
-- `SIGWINCH`: release only the stats store (flush open scores, write the final snapshot, release
-  the lock). The server keeps accepting players and does not exit.
+- `SIGUSR2`: undo a drain (rollback): accept new players again and wait for the stats lock.
 
 The stats store locks the `-data` directory with `flock`, so only one server writes it at a time.
 A server started while the lock is held starts the game immediately; its store opens once the
