@@ -5,6 +5,9 @@ import { Shaper, type Envelope, type ShaperPolicy } from "./shaper.ts";
 /** The entry messages every game shares (the creator's own message is the game's). */
 export type Join = { t: "join"; code: string };
 export type Quick = { t: "quick" };
+/** The handshake and keepalive messages the socket itself sends. */
+export type Hello = { t: "hello"; v: number; name: string; tok?: string };
+export type Ping = { t: "ping"; ts: number };
 
 /** A game's wire: its protocol version and its outbound shaping. */
 export type SocketOpts<C extends Envelope> = { version: number; policy: ShaperPolicy<C> };
@@ -230,7 +233,7 @@ export class Socket<C extends Envelope, S extends Envelope> {
     }, ms);
   }
 
-  private write(m: object): boolean {
+  private write(m: C | Join | Quick | Hello | Ping): boolean {
     if (!this.conn || this.conn.readyState !== OPEN) return false;
     this.conn.send(JSON.stringify(m));
     return true;

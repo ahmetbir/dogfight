@@ -19,8 +19,10 @@ export class InterpBuffer extends Core<FlightState> {
   }
 }
 
+const ahead = (s: FlightState, sec: number): FlightState => ({ ...s, pos: add(s.pos, scale(s.vel, sec)) });
+
 export function extrapolate(buf: InterpBuffer, serverTimeMs: number): FlightState | null {
-  return coreExtrapolate(buf, serverTimeMs, (s, sec) => ({ ...s, pos: add(s.pos, scale(s.vel, sec)) }));
+  return coreExtrapolate(buf, serverTimeMs, ahead);
 }
 
 export class ServerClock extends CoreClock {

@@ -92,7 +92,7 @@ export class Reconciler<S, I, E> {
     // Steps the server dropped: replayed with the last acked input (the first
     // pending one right after a spawn, before anything was acked).
     const repeat = this.lastAcked ?? this.pending[0]?.inp ?? null;
-    for (let j = 1; j <= -shift && repeat; j++) {
+    for (let j = 1; j <= -shift && repeat !== null; j++) {
       corrected = this.model.step(corrected, repeat, env, snapTick + j);
     }
     for (const p of this.pending) {

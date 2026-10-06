@@ -3,7 +3,7 @@ package protocol
 import "playground/core/netproto"
 
 // Stable codes of the user-facing failures. The client shows its own text
-// for a code (client/src/net/codes.ts lists the same codes; Msg stays the
+// for a code (client/src/core/net/codes.ts lists the same codes; Msg stays the
 // server's Turkish text for older clients).
 const (
 	// "notice" messages (a refused team choice).

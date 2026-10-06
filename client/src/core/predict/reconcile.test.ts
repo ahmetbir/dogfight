@@ -87,8 +87,8 @@ test("a lasting latency step is corrected in a few jumps, then the state is stea
   }
   // The median of d moves once it leaves the middle half of the last ~1 s (the
   // re-anchor), so the corrections come after the step and stop well before the end.
-  assert.ok(jumpsAt.length >= 1 && jumpsAt.length <= 2, `corrected at ${jumpsAt}`);
-  assert.ok(jumpsAt.every((t) => t >= 120 && t < 200), `corrected at ${jumpsAt}`);
+  // The frozen-ack ramp re-anchors twice (+16 at 166, +4 at 182): deterministic.
+  assert.deepEqual(jumpsAt, [166, 182]);
 });
 
 test("pending inputs are capped at 120 (no growth while acks stall)", () => {
@@ -127,4 +127,13 @@ test("a correction is handed to the smoother, drawn at the old state, then fades
   r.reset(5);
   assert.equal(sm.offset, 0);
   assert.equal(r.state(), 5);
+});
+
+test("steps the server dropped are replayed with the last acked input, also when it is 0", () => {
+  // Every step advances the state by 1 whatever the input, so a skipped replay shows.
+  const r = new Reconciler<number, number, null>({ step: (s, i) => s + i + 1 }, new Fade(), 0);
+  r.reset(0, 100, 40); // d = 60
+  for (let seq = 41; seq <= 46; seq++) r.push(seq, 0, r.tickFor(seq), null);
+  r.reconcile(0, 43, 102, null); // d = 59: the server dropped one step; pending 44..46
+  assert.equal(r.state(), 4); // 1 dropped step (input 0) + 3 pending
 });

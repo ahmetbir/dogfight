@@ -17,9 +17,9 @@ test("core imports only core (no game modules, no three)", () => {
   const bad: string[] = [];
   for (const f of files(core)) {
     const src = readFileSync(f, "utf8");
-    for (const m of src.matchAll(/\bfrom\s+"([^"]+)"/g)) {
+    for (const m of src.matchAll(/\b(?:from|import)\s*\(?\s*["']([^"']+)["']/g)) {
       const spec = m[1];
-      if (spec.startsWith("node:")) continue; // tests only
+      if (spec.startsWith("node:") && f.endsWith(".test.ts")) continue; // tests only
       const target = resolve(dirname(f), spec);
       if (!spec.startsWith(".") || relative(core, target).startsWith("..")) bad.push(`${relative(core, f)} → ${spec}`);
     }
