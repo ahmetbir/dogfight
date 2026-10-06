@@ -199,12 +199,12 @@ func TestRoomsGauge(t *testing.T) {
 	l := newLobby(ctx, 0, reg)
 	l.Create(plain)
 	l.Create(plain)
-	if reg.Rooms.Load() != 2 {
-		t.Fatalf("rooms %d", reg.Rooms.Load())
+	if reg.Rooms.Load() != 2 || reg.Bots.Load() != 4 { // an empty seat counts as a bot
+		t.Fatalf("rooms %d bots %d", reg.Rooms.Load(), reg.Bots.Load())
 	}
 	cancel()
 	l.Wait()
-	if reg.Rooms.Load() != 0 {
-		t.Fatalf("after shutdown: rooms %d", reg.Rooms.Load())
+	if reg.Rooms.Load() != 0 || reg.Bots.Load() != 0 {
+		t.Fatalf("after shutdown: rooms %d bots %d", reg.Rooms.Load(), reg.Bots.Load())
 	}
 }

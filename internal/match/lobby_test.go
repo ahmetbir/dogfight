@@ -45,6 +45,15 @@ type countSink struct{ n atomic.Int64 }
 
 func (s *countSink) Record(stats.Delta) bool { s.n.Add(1); return true }
 
+// The options NewLobby hands every room set ChatMax explicitly. Behaviour
+// alone cannot show it while protocol.ChatMax == room.DefaultChatMax (a room
+// defaults a zero ChatMax), so the option value itself is asserted.
+func TestLobbyRoomOptionsSetChatMax(t *testing.T) {
+	if got := roomOptions().ChatMax; got != protocol.ChatMax {
+		t.Fatalf("ChatMax option %d, want %d", got, protocol.ChatMax)
+	}
+}
+
 // The lobby's rooms relay quick chats up to the protocol's ChatMax only.
 func TestLobbyRoomsCarryProtocolChatMax(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
@@ -55,7 +64,10 @@ func TestLobbyRoomsCarryProtocolChatMax(t *testing.T) {
 			t.Fatal(err)
 		}
 		s := &fakeSender{}
-		seat, _ := r.Join(ctx, room.Who{Name: "a"}, s)
+		seat, err := r.Join(ctx, room.Who{Name: "a"}, s)
+		if err != nil {
+			t.Fatal(err)
+		}
 		seat.Input(protocol.ClientMsg{T: protocol.TChat, Chat: protocol.ChatMax + 1})
 		time.Sleep(100 * time.Millisecond)
 		synctest.Wait()

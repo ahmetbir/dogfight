@@ -269,6 +269,7 @@ func (l *Lobby[S, M, In, X]) build(code string, s S, seq int64) (r *room.Room[M,
 	}()
 	g, err := l.newGame(s)
 	if err != nil {
+		slog.Warn("room build failed", "code", code, "err", err)
 		return nil, fmt.Errorf("lobby: building room: %w", err)
 	}
 	o := l.ro

@@ -19,7 +19,11 @@ type Lobby = lobby.Lobby[game.Settings, protocol.ClientMsg, sim.Input, Info]
 func NewLobby(ctx context.Context, maxRooms int, reg *metrics.Registry, sink StatsSink) *Lobby {
 	return lobby.New(ctx, lobby.Options[game.Settings, protocol.ClientMsg, sim.Input, Info]{
 		MaxRooms: maxRooms, Metrics: reg,
-		Room: room.Options{ChatMax: protocol.ChatMax},
+		Room: roomOptions(),
 		New:  Factory(sink),
 	})
 }
+
+// roomOptions are the per-room options Dogfight sets: the protocol's chat
+// preset count (explicit, so a drift from the room default cannot hide).
+func roomOptions() room.Options { return room.Options{ChatMax: protocol.ChatMax} }

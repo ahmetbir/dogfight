@@ -1,7 +1,8 @@
 // Package fakegame is the smallest game the core's tests drive: players
 // move a counter by their input's D, a snapshot of every counter goes out
 // every second tick, and a "color" message changes the room summary. It has
-// no bots; a join fails once Seats humans sit.
+// no bot logic (the room still counts empty seats as bots); a join fails
+// once Seats humans sit.
 package fakegame
 
 import (
