@@ -36,6 +36,7 @@ type Options struct {
 type Limits struct {
 	MaxConns         int     // open game sockets, server-wide
 	MaxConnsIP       int     // open game sockets per client address
+	MaxConnsNet      int     // open game sockets per IPv6 /48, summed over its /64 addresses
 	CreatePerMinIP   float64 // room creations per address per minute (burst = same)
 	JoinFailPerMinIP float64 // failed joins per address per minute (burst = same)
 	JoinPerMinIP     float64 // successful joins per address per minute (burst = same)
@@ -51,7 +52,7 @@ type Limits struct {
 
 func DefaultLimits() Limits {
 	return Limits{
-		MaxConns: 128, MaxConnsIP: 6, CreatePerMinIP: 3, JoinFailPerMinIP: 10, JoinPerMinIP: 20,
+		MaxConns: 128, MaxConnsIP: 6, MaxConnsNet: 24, CreatePerMinIP: 3, JoinFailPerMinIP: 10, JoinPerMinIP: 20,
 		MsgRate: 90, MsgBurst: 120, PickRate: 2, PickBurst: 4, PingRate: 2, PingBurst: 4,
 		APIPerMinIP: 120, APIBurst: 30,
 	}
@@ -71,6 +72,7 @@ func (l Limits) withDefaults() Limits {
 	}
 	seti(&l.MaxConns, d.MaxConns)
 	seti(&l.MaxConnsIP, d.MaxConnsIP)
+	seti(&l.MaxConnsNet, d.MaxConnsNet)
 	set(&l.CreatePerMinIP, d.CreatePerMinIP)
 	set(&l.JoinFailPerMinIP, d.JoinFailPerMinIP)
 	set(&l.JoinPerMinIP, d.JoinPerMinIP)
@@ -97,7 +99,7 @@ type Server struct {
 	o         Options
 	h         http.Handler
 	page      []byte // index.html with content-hashed bundle URLs; nil if not built
-	conns     *limit.Gate
+	conns     *connGate
 	creates   *limit.Keyed
 	joinFails *limit.Keyed
 	joins     *limit.Keyed
@@ -126,7 +128,7 @@ func New(l *lobby.Lobby, o Options) *Server {
 	lim := o.Limits
 	s := &Server{
 		lobby: l, o: o, page: loadPage(o.Web),
-		conns:     limit.NewGate(lim.MaxConns, lim.MaxConnsIP),
+		conns:     newConnGate(lim),
 		creates:   limit.NewKeyed(lim.CreatePerMinIP, burstOf(lim.CreatePerMinIP)),
 		joinFails: limit.NewKeyed(lim.JoinFailPerMinIP, burstOf(lim.JoinFailPerMinIP)),
 		joins:     limit.NewKeyed(lim.JoinPerMinIP, burstOf(lim.JoinPerMinIP)),

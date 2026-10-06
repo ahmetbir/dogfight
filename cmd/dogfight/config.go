@@ -50,6 +50,7 @@ func parseFlags(args []string) (config, error) {
 	fl.IntVar(&c.maxRooms, "max-rooms", 16, "rooms running at once (0 = no limit)")
 	fl.IntVar(&c.limits.MaxConns, "max-conns", d.MaxConns, "open game sockets, server-wide (0 = default)")
 	fl.IntVar(&c.limits.MaxConnsIP, "max-conns-ip", d.MaxConnsIP, "open game sockets per client address (0 = default)")
+	fl.IntVar(&c.limits.MaxConnsNet, "max-conns-net", d.MaxConnsNet, "open game sockets per IPv6 /48, all its addresses together (0 = default)")
 	fl.Float64Var(&c.limits.CreatePerMinIP, "create-per-min-ip", d.CreatePerMinIP, "room creations per client address per minute (0 = default)")
 	fl.Float64Var(&c.limits.JoinFailPerMinIP, "join-fail-per-min-ip", d.JoinFailPerMinIP, "failed joins per client address per minute (0 = default)")
 	fl.Float64Var(&c.limits.JoinPerMinIP, "join-per-min-ip", d.JoinPerMinIP, "successful joins per client address per minute (0 = default)")

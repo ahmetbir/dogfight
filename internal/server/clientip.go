@@ -65,14 +65,24 @@ func inAny(a netip.Addr, ps []netip.Prefix) bool {
 	return false
 }
 
-// limitKey groups addresses for the per-address limits (connections,
-// creates, joins, failed joins, API): one IPv4 address, or one IPv6 /48.
-// A subscriber often holds a whole /48 (or a /56 inside one), so keying on
-// /64 would let one cheap allocation fill the server from 65 536 keys.
+// limitKey groups addresses for the per-address limits: one IPv4 address,
+// or one IPv6 /64 (a single subscriber usually holds a whole /64).
 func limitKey(a netip.Addr) string {
 	if a.Is6() {
-		p, _ := a.Prefix(48)
+		p, _ := a.Prefix(64)
 		return p.String()
 	}
 	return a.String()
+}
+
+// netKey is the IPv6 /48 holding a limitKey key, for the aggregate
+// connection cap: one cheap /48 holds 65 536 /64 keys. ok is false for an
+// IPv4 key, which has no aggregate.
+func netKey(key string) (string, bool) {
+	p, err := netip.ParsePrefix(key)
+	if err != nil || !p.Addr().Is6() {
+		return "", false
+	}
+	n, _ := p.Addr().Prefix(48)
+	return n.String(), true
 }

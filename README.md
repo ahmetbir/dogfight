@@ -108,6 +108,7 @@ from the host the page was loaded from, which is all a LAN needs.
 | `-max-rooms` | `16` | Rooms running at once (`0` = no limit) |
 | `-max-conns` | `128` | Open game sockets, server-wide |
 | `-max-conns-ip` | `6` | Open game sockets per client address |
+| `-max-conns-net` | `24` | Open game sockets per IPv6 /48, all its addresses together |
 | `-create-per-min-ip` | `3` | Room creations per address per minute |
 | `-join-fail-per-min-ip` | `10` | Failed joins per address per minute |
 | `-join-per-min-ip` | `20` | Successful joins per address per minute |
@@ -471,8 +472,9 @@ The game runs on the public internet, and the server does not trust the client.
   connection.
 - **Connection limits:** 128 sockets server-wide, 6 per address; at most 16 rooms; 3 room
   creations per address per minute (a failed creation costs no token); 10 failed and 20
-  successful joins per address per minute. An "address" is one IPv4 address or one IPv6 /48
-  (a single subscriber can hold a whole /48, so a /64 key would be cheap to multiply).
+  successful joins per address per minute. An "address" is one IPv4 address or one IPv6 /64;
+  on top of that, all /64s of one IPv6 /48 share 24 sockets (`-max-conns-net`), so a cheap /48
+  cannot fill the server.
 - **Message limits:** 90 messages/s per connection, burst 120; at most 1 KB per message; pick and
   ping have their own tighter limits. Exceeding a limit closes the connection with a
   policy-violation code.
