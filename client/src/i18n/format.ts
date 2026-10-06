@@ -3,7 +3,7 @@
 import { makeFormat } from "../core/i18n/format.ts";
 import { lang, t } from "./index.ts";
 
-export const { num, fixed } = makeFormat(lang);
+export const { num, fixed } = makeFormat(() => lang() === "tr");
 
 /** m/s → "101 km/h". */
 export const kmh = (ms: number) => `${Math.round(ms * 3.6)} km/h`;

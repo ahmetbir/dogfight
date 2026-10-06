@@ -4,14 +4,15 @@ import { h } from "./dom.ts";
 
 /** One toggle button per language; a click switches the language, then `switched` re-renders what is not live. */
 export function langToggle<L extends string>(
-  i: Pick<I18n<L, string>, "lang" | "setLang" | "tIn" | "t">,
+  i: Pick<I18n<L, string>, "lang" | "setLang">,
   langs: readonly L[],
   label: () => string,
+  title: (l: L) => string,
   switched: (l: L) => void = () => {},
 ): HTMLElement {
   const box = h("div", { class: "seg lang-toggle", role: "group", "aria-label": label() });
   const buttons = langs.map((l) => {
-    const b = h("button", { type: "button", class: "seg-btn", lang: l, title: i.tIn(l, `lang.${l}`), "aria-pressed": String(l === i.lang()) },
+    const b = h("button", { type: "button", class: "seg-btn", lang: l, title: title(l), "aria-pressed": String(l === i.lang()) },
       l.toUpperCase());
     b.addEventListener("click", () => {
       if (l === i.lang()) return;

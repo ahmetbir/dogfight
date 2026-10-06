@@ -161,9 +161,10 @@ func (c *Conn) next() (outMsg, bool) {
 func (c *Conn) Recv() <-chan []byte   { return c.in }
 func (c *Conn) Done() <-chan struct{} { return c.done }
 
-// Close never blocks: it signals both goroutines; the writer closes the
-// socket after the write in flight, if any, so the close frame (code and
-// reason) always follows a complete message.
+// Close never blocks and is safe from any goroutine, an actor included: it
+// signals both goroutines; the writer closes the socket after the write in
+// flight, if any, so the close frame (code and reason) always follows a
+// complete message.
 func (c *Conn) Close() {
 	c.closeOnce.Do(func() { close(c.done) })
 }
@@ -194,8 +195,10 @@ func (c *Conn) closeWith(code websocket.StatusCode) {
 	c.Close()
 }
 
-// Wait blocks until both goroutines have exited, including the close
-// handshake (bounded by the library's close timeout).
+// Wait blocks until both goroutines have exited. After Close it can take up
+// to the write timeout (a write in flight to a slow reader) plus the close
+// handshake (bounded by the library's close timeout). Never call it from an
+// actor goroutine; wait on Done or run it off to the side.
 func (c *Conn) Wait() { c.wg.Wait() }
 
 func (c *Conn) recoverPanic(where string) {

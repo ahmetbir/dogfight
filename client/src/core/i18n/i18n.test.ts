@@ -75,7 +75,7 @@ test("destructured functions work", () => {
 test("makeFormat follows the language", async () => {
   const { makeFormat } = await import("./format.ts");
   let l = "tr";
-  const f = makeFormat(() => l);
+  const f = makeFormat(() => l === "tr");
   assert.equal(f.num(0.55, 2), "0,55");
   assert.equal(f.fixed(1.25, 1), "1,3");
   l = "en";
