@@ -10,24 +10,30 @@ import (
 	"playground/core/netproto"
 )
 
-// The client lists the same error and notice codes (client/src/net/codes.ts)
+// The client lists the same error and notice codes (client/src/core/net/codes.ts, client/src/net/codes.ts)
 // and translates each; the two lists must not drift.
 func TestCodesMatchClient(t *testing.T) {
-	b, err := os.ReadFile("../../client/src/net/codes.ts")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for name, want := range map[string][]string{"ERROR_CODES": ErrorCodes(), "NOTICE_CODES": NoticeCodes()} {
-		m := regexp.MustCompile(`(?s)export const ` + name + ` = \[(.*?)\] as const`).FindSubmatch(b)
+	for _, c := range []struct {
+		file, name string
+		want       []string
+	}{
+		{"../../client/src/core/net/codes.ts", "ERROR_CODES", netproto.ErrorCodes()},
+		{"../../client/src/net/codes.ts", "NOTICE_CODES", NoticeCodes()},
+	} {
+		b, err := os.ReadFile(c.file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := regexp.MustCompile(`(?s)export const ` + c.name + ` = \[(.*?)\] as const`).FindSubmatch(b)
 		if m == nil {
-			t.Fatalf("codes.ts lacks %s", name)
+			t.Fatalf("%s lacks %s", c.file, c.name)
 		}
 		var got []string
 		for _, q := range regexp.MustCompile(`"([a-z_]+)"`).FindAllSubmatch(m[1], -1) {
 			got = append(got, string(q[1]))
 		}
-		if !slices.Equal(got, want) {
-			t.Fatalf("%s: client %v, server %v", name, got, want)
+		if !slices.Equal(got, c.want) {
+			t.Fatalf("%s: client %v, server %v", c.name, got, c.want)
 		}
 	}
 }
