@@ -81,7 +81,10 @@ func (tr *transcript) bytes() []byte {
 		b.WriteString("## " + n + "\n")
 		var rows []string
 		for _, l := range tr.sessions[n] {
-			j, _ := json.Marshal(l)
+			j, err := json.Marshal(l)
+			if err != nil { // a small raw message must be JSON, or its line would be lost
+				panic(fmt.Sprintf("%s: %v", n, err))
+			}
 			rows = append(rows, string(j))
 		}
 		if len(n) >= 4 && n[:4] == "sink" {

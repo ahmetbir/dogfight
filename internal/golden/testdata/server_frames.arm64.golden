@@ -1,0 +1,31 @@
+## bad_first
+{"t":"error","n":54,"m":{"t":"error","msg":"geçersiz mesaj","code":"bad_msg"}}
+{"t":"close","n":27,"m":{"status":1008,"reason":""}}
+## bad_msg_in_room
+{"t":"welcome","n":46827,"h":"861bb7658993e107"}
+{"t":"error","n":54,"m":{"t":"error","msg":"geçersiz mesaj","code":"bad_msg"}}
+{"t":"close","n":27,"m":{"status":1008,"reason":""}}
+## bad_room
+{"t":"error","n":60,"m":{"t":"error","msg":"geçersiz oda ayarı","code":"bad_room"}}
+{"t":"close","n":27,"m":{"status":1008,"reason":""}}
+## busy
+{"t":"error","n":47,"m":{"t":"error","msg":"sunucu dolu","code":"busy"}}
+{"t":"close","n":27,"m":{"status":1008,"reason":""}}
+## create_ok
+{"t":"welcome","n":46841,"h":"dc4edb2f35803fd6"}
+## creates
+{"t":"error","n":73,"m":{"t":"error","msg":"çok fazla oda kurdun, biraz bekle","code":"creates"}}
+{"t":"close","n":27,"m":{"status":1008,"reason":""}}
+## no_room
+{"t":"error","n":54,"m":{"t":"error","msg":"oda bulunamadı","code":"no_room"}}
+{"t":"close","n":27,"m":{"status":1008,"reason":""}}
+## timeout
+{"t":"error","n":53,"m":{"t":"error","msg":"zaman aşımı","code":"timeout"}}
+{"t":"close","n":27,"m":{"status":1008,"reason":""}}
+## updating
+{"t":"close","n":65,"m":{"status":1012,"reason":"sunucu güncelleniyor, yeniden bağlan"}}
+## version
+{"t":"error","n":74,"m":{"t":"error","msg":"sürüm uyuşmuyor, sayfayı yenile","code":"version"}}
+{"t":"close","n":27,"m":{"status":1008,"reason":""}}
+## welcome
+{"t":"welcome","n":46827,"h":"c693785d1212e86b"}

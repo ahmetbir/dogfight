@@ -1,0 +1,26 @@
+## board_all
+{"t":"http","n":633,"h":"40ae11a46a6184df"}
+## board_bad
+{"t":"http","n":568,"h":"608ff5cd58bb9520"}
+## board_off
+{"t":"http","n":569,"h":"075840d7bdd754ed"}
+## board_week
+{"t":"http","n":634,"h":"c3c89eb8cdb3e75e"}
+## healthz
+{"t":"http","n":508,"m":"200\nCache-Control: no-store\nContent-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'\nContent-Type: text/plain; charset=utf-8\nCross-Origin-Opener-Policy: same-origin\nPermissions-Policy: camera=(), microphone=(), geolocation=(), accelerometer=(self), gyroscope=(self)\nReferrer-Policy: no-referrer\nX-Content-Type-Options: nosniff\nok"}
+## index
+{"t":"http","n":538,"h":"c4a217f796937bc2"}
+## me
+{"t":"http","n":764,"h":"e958396e5b30a258"}
+## me_bad
+{"t":"http","n":528,"h":"784e577c3ce68e3a"}
+## me_off
+{"t":"http","n":569,"h":"075840d7bdd754ed"}
+## me_unknown
+{"t":"http","n":528,"h":"784e577c3ce68e3a"}
+## nope
+{"t":"http","n":562,"h":"5f441e70cd5ee888"}
+## rooms
+{"t":"http","n":669,"h":"e79f1931b2429e75"}
+## setup
+{"t":"welcome","n":46828,"h":"9a4c04374417000e"}
