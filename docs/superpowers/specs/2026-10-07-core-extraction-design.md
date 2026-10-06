@@ -231,8 +231,10 @@ by field, not by nesting:
 - **Error codes [D6].** One registry: `netproto` owns the core error codes (`version`, `no_room`,
   `bad_room`, `full`, `bad_msg`, `no_create`, `busy`, `creates`, `joins`, `flood`, `conns`,
   `timeout`, `updating`) and API codes (`stats_off`, `bad_period`, `not_found`, `rate`); a game
-  registers its notice codes (Dogfight: `team_*`) through `netproto.NewCodes(notices...)`, which
-  refuses duplicates and collisions with core codes. Wire `msg` texts stay the server's Turkish
+  owns its notice codes (Dogfight: `team_*`, `internal/protocol.NoticeCodes`) and a game-side test
+  refuses duplicates and collisions with `netproto.ErrorCodes()`/`APICodes()` (amended after the
+  final review: the runtime `netproto.NewCodes` registry had no production caller and was
+  removed). Wire `msg` texts stay the server's Turkish
   texts (kept for old clients), owned by `core/server`. The client mirrors the lists
   (`client/src/core/net/codes.ts` for core, `client/src/net/codes.ts` for game notices); a Go
   test keeps both files equal to the registry.
