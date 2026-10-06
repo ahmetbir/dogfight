@@ -8,6 +8,9 @@
 #   scripts/deploy.sh --status             colors, versions, open sockets
 #   scripts/deploy.sh --doctor             invariants: nginx's target runs healthy, one live
 #                                          color, no stale helper, nginx -t (exit 1 on a problem)
+#   scripts/deploy.sh --preflight-network [host:port | https://url ...]
+#                                          set up EDGE_NETWORK and prove it before any deploy
+#                                          uses it (see preflight_network)
 #   --force-drain-overlap (before the others): deploy even while the
 #                                          pre-blue/green container still drains (3 containers)
 #
@@ -60,6 +63,11 @@ cd "$(dirname "$0")/.."
 
 BUSYBOX=busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
 HANDOFF=dogfight-handoff # the legacy migration helper container
+NETPROBE=dogfight-netprobe # --preflight-network's throwaway server on EDGE_NETWORK
+# Throwaway busybox probes run unprivileged, read-only and small.
+PROBE_OPTS="--rm --read-only --cap-drop ALL --security-opt no-new-privileges:true --user 65532:65532 --memory 16m --pids-limit 16"
+# NCPROBE (sh, args host:port...): one "<target> REACHED|no" line per target.
+NCPROBE='for t in "$@"; do if nc -z -w 3 "${t%:*}" "${t##*:}" 2>/dev/null; then echo "$t REACHED"; else echo "$t no"; fi; done'
 
 die() { echo "deploy: $*" >&2; exit 1; }
 
@@ -168,6 +176,10 @@ edge_subnet() {
   done
   die "no IPv4 subnet on docker network $EDGE_NETWORK"
 }
+
+# reach NAME URL: GET URL from inside container NAME's network namespace (a
+# throwaway busybox), so over exactly the networks NAME is on; 0 on a 200.
+reach() { remote "docker run $PROBE_OPTS --network 'container:$1' '$BUSYBOX' wget -q -T 5 -O /dev/null '$2'" >/dev/null 2>&1; }
 
 # state NAME: the version stored in $DIR/NAME, or "" (validated: it goes back
 # into remote commands).
@@ -332,6 +344,14 @@ promote() {
     die "$v is not healthy in $idle; $from still serves, nothing switched"
   fi
 
+  # The container's own healthcheck is on its loopback; nginx reaches it over
+  # EDGE_NETWORK. Prove that path before nginx points at it.
+  if ! reach "$NGINX" "http://$to:8080/healthz"; then
+    if [[ "$undrain" == 1 ]]; then drain "$to"; else compose "$idle" down || true; fi
+    unhandoff "$from"
+    die "$NGINX cannot reach http://$to:8080/healthz over its docker networks ($EDGE_NETWORK?); $from still serves, nothing switched"
+  fi
+
   if ! remote "DOGFIGHT_DEPLOY_LOCK_HELD=1 '$DIR/switch-upstream.sh' '$CONF' '$NGINX' '$to'"; then
     # The failure may be the ssh connection, not the switch: ask the box
     # where nginx points before touching anything.
@@ -403,6 +423,76 @@ doctor() {
   [[ "$n" == 0 ]]
 }
 
+# preflight_network [TARGET...]: set up EDGE_NETWORK (edge_network) and prove
+# it before a deploy moves the game onto it. TARGETs: host:port services the
+# game must NOT reach (other containers' IPs, the host's public IP), and
+# https:// URLs (other vhosts) that must answer 200 before and after; they
+# are fetched from this machine. Checks:
+#   1. nginx's default route (seen from its netns) is unchanged;
+#   2. nginx reaches a throwaway server on EDGE_NETWORK by name;
+#   3. that server reaches none of the targets nor 1.1.1.1:443, each
+#      shown next to what nginx reaches (a target nginx cannot reach either
+#      proves nothing and is flagged);
+#   4. every URL still answers 200; nginx -t passes.
+# On a failure it undoes what this run added (nginx's connection, the
+# network if it created it). Returns non-zero on any failure.
+preflight_network() {
+  local t ports="" urls=() route0 route1 created=0 connected=0 fail=0 out code line ctl
+  for t in "$@"; do
+    if [[ "$t" =~ ^https?://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/-]*)?$ ]]; then urls+=("$t")
+    elif [[ "$t" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*:[0-9]{1,5}$ ]]; then ports+=" $t"
+    else die "bad preflight target '$t' (host:port or https://host/path)"; fi
+  done
+  ports+=" 1.1.1.1:443"
+  bad() { echo "preflight: FAIL: $*" >&2; fail=1; }
+  for t in "${urls[@]}"; do
+    code="$(curl -s -o /dev/null -m 10 -w '%{http_code}' "$t" || true)"
+    [[ "$code" == 200 ]] || die "$t answers $code before anything changed; fix that first"
+  done
+  route0="$(remote "docker run $PROBE_OPTS --network 'container:$NGINX' '$BUSYBOX' ip -4 route show default")" ||
+    die "cannot read $NGINX's routes"
+  remote "docker network inspect '$EDGE_NETWORK' >/dev/null 2>&1" || created=1
+  grep -qxF "$EDGE_NETWORK" <<<"$(networks "$NGINX")" || connected=1
+  edge_network
+  echo "preflight: $EDGE_NETWORK $(remote "docker network inspect -f 'internal={{.Internal}} subnet={{range .IPAM.Config}}{{.Subnet}}{{end}} {{json .Options}}' '$EDGE_NETWORK'")"
+
+  route1="$(remote "docker run $PROBE_OPTS --network 'container:$NGINX' '$BUSYBOX' ip -4 route show default")" || route1="?"
+  if [[ "$route1" == "$route0" ]]; then echo "preflight: ok: $NGINX default route unchanged ($route0)"
+  else bad "$NGINX default route changed: '$route0' -> '$route1'"; fi
+
+  remote "docker rm -f '$NETPROBE' >/dev/null 2>&1; docker run -d --name '$NETPROBE' ${PROBE_OPTS/--rm /} --tmpfs /w:size=64k,uid=65532 --network '$EDGE_NETWORK' '$BUSYBOX' sh -c 'echo ok > /w/index.html && exec httpd -f -p 8080 -h /w' >/dev/null" ||
+    bad "cannot start $NETPROBE on $EDGE_NETWORK"
+  sleep 1
+  if reach "$NGINX" "http://$NETPROBE:8080/"; then echo "preflight: ok: $NGINX reaches $NETPROBE over $EDGE_NETWORK"
+  else bad "$NGINX cannot reach http://$NETPROBE:8080/ over $EDGE_NETWORK"; fi
+
+  # shellcheck disable=SC2086 # $ports is a list of validated host:port words
+  out="$(remote "docker run $PROBE_OPTS --network 'container:$NETPROBE' '$BUSYBOX' sh -c '$NCPROBE' x $ports")" || bad "isolation probe did not run"
+  ctl="$(remote "docker run $PROBE_OPTS --network 'container:$NGINX' '$BUSYBOX' sh -c '$NCPROBE' x $ports")" || ctl=""
+  while read -r t line; do
+    [[ -n "$t" ]] || continue
+    if [[ "$line" == REACHED ]]; then bad "the edge network reaches $t"
+    elif grep -qxF "$t REACHED" <<<"$ctl"; then echo "preflight: ok: $t not reachable from $EDGE_NETWORK (nginx reaches it)"
+    else echo "preflight: note: $t not reachable from $EDGE_NETWORK, but nginx cannot reach it either (proves nothing)"; fi
+  done <<<"$out"
+  remote "docker rm -f '$NETPROBE' >/dev/null 2>&1" || true
+
+  for t in "${urls[@]}"; do
+    code="$(curl -s -o /dev/null -m 10 -w '%{http_code}' "$t" || true)"
+    if [[ "$code" == 200 ]]; then echo "preflight: ok: $t 200"; else bad "$t answers $code after the change"; fi
+  done
+  remote "docker exec '$NGINX' nginx -t >/dev/null 2>&1" || bad "nginx -t fails in $NGINX"
+
+  if [[ "$fail" == 0 ]]; then
+    echo "preflight: ok: $EDGE_NETWORK is ready (kept, with $NGINX connected)"
+    return 0
+  fi
+  if [[ "$connected" == 1 ]]; then remote "docker network disconnect '$EDGE_NETWORK' '$NGINX'" || echo "preflight: could not disconnect $NGINX from $EDGE_NETWORK" >&2; fi
+  if [[ "$created" == 1 ]]; then remote "docker network rm '$EDGE_NETWORK' >/dev/null" || echo "preflight: could not remove $EDGE_NETWORK" >&2; fi
+  echo "preflight: FAILED; undone what this run added (connected=$connected created=$created)" >&2
+  return 1
+}
+
 status() {
   local l c i
   l="$(live)"
@@ -451,6 +541,12 @@ case "${1:-}" in
     status
     exit 0
     ;;
+  --preflight-network)
+    shift
+    lock_box
+    preflight_network "$@"
+    exit $?
+    ;;
   --doctor)
     doctor
     exit $?
@@ -468,7 +564,7 @@ case "${1:-}" in
     exit 0
     ;;
   "") ;;
-  *) die "usage: $0 [--force-drain-overlap] [--rollback <version> | --status | --doctor]" ;;
+  *) die "usage: $0 [--force-drain-overlap] [--rollback <version> | --status | --doctor | --preflight-network [host:port | https://url ...]]" ;;
 esac
 
 [[ -f dist/dogfight-linux-arm64 && -f dist/VERSION ]] || die "no dist/; run scripts/release.sh first"
@@ -481,9 +577,9 @@ lock_box
 live >/dev/null || exit 1
 overlap_check
 remote "docker inspect '$NGINX' >/dev/null" || die "no nginx container $NGINX on $HOST"
+idle_running "$VERSION" || true # refuses before shipping while the idle color drains another version
 edge_network
 edge_subnet >/dev/null || exit 1 # fail before shipping anything
-idle_running "$VERSION" || true # refuses before shipping while the idle color drains another version
 
 remote "mkdir -p '$DIR/dist' && printf '%s\n' 'NGINX_CONTAINER=$NGINX' 'NGINX_CONF=$CONF' > '$DIR/server.env'"
 ship dist/dogfight-linux-arm64 "$DIR/dist/dogfight-linux-arm64"

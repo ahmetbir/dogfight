@@ -368,6 +368,7 @@ scripts/deploy.sh                       # make the dist/ build live
 scripts/deploy.sh --status              # live color, versions, open sockets
 scripts/deploy.sh --doctor              # check invariants (exit 1 on a problem)
 scripts/deploy.sh --rollback <version>  # make a version already on the server live again
+scripts/deploy.sh --preflight-network [host:port | https://url ...]  # set up and prove EDGE_NETWORK
 ```
 
 nginx decides which color is live through the single
@@ -377,12 +378,14 @@ nginx decides which color is live through the single
    `DEPLOY_DIR`, and builds the image `dogfight:<version>`;
 2. starts the new version in the **idle** color and waits for its health check; if it never gets
    healthy, it is stopped and the live color never changes;
-3. switches nginx to the new color (`deploy/switch-upstream.sh`: rewrites the file in place,
+3. checks that nginx reaches the new color's `/healthz` over its docker networks (a throwaway
+   busybox in nginx's network namespace); if not, the new color is stopped and nothing switches;
+4. switches nginx to the new color (`deploy/switch-upstream.sh`: rewrites the file in place,
    then `nginx -t`, `nginx -T`, `nginx -s reload`; any failure restores the old file). A reload
    does not cut open WebSockets;
-4. drains the old color with `SIGUSR1`: its players finish their rooms, the stats lock moves to
+5. drains the old color with `SIGUSR1`: its players finish their rooms, the stats lock moves to
    the new color at once, and the old container exits on its own;
-5. confirms the new color opened its stats store (`stats opened` in the log) and prunes images
+6. confirms the new color opened its stats store (`stats opened` in the log) and prunes images
    older than the two colors.
 
 Deploy, rollback and `switch-upstream.sh` hold a `flock` on `$DEPLOY_DIR/deploy.lock`, so a
@@ -428,6 +431,14 @@ service, no internet. `-trust-proxy` then covers only nginx and the two colors.
 If nginx is recreated by its own compose project, `docker network connect` is lost: list the
 network there as an external network of the nginx service. `scripts/deploy.sh --doctor` reports
 when nginx shares no network with the live color, and the next deploy reconnects it.
+
+Before the first deploy onto a new network, `scripts/deploy.sh --preflight-network` sets it up and
+proves it without touching the game. The arguments are services the game must not reach (other
+containers' IPs, the host's public IP, as `host:port`) and URLs of other sites behind the same nginx.
+It checks that nginx's default route is unchanged, that nginx reaches a throwaway server on the
+network, that this server reaches none of the targets (or `1.1.1.1:443`), each one next to nginx
+reaching it as a control, that every URL answers 200 before and after, and that `nginx -t` passes.
+On a failure it undoes what it added.
 
 An existing network named in `EDGE_NETWORK` is used as it is (the deploy prints a note if it is
 not internal). To move from a network shared with other services, set `EDGE_NETWORK` to a new
