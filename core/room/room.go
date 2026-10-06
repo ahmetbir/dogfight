@@ -176,7 +176,7 @@ func (r *Room) input(id sim.ID, m protocol.ClientMsg) {
 	}
 	switch m.T {
 	case protocol.TIn:
-		s.push(m.Seq, m.Input())
+		s.q.push(m.Seq, m.Input())
 	case protocol.TPick:
 		if lo, ok := sim.ParseLoadout(m.Lo); ok { // before Pick: a respawning pick takes it at once
 			r.game.SetLoadout(id, lo)
@@ -206,8 +206,8 @@ func (r *Room) tick() {
 	}
 	inputs := make(map[sim.ID]sim.Input, len(r.sessions))
 	for id, s := range r.sessions {
-		in, _ := s.next()
-		if s.lastSeq > 0 { // before its first input the plane keeps its own throttle
+		in, _ := s.q.next()
+		if s.q.started() { // before its first input the plane keeps its own throttle
 			inputs[id] = in
 		}
 	}
@@ -223,7 +223,7 @@ func (r *Room) tick() {
 		r.events = nil // snap owns the old slice; sessions share it read-only
 		for _, s := range r.sessions {
 			ps := snap
-			ps.Ack = s.ack
+			ps.Ack = s.q.ack
 			s.out.Send(ps)
 		}
 	}

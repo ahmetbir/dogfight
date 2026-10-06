@@ -8,13 +8,6 @@ import (
 	"playground/internal/sim"
 )
 
-// Who is the human asking for a seat.
-type Who struct {
-	Name     string
-	Pilot    string // pilot.Hash(token); "" = not counted
-	NewToken string // raw token to hand back in the welcome, only when just issued; never stored
-}
-
 type joinReq struct {
 	who   Who
 	out   Sender
