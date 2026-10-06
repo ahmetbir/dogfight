@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"sync/atomic"
 
+	"playground/core/wsconn"
 	"playground/internal/room"
-	"playground/internal/wsconn"
 )
 
 // msgUpdating is the close reason (and API error) of a draining server: a

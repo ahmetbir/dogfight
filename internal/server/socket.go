@@ -5,11 +5,11 @@ import (
 	"errors"
 	"net/http"
 
-	"playground/internal/limit"
+	"playground/core/limit"
+	"playground/core/wsconn"
 	"playground/internal/protocol"
 	"playground/internal/room"
 	"playground/internal/sim"
-	"playground/internal/wsconn"
 )
 
 // User-facing error texts.

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"playground/internal/limit"
+	"playground/core/limit"
 	"playground/internal/protocol"
 )
 

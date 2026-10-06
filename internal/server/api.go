@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"playground/internal/pilot"
+	"playground/core/pilot"
 	"playground/internal/stats"
 )
 

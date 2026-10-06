@@ -17,9 +17,9 @@ import (
 	"syscall"
 	"time"
 
+	"playground/core/pilot"
 	"playground/internal/lobby"
 	"playground/internal/metrics"
-	"playground/internal/pilot"
 	"playground/internal/room"
 	"playground/internal/server"
 	"playground/internal/stats"

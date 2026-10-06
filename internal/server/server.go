@@ -9,13 +9,13 @@ import (
 	"sync"
 	"time"
 
-	"playground/internal/limit"
+	"playground/core/limit"
+	"playground/core/wsconn"
 	"playground/internal/lobby"
 	"playground/internal/metrics"
 	"playground/internal/protocol"
 	"playground/internal/room"
 	"playground/internal/stats"
-	"playground/internal/wsconn"
 )
 
 type Options struct {

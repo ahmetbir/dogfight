@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"playground/core/pilot"
 	"playground/internal/metrics"
-	"playground/internal/pilot"
 	"playground/internal/stats"
 )
 

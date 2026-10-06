@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"playground/core/pilot"
 	"playground/internal/bot"
 	"playground/internal/game"
 	"playground/internal/lobby"
 	"playground/internal/mode"
-	"playground/internal/pilot"
 	"playground/internal/protocol"
 	"playground/internal/room"
 	"playground/internal/stats"

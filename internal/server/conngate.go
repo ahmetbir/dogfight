@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"playground/internal/limit"
+	"playground/core/limit"
 )
 
 // errNet is a refusal by the per-/48 aggregate cap; it is also limit.ErrKey

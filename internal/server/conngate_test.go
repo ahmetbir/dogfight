@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"playground/internal/limit"
+	"playground/core/limit"
 )
 
 func TestConnGateReleasesBothCaps(t *testing.T) {
