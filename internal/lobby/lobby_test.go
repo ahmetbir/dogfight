@@ -4,14 +4,18 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"playground/core/metrics"
 	"playground/core/room"
 	"playground/internal/bot"
 	"playground/internal/game"
+	"playground/internal/match"
 	"playground/internal/mode"
+	"playground/internal/protocol"
 	"playground/internal/stats"
 )
 
@@ -145,7 +149,7 @@ func TestBuildPanicIsAnError(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	l := New(ctx, Options{})
-	l.newRoom = func(string, game.Settings, room.Options) *room.Room { panic("boom") }
+	l.newRoom = func(string, game.Settings, room.Options) *match.Room { panic("boom") }
 	if _, err := l.Create(ffa); err == nil {
 		t.Fatal("a panicking build must fail")
 	}
@@ -165,28 +169,44 @@ func TestBuildPanicIsAnError(t *testing.T) {
 	}
 }
 
-// The lobby hands its stats sink to every room it builds.
+// The lobby hands its stats sink to every room it builds (to the match: a
+// seated pilot's flight reaches it on a drain flush) and its creation order
+// to the room.
 func TestStatsSinkReachesRooms(t *testing.T) {
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	sk := &countSink{}
-	l := New(ctx, Options{Stats: sk})
-	var got room.Options
-	l.newRoom = func(code string, s game.Settings, o room.Options) *room.Room {
-		got = o
-		return room.New(code, s, o)
-	}
-	if _, err := l.Create(ffa); err != nil {
-		t.Fatal(err)
-	}
-	if got.Stats != sk || got.Seq != 1 {
-		t.Fatalf("room options %+v", got)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		sk := &countSink{}
+		l := New(ctx, Options{Stats: sk})
+		var got room.Options
+		build := l.newRoom
+		l.newRoom = func(code string, s game.Settings, o room.Options) *match.Room {
+			got = o
+			return build(code, s, o)
+		}
+		r, err := l.Create(ffa)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Seq != 1 {
+			t.Fatalf("room options %+v", got)
+		}
+		seat, err := r.Join(ctx, room.Who{Name: "a", Pilot: "pa"}, nopSender{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		seat.Input(protocol.ClientMsg{T: protocol.TPick, Kind: "f16"}) // spawns in the air
+		time.Sleep(3 * time.Second)
+		synctest.Wait()
+		if !l.FlushStats(ctx) || sk.n.Load() == 0 {
+			t.Fatalf("flushed tallies: %d", sk.n.Load())
+		}
+	})
 }
 
-type countSink struct{}
+type countSink struct{ n atomic.Int64 }
 
-func (*countSink) Record(stats.Delta) bool { return true }
+func (s *countSink) Record(stats.Delta) bool { s.n.Add(1); return true }
 
 // The rooms gauge follows rooms that run.
 func TestRoomsGauge(t *testing.T) {

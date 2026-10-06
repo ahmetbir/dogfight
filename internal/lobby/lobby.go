@@ -15,6 +15,7 @@ import (
 	"playground/core/metrics"
 	"playground/core/room"
 	"playground/internal/game"
+	"playground/internal/match"
 )
 
 // codeAlphabet omits I, O, 0 and 1. Its 32 letters divide 256, so a random
@@ -36,19 +37,19 @@ var (
 // Options configure a lobby.
 type Options struct {
 	MaxRooms int               // rooms running at once; 0 = no limit
-	Stats    room.StatsSink    // pilot tallies of every room; nil = not counted
+	Stats    match.StatsSink   // pilot tallies of every room; nil = not counted
 	Metrics  *metrics.Registry // nil = not measured
 }
 
 type Lobby struct {
 	ctx      context.Context
 	maxRooms int
-	stats    room.StatsSink
+	stats    match.StatsSink
 	m        *metrics.Registry
-	newRoom  func(code string, s game.Settings, o room.Options) *room.Room // room.New; swapped in tests
+	newRoom  func(code string, s game.Settings, o room.Options) *match.Room // a Dogfight room; swapped in tests
 	running  sync.WaitGroup
 	mu       sync.Mutex
-	rooms    map[string]*room.Room
+	rooms    map[string]*match.Room
 	seq      int64 // rooms created so far; a room's Seq is its rank
 	closed   bool  // Wait has begun: no room may start (running.Add would race Wait)
 	draining bool  // Drain(true): no room starts, quick play picks none
@@ -64,12 +65,16 @@ func (l *Lobby) Drain(on bool) {
 
 // New returns a lobby whose rooms stop when ctx is cancelled.
 func New(ctx context.Context, o Options) *Lobby {
-	return &Lobby{ctx: ctx, maxRooms: o.MaxRooms, stats: o.Stats, m: o.Metrics, newRoom: room.New, rooms: map[string]*room.Room{}}
+	l := &Lobby{ctx: ctx, maxRooms: o.MaxRooms, stats: o.Stats, m: o.Metrics, rooms: map[string]*match.Room{}}
+	l.newRoom = func(code string, s game.Settings, o room.Options) *match.Room {
+		return room.New(code, match.New(s, l.stats), o)
+	}
+	return l
 }
 
 // Create starts a room under a fresh code. It removes itself when done.
 // Past maxRooms, or once the lobby is shutting down, it fails with ErrBusy.
-func (l *Lobby) Create(s game.Settings) (*room.Room, error) {
+func (l *Lobby) Create(s game.Settings) (*match.Room, error) {
 	l.mu.Lock()
 	if l.draining {
 		l.mu.Unlock()
@@ -99,7 +104,7 @@ func (l *Lobby) Create(s game.Settings) (*room.Room, error) {
 	l.rooms[code] = r
 	l.mu.Unlock()
 
-	slog.Info("room created", "code", code, "mode", r.Mode())
+	slog.Info("room created", "code", code, "mode", r.Label())
 	l.roomsGauge(1)
 	go func() {
 		defer l.running.Done()
@@ -110,7 +115,7 @@ func (l *Lobby) Create(s game.Settings) (*room.Room, error) {
 			delete(l.rooms, code)
 		}
 		l.mu.Unlock()
-		slog.Info("room closed", "code", code, "mode", r.Mode())
+		slog.Info("room closed", "code", code, "mode", r.Label())
 	}()
 	return r, nil
 }
@@ -162,7 +167,7 @@ func (l *Lobby) freeCode() (string, error) {
 }
 
 // Get finds a room by code, case-insensitively; malformed codes never match.
-func (l *Lobby) Get(code string) (*room.Room, bool) {
+func (l *Lobby) Get(code string) (*match.Room, bool) {
 	code, ok := NormalizeCode(code)
 	if !ok {
 		return nil, false
@@ -174,10 +179,10 @@ func (l *Lobby) Get(code string) (*room.Room, bool) {
 }
 
 // live is every built room (reserved codes skipped).
-func (l *Lobby) live() []*room.Room {
+func (l *Lobby) live() []*match.Room {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	out := make([]*room.Room, 0, len(l.rooms))
+	out := make([]*match.Room, 0, len(l.rooms))
 	for _, r := range l.rooms {
 		if r != nil {
 			out = append(out, r)
@@ -188,14 +193,14 @@ func (l *Lobby) live() []*room.Room {
 
 // List is the listed rooms' summaries, most humans first, then newest.
 // Private rooms never appear.
-func (l *Lobby) List() []room.Summary {
-	var out []room.Summary
+func (l *Lobby) List() []match.Summary {
+	var out []match.Summary
 	for _, r := range l.live() {
 		if s := r.Summary(); s.Listed {
 			out = append(out, s)
 		}
 	}
-	slices.SortFunc(out, func(a, b room.Summary) int {
+	slices.SortFunc(out, func(a, b match.Summary) int {
 		if c := cmp.Compare(b.Humans, a.Humans); c != 0 {
 			return c
 		}
@@ -206,7 +211,7 @@ func (l *Lobby) List() []room.Summary {
 
 // Quick picks the first listed room in List order with a free seat. The
 // room may fill or close before the caller joins; the caller falls back.
-func (l *Lobby) Quick() (*room.Room, bool) {
+func (l *Lobby) Quick() (*match.Room, bool) {
 	l.mu.Lock()
 	draining := l.draining
 	l.mu.Unlock()
@@ -250,9 +255,9 @@ func inAlphabet(c byte) bool {
 	return false
 }
 
-// build runs room.New for a reserved code. A panic is an error: the
+// build runs newRoom for a reserved code. A panic is an error: the
 // reservation is released so the code (and a room slot) is not burned.
-func (l *Lobby) build(code string, s game.Settings, seq int64) (r *room.Room, err error) {
+func (l *Lobby) build(code string, s game.Settings, seq int64) (r *match.Room, err error) {
 	defer func() {
 		if v := recover(); v != nil {
 			l.mu.Lock()
@@ -262,5 +267,5 @@ func (l *Lobby) build(code string, s game.Settings, seq int64) (r *room.Room, er
 			r, err = nil, fmt.Errorf("lobby: building room: %v", v)
 		}
 	}()
-	return l.newRoom(code, s, room.Options{Seq: seq, Stats: l.stats, Metrics: l.m}), nil
+	return l.newRoom(code, s, room.Options{Seq: seq, Metrics: l.m}), nil
 }

@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	"playground/core/room"
 	"playground/core/wsconn"
+	"playground/internal/match"
 )
 
 // msgUpdating is the close reason (and API error) of a draining server: a
@@ -69,7 +69,7 @@ func (s *Server) counted(next http.HandlerFunc) http.HandlerFunc {
 
 // updating closes the handshaking socket with 1012 (msgUpdating); the
 // socket handler's later Fail is a no-op on the closed connection.
-func (s *Server) updating(p *peer) (*room.Seat, string) {
+func (s *Server) updating(p *peer) (*match.Seat, string) {
 	p.conn.Restart(msgUpdating)
 	return nil, msgUpdating
 }

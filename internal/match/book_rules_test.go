@@ -1,4 +1,4 @@
-package room
+package match
 
 import (
 	"bufio"
@@ -94,7 +94,7 @@ func readAircraft(t *testing.T) map[string]string {
 	return nil
 }
 
-const ticks = float64(TickRate)
+const ticks = float64(tickRate)
 
 func deg(rad float64) float64 { return rad * 180 / math.Pi }
 

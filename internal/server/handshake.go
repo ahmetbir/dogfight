@@ -15,6 +15,7 @@ import (
 	"playground/internal/game"
 	"playground/internal/lobby"
 	"playground/internal/maps"
+	"playground/internal/match"
 	"playground/internal/mode"
 	"playground/internal/protocol"
 	"playground/internal/sim"
@@ -23,7 +24,7 @@ import (
 
 // handshake reads hello then create|join|quick and seats the player. On failure
 // it returns the user-facing error text.
-func (s *Server) handshake(ctx context.Context, p *peer) (*room.Seat, string) {
+func (s *Server) handshake(ctx context.Context, p *peer) (*match.Seat, string) {
 	m, err := s.recv(ctx, p)
 	if err != nil {
 		return nil, s.msgOf(err, p)
@@ -43,7 +44,7 @@ func (s *Server) handshake(ctx context.Context, p *peer) (*room.Seat, string) {
 	if s.draining() {
 		return s.updating(p)
 	}
-	var rm *room.Room
+	var rm *match.Room
 	switch m.T {
 	case protocol.TCreate:
 		st, ok := settings(m, s.o.Now())
@@ -108,7 +109,7 @@ func identify(name, tok string) room.Who {
 
 // create makes a room under the address's create limit. On failure it
 // returns the user-facing error text.
-func (s *Server) create(p *peer, st game.Settings) (*room.Room, string) {
+func (s *Server) create(p *peer, st game.Settings) (*match.Room, string) {
 	// Take the token first (check and spend in one step, so concurrent
 	// creates cannot share one); a create that fails gives it back.
 	if !s.creates.Allow(p.key, s.o.Now()) {
@@ -137,7 +138,7 @@ func (s *Server) create(p *peer, st game.Settings) (*room.Room, string) {
 // limit. done is false when no listed room has a free seat, or the picked
 // one filled or closed before the join (its token is given back): the
 // caller then makes a new room.
-func (s *Server) quickJoin(ctx context.Context, p *peer, who room.Who) (seat *room.Seat, msg string, done bool) {
+func (s *Server) quickJoin(ctx context.Context, p *peer, who room.Who) (seat *match.Seat, msg string, done bool) {
 	r, ok := s.quickPick()
 	if !ok {
 		return nil, "", false

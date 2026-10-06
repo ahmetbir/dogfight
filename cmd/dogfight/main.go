@@ -19,8 +19,8 @@ import (
 
 	"playground/core/metrics"
 	"playground/core/pilot"
-	"playground/core/room"
 	"playground/internal/lobby"
+	"playground/internal/match"
 	"playground/internal/server"
 	"playground/internal/stats"
 )
@@ -83,8 +83,8 @@ func run(cfg config) error {
 	if err != nil {
 		return err
 	}
-	var st *stats.Slot      // nil = stats off (no -data)
-	var sink room.StatsSink // only a non-nil slot: no typed-nil interface
+	var st *stats.Slot       // nil = stats off (no -data)
+	var sink match.StatsSink // only a non-nil slot: no typed-nil interface
 	var dropped func() uint64
 	if cfg.dataDir != "" {
 		st = stats.NewSlot() // opened by the drainer: it may wait for the old server's lock

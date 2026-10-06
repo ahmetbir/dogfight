@@ -11,9 +11,9 @@ import (
 
 	"playground/core/limit"
 	"playground/core/metrics"
-	"playground/core/room"
 	"playground/core/wsconn"
 	"playground/internal/lobby"
+	"playground/internal/match"
 	"playground/internal/protocol"
 	"playground/internal/stats"
 )
@@ -109,7 +109,7 @@ type Server struct {
 	boards    map[stats.Period]*apiCache // GET /api/leaderboard body per period
 	// quickPick picks a room for quick play; the lobby's Quick, swapped in
 	// tests to race the picked room.
-	quickPick func() (*room.Room, bool)
+	quickPick func() (*match.Room, bool)
 	sockets   sync.WaitGroup
 	drain     drain
 }

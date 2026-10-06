@@ -97,9 +97,9 @@ func (s *Server) apiRooms(w http.ResponseWriter, r *http.Request) {
 			Rooms []roomJSON `json:"rooms"`
 		}{Rooms: make([]roomJSON, 0, len(list))}
 		for _, x := range list {
-			row := roomJSON{x.Code, x.Mode, x.Map, x.Weather, x.Humans, x.Seats, x.Phase, x.LeftS, nil}
-			if x.Mode != "ffa" {
-				row.Teams = &[2]int{x.NATO, x.Soviet}
+			row := roomJSON{x.Code, x.Game.Mode, x.Game.Map, x.Game.Weather, x.Humans, x.Seats, x.Game.Phase, x.Game.LeftS, nil}
+			if x.Game.Mode != "ffa" {
+				row.Teams = &[2]int{x.Game.NATO, x.Game.Soviet}
 			}
 			out.Rooms = append(out.Rooms, row)
 		}

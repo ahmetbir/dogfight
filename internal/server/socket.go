@@ -7,8 +7,8 @@ import (
 
 	"playground/core/limit"
 	"playground/core/netproto"
-	"playground/core/room"
 	"playground/core/wsconn"
+	"playground/internal/match"
 	"playground/internal/protocol"
 	"playground/internal/sim"
 )
@@ -156,7 +156,7 @@ func (s *Server) msgOf(err error, p *peer) string {
 // pump forwards in-game messages to the room until the connection or the
 // room ends. It returns an error text for a message that breaks protocol
 // or the connection's rate limits.
-func (s *Server) pump(p *peer, seat *room.Seat) string {
+func (s *Server) pump(p *peer, seat *match.Seat) string {
 	defer p.drops.flush(p.ip)
 	done := seat.Done()
 	for {

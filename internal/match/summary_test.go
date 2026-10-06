@@ -1,19 +1,21 @@
-package room
+package match
 
 import (
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"playground/core/room"
 )
 
 func TestSummaryTracksJoins(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		r, cancel := start(t)
+		r, _, cancel := startMatch(t, ffa4, nil)
 		defer cancel()
-		if s := r.Summary(); s.Humans != 0 || s.Seats != 4 || s.Mode != "ffa" || s.Map != "ada" || s.Weather != "acik" || s.Phase != "playing" {
+		if s := r.Summary(); s.Humans != 0 || s.Seats != 4 || s.Game.Mode != "ffa" || s.Game.Map != "ada" || s.Game.Weather != "acik" || s.Game.Phase != "playing" {
 			t.Fatalf("initial %+v", s)
 		}
-		seat, err := r.Join(t.Context(), Who{Name: "a"}, &fakeSender{})
+		seat, err := r.Join(t.Context(), room.Who{Name: "a"}, &fakeSender{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -23,7 +25,7 @@ func TestSummaryTracksJoins(t *testing.T) {
 		seat.Leave()
 		time.Sleep(100 * time.Millisecond)
 		synctest.Wait()
-		if s := r.Summary(); s.Humans != 0 || s.LeftS <= 0 {
+		if s := r.Summary(); s.Humans != 0 || s.Game.LeftS <= 0 {
 			t.Fatalf("after leave %+v", s)
 		}
 	})

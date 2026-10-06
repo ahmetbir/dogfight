@@ -1,4 +1,4 @@
-package room
+package room_test
 
 import (
 	"context"
@@ -6,25 +6,31 @@ import (
 	"testing/synctest"
 	"time"
 
+	"playground/core/internal/fakegame"
 	"playground/core/metrics"
+	"playground/core/room"
 )
 
 func TestRoomMetrics(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		reg := metrics.New("dogfight", nil)
-		r := New("MTRC", ffa4, Options{Metrics: reg})
+		r := room.New("MTRC", fakegame.New(fakegame.Settings{}, nil), room.Options{Metrics: reg})
 		ctx, cancel := context.WithCancel(t.Context())
 		go r.Run(ctx)
 		if reg.Bots.Load() != 4 || reg.Humans.Load() != 0 {
 			t.Fatalf("bots %d humans %d", reg.Bots.Load(), reg.Humans.Load())
 		}
-		seat, _ := r.Join(ctx, Who{Name: "a"}, &fakeSender{})
+		seat, _ := r.Join(ctx, room.Who{Name: "a"}, &fakeSender{})
 		time.Sleep(time.Second)
 		synctest.Wait()
 		if reg.Bots.Load() != 3 || reg.Humans.Load() != 1 || reg.TickSeconds.Count() == 0 {
 			t.Fatalf("bots %d humans %d", reg.Bots.Load(), reg.Humans.Load())
 		}
 		seat.Leave()
+		synctest.Wait()
+		if reg.Bots.Load() != 4 || reg.Humans.Load() != 0 {
+			t.Fatalf("after leave: bots %d humans %d", reg.Bots.Load(), reg.Humans.Load())
+		}
 		cancel()
 		<-r.Done()
 		if reg.Bots.Load() != 0 || reg.Humans.Load() != 0 {
@@ -37,11 +43,11 @@ func TestRoomMetrics(t *testing.T) {
 func TestRoomMetricsClosedWithHumans(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		reg := metrics.New("dogfight", nil)
-		r := New("MTRH", ffa4, Options{Metrics: reg})
+		r := room.New("MTRH", fakegame.New(fakegame.Settings{}, nil), room.Options{Metrics: reg})
 		ctx, cancel := context.WithCancel(t.Context())
 		go r.Run(ctx)
-		r.Join(ctx, Who{Name: "a"}, &fakeSender{})
-		r.Join(ctx, Who{Name: "b"}, &fakeSender{})
+		r.Join(ctx, room.Who{Name: "a"}, &fakeSender{})
+		r.Join(ctx, room.Who{Name: "b"}, &fakeSender{})
 		cancel()
 		<-r.Done()
 		if reg.Bots.Load() != 0 || reg.Humans.Load() != 0 {

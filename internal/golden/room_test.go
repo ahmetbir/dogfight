@@ -13,6 +13,7 @@ import (
 
 	"playground/core/room"
 	"playground/internal/game"
+	"playground/internal/match"
 	"playground/internal/protocol"
 	"playground/internal/sim"
 	"playground/internal/stats"
@@ -21,8 +22,8 @@ import (
 // newRoom builds a Dogfight room the way the lobby does. It is the only
 // code in this file later refactor tasks may change (the constructor
 // moves); scenarios and golden files never change.
-func newRoom(code string, s game.Settings, sink *sink) *room.Room {
-	return room.New(code, s, room.Options{Seq: 1, Stats: sink})
+func newRoom(code string, s game.Settings, sink *sink) *match.Room {
+	return room.New(code, match.New(s, sink), room.Options{Seq: 1})
 }
 
 // sink records pilot tallies into the transcript ("sink" session) and sums
@@ -139,11 +140,11 @@ const tick = time.Second / 60
 type h struct {
 	t      *testing.T
 	s      game.Settings
-	r      *room.Room
+	r      *match.Room
 	tr     *transcript
 	sink   *sink
 	cancel context.CancelFunc
-	seats  map[string]*room.Seat
+	seats  map[string]*match.Seat
 	recs   map[string]*rec
 	pilots map[string]*autoPilot
 	seqs   map[string]uint32
@@ -157,7 +158,7 @@ func start(t *testing.T, s game.Settings) *h {
 	go r.Run(ctx)
 	time.Sleep(tick / 2)
 	synctest.Wait()
-	return &h{t: t, s: s, r: r, tr: tr, sink: sk, cancel: cancel, seats: map[string]*room.Seat{},
+	return &h{t: t, s: s, r: r, tr: tr, sink: sk, cancel: cancel, seats: map[string]*match.Seat{},
 		recs: map[string]*rec{}, pilots: map[string]*autoPilot{}, seqs: map[string]uint32{}}
 }
 
@@ -168,7 +169,7 @@ func (x *h) join(name, pilotHash, tok string) {
 		x.t.Fatalf("join %s: %v", name, err)
 	}
 	rc.mu.Lock()
-	rc.me = seat.ID()
+	rc.me = sim.ID(seat.ID())
 	rc.mu.Unlock()
 	x.seats[name], x.recs[name] = seat, rc
 	synctest.Wait()
@@ -176,7 +177,7 @@ func (x *h) join(name, pilotHash, tok string) {
 
 // autopilot hands a seat's stick to a brain (see autoPilot); seed varies it.
 func (x *h) autopilot(name string, seed int64) {
-	x.pilots[name] = newPilot(x.seats[name].ID(), x.s, seed)
+	x.pilots[name] = newPilot(sim.ID(x.seats[name].ID()), x.s, seed)
 }
 
 func (x *h) send(name string, m protocol.ClientMsg) { x.seats[name].Input(m); synctest.Wait() }

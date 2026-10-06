@@ -1,12 +1,12 @@
-package room
+package match
 
 import (
-	"context"
 	"testing"
 	"testing/synctest"
 	"time"
 
 	"playground/core/netproto"
+	"playground/core/room"
 	"playground/internal/bot"
 	"playground/internal/game"
 	"playground/internal/mode"
@@ -15,14 +15,13 @@ import (
 
 func TestChatTeamOnlyAndCooldown(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		r := New("CHAT", game.Settings{Mode: mode.Team, Size: 2, Difficulty: bot.Easy, Seed: 1}, Options{})
-		ctx, cancel := context.WithCancel(t.Context())
+		r, _, cancel := startMatch(t, game.Settings{Mode: mode.Team, Size: 2, Difficulty: bot.Easy, Seed: 1}, nil)
 		defer cancel()
-		go r.Run(ctx)
+		ctx := t.Context()
 		a, b, c := &fakeSender{}, &fakeSender{}, &fakeSender{}
-		sa, _ := r.Join(ctx, Who{Name: "a"}, a) // NATO
-		r.Join(ctx, Who{Name: "b"}, b)          // Soviet
-		r.Join(ctx, Who{Name: "c"}, c)          // NATO
+		sa, _ := r.Join(ctx, room.Who{Name: "a"}, a) // NATO
+		r.Join(ctx, room.Who{Name: "b"}, b)          // Soviet
+		r.Join(ctx, room.Who{Name: "c"}, c)          // NATO
 		sa.Input(protocol.ClientMsg{T: protocol.TChat, Chat: 3})
 		sa.Input(protocol.ClientMsg{T: protocol.TChat, Chat: 4}) // inside the cooldown: dropped
 		time.Sleep(100 * time.Millisecond)
@@ -42,11 +41,11 @@ func TestChatTeamOnlyAndCooldown(t *testing.T) {
 
 func TestChatReachesEveryoneInFFA(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		r, cancel := start(t)
+		r, _, cancel := startMatch(t, ffa4, nil)
 		defer cancel()
 		a, b := &fakeSender{}, &fakeSender{}
-		sa, _ := r.Join(t.Context(), Who{Name: "a"}, a)
-		r.Join(t.Context(), Who{Name: "b"}, b)
+		sa, _ := r.Join(t.Context(), room.Who{Name: "a"}, a)
+		r.Join(t.Context(), room.Who{Name: "b"}, b)
 		sa.Input(protocol.ClientMsg{T: protocol.TChat, Chat: 1})
 		time.Sleep(100 * time.Millisecond)
 		synctest.Wait()
@@ -56,7 +55,7 @@ func TestChatReachesEveryoneInFFA(t *testing.T) {
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		for _, m := range b.msgs {
-			if c, ok := m.(protocol.ChatMsg); ok && (c.From != netproto.PlayerID(sa.ID()) || c.ID != 1) {
+			if c, ok := m.(netproto.ChatMsg); ok && (c.From != sa.ID() || c.ID != 1) {
 				t.Fatalf("chat %+v", c)
 			}
 		}

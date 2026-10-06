@@ -15,6 +15,7 @@ import (
 	"playground/internal/bot"
 	"playground/internal/game"
 	"playground/internal/lobby"
+	"playground/internal/match"
 	"playground/internal/mode"
 	"playground/internal/protocol"
 	"playground/internal/stats"
@@ -126,12 +127,12 @@ func (nopSender) Close()        {}
 
 // quickServer is a server whose quick play picks with pick instead of
 // the lobby's own Quick, so a test can race the picked room.
-func quickServer(t *testing.T, lim Limits, pick func(l *lobby.Lobby) (*room.Room, bool)) (*httptest.Server, *lobby.Lobby) {
+func quickServer(t *testing.T, lim Limits, pick func(l *lobby.Lobby) (*match.Room, bool)) (*httptest.Server, *lobby.Lobby) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	l := lobby.New(ctx, lobby.Options{})
 	s := New(l, Options{Limits: lim})
-	s.quickPick = func() (*room.Room, bool) { return pick(l) }
+	s.quickPick = func() (*match.Room, bool) { return pick(l) }
 	srv := httptest.NewServer(s)
 	t.Cleanup(func() { cancel(); srv.Close() })
 	return srv, l
@@ -153,8 +154,8 @@ func quickCode(t *testing.T, srv *httptest.Server) string {
 // the player gets no error, a new room is made, and the join token is
 // refunded.
 func TestQuickFallsBackWhenPickedRoomFills(t *testing.T) {
-	var picked *room.Room
-	srv, l := quickServer(t, tight(func(l *Limits) { l.JoinPerMinIP = 1 }), func(l *lobby.Lobby) (*room.Room, bool) {
+	var picked *match.Room
+	srv, l := quickServer(t, tight(func(l *Limits) { l.JoinPerMinIP = 1 }), func(l *lobby.Lobby) (*match.Room, bool) {
 		r, ok := l.Quick()
 		if !ok {
 			t.Error("the listed room with free seats was not picked")
@@ -188,12 +189,12 @@ func TestQuickFallsBackWhenPickedRoomFills(t *testing.T) {
 
 // The picked room stops between the pick and the join: same fallback.
 func TestQuickFallsBackWhenPickedRoomCloses(t *testing.T) {
-	gone := room.New("GONE", listedFFA2, room.Options{})
+	gone := room.New("GONE", match.New(listedFFA2, nil), room.Options{})
 	ctx, cancel := context.WithCancel(context.Background())
 	go gone.Run(ctx)
 	cancel()
 	<-gone.Done()
-	srv, _ := quickServer(t, tight(func(*Limits) {}), func(*lobby.Lobby) (*room.Room, bool) { return gone, true })
+	srv, _ := quickServer(t, tight(func(*Limits) {}), func(*lobby.Lobby) (*match.Room, bool) { return gone, true })
 	if code := quickCode(t, srv); code == "" || code == "GONE" {
 		t.Fatalf("quick must create a new room, got %q", code)
 	}
