@@ -17,9 +17,9 @@ import (
 	"syscall"
 	"time"
 
+	"playground/core/metrics"
 	"playground/core/pilot"
 	"playground/internal/lobby"
-	"playground/internal/metrics"
 	"playground/internal/room"
 	"playground/internal/server"
 	"playground/internal/stats"
@@ -90,7 +90,7 @@ func run(cfg config) error {
 		st = stats.NewSlot() // opened by the drainer: it may wait for the old server's lock
 		sink, dropped = st, st.Dropped
 	}
-	reg := metrics.New(dropped)
+	reg := metrics.New("dogfight", dropped)
 	msrv, err := serveMetrics(cfg.metricsAddr, reg)
 	if err != nil {
 		return err

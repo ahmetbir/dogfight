@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"playground/core/metrics"
 	"playground/core/pilot"
-	"playground/internal/metrics"
 	"playground/internal/protocol"
 	"playground/internal/room"
 )
@@ -47,7 +47,7 @@ func TestFetchCapsBody(t *testing.T) {
 func TestSummaryLoop(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	got := make(chan string, 4)
-	go summaryLoop(ctx, metrics.New(nil), 10*time.Millisecond, func(s string) { got <- s })
+	go summaryLoop(ctx, metrics.New("dogfight", nil), 10*time.Millisecond, func(s string) { got <- s })
 	s := <-got
 	cancel()
 	if !strings.HasPrefix(s, "rooms=0") {

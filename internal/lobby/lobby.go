@@ -12,8 +12,8 @@ import (
 	"slices"
 	"sync"
 
+	"playground/core/metrics"
 	"playground/internal/game"
-	"playground/internal/metrics"
 	"playground/internal/room"
 )
 

@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"playground/core/metrics"
 	"playground/internal/bot"
 	"playground/internal/game"
-	"playground/internal/metrics"
 	"playground/internal/mode"
 	"playground/internal/room"
 	"playground/internal/stats"
@@ -191,7 +191,7 @@ func (*countSink) Record(stats.Delta) bool { return true }
 // The rooms gauge follows rooms that run.
 func TestRoomsGauge(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
-	reg := metrics.New(nil)
+	reg := metrics.New("dogfight", nil)
 	l := New(ctx, Options{Metrics: reg})
 	l.Create(ffa)
 	l.Create(ffa)

@@ -140,8 +140,9 @@ func (v *CounterVec) Inc(value string) {
 	c.Inc()
 }
 
-// Registry holds every dogfight metric.
+// Registry holds one server's metrics.
 type Registry struct {
+	ns                                       string // name prefix, e.g. "dogfight"
 	Rooms, Humans, Bots, Conns               Gauge
 	TickSeconds                              *Histogram
 	TickOverruns, MsgsIn, MsgsOut, SnapDrops Counter
@@ -150,8 +151,9 @@ type Registry struct {
 	StatsDropped                             func() uint64 // optional, read at scrape
 }
 
-func New(statsDropped func() uint64) *Registry {
+func New(namespace string, statsDropped func() uint64) *Registry {
 	return &Registry{
+		ns: namespace,
 		// tick buckets in seconds: 1, 2, 4, 8, 12, 16.7, 25, 50 ms (spec §11)
 		TickSeconds: NewHistogram([]float64{0.001, 0.002, 0.004, 0.008, 0.012, 0.0167, 0.025, 0.05}),
 		Rejects: NewCounterVec("reason", "conns-per-ip", "conns-per-net", "conns-total", "create-rate", "join-rate",

@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"playground/core/limit"
+	"playground/core/metrics"
 	"playground/core/wsconn"
 	"playground/internal/lobby"
-	"playground/internal/metrics"
 	"playground/internal/protocol"
 	"playground/internal/room"
 	"playground/internal/stats"

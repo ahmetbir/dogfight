@@ -12,22 +12,22 @@ import (
 // WriteText writes the Prometheus text format (version 0.0.4).
 func (r *Registry) WriteText(w io.Writer) error {
 	var b bytes.Buffer
-	gauge(&b, "dogfight_rooms", "Open rooms.", r.Rooms.Load())
-	gauge(&b, "dogfight_humans", "Human players in rooms.", r.Humans.Load())
-	gauge(&b, "dogfight_bots", "Bots in rooms.", r.Bots.Load())
-	gauge(&b, "dogfight_conns", "Open WebSocket connections.", r.Conns.Load())
-	histogram(&b, "dogfight_tick_seconds", "Room tick duration in seconds.", r.TickSeconds)
-	counter(&b, "dogfight_tick_overruns_total", "Ticks longer than 16.7 ms.", r.TickOverruns.Load())
-	counter(&b, "dogfight_msgs_in_total", "Client messages received.", r.MsgsIn.Load())
-	counter(&b, "dogfight_msgs_out_total", "Server messages sent.", r.MsgsOut.Load())
-	counter(&b, "dogfight_snap_drops_total", "Snapshots dropped on full send queues.", r.SnapDrops.Load())
+	gauge(&b, r.ns+"_rooms", "Open rooms.", r.Rooms.Load())
+	gauge(&b, r.ns+"_humans", "Human players in rooms.", r.Humans.Load())
+	gauge(&b, r.ns+"_bots", "Bots in rooms.", r.Bots.Load())
+	gauge(&b, r.ns+"_conns", "Open WebSocket connections.", r.Conns.Load())
+	histogram(&b, r.ns+"_tick_seconds", "Room tick duration in seconds.", r.TickSeconds)
+	counter(&b, r.ns+"_tick_overruns_total", "Ticks longer than 16.7 ms.", r.TickOverruns.Load())
+	counter(&b, r.ns+"_msgs_in_total", "Client messages received.", r.MsgsIn.Load())
+	counter(&b, r.ns+"_msgs_out_total", "Server messages sent.", r.MsgsOut.Load())
+	counter(&b, r.ns+"_snap_drops_total", "Snapshots dropped on full send queues.", r.SnapDrops.Load())
 	var sd uint64
 	if r.StatsDropped != nil {
 		sd = r.StatsDropped()
 	}
-	counter(&b, "dogfight_stats_dropped_total", "Pilot stat deltas dropped.", sd)
-	vec(&b, "dogfight_rejects_total", "Rejected connections and requests by reason.", r.Rejects)
-	vec(&b, "dogfight_api_requests_total", "API requests by path.", r.API)
+	counter(&b, r.ns+"_stats_dropped_total", "Pilot stat deltas dropped.", sd)
+	vec(&b, r.ns+"_rejects_total", "Rejected connections and requests by reason.", r.Rejects)
+	vec(&b, r.ns+"_api_requests_total", "API requests by path.", r.API)
 	gauge(&b, "go_goroutines", "Number of goroutines.", int64(runtime.NumGoroutine()))
 	var ms runtime.MemStats
 	runtime.ReadMemStats(&ms) // once per scrape

@@ -10,8 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"playground/core/metrics"
 	"playground/internal/game"
-	"playground/internal/metrics"
 	"playground/internal/protocol"
 	"playground/internal/sim"
 )

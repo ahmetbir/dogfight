@@ -6,12 +6,12 @@ import (
 	"testing/synctest"
 	"time"
 
-	"playground/internal/metrics"
+	"playground/core/metrics"
 )
 
 func TestRoomMetrics(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		reg := metrics.New(nil)
+		reg := metrics.New("dogfight", nil)
 		r := New("MTRC", ffa4, Options{Metrics: reg})
 		ctx, cancel := context.WithCancel(t.Context())
 		go r.Run(ctx)
@@ -36,7 +36,7 @@ func TestRoomMetrics(t *testing.T) {
 // A room closed with humans still seated gives back every gauge too.
 func TestRoomMetricsClosedWithHumans(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		reg := metrics.New(nil)
+		reg := metrics.New("dogfight", nil)
 		r := New("MTRH", ffa4, Options{Metrics: reg})
 		ctx, cancel := context.WithCancel(t.Context())
 		go r.Run(ctx)

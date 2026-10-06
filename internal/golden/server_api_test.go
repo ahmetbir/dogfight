@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"playground/core/metrics"
 	"playground/core/pilot"
-	"playground/internal/metrics"
 	"playground/internal/stats"
 )
 
@@ -129,7 +129,7 @@ func TestGoldenServerRoutes(t *testing.T) {
 }
 
 func TestGoldenMetricsText(t *testing.T) {
-	reg := metrics.New(func() uint64 { return 7 })
+	reg := metrics.New("dogfight", func() uint64 { return 7 })
 	reg.Rooms.Add(2)
 	reg.Humans.Add(3)
 	reg.Bots.Add(5)

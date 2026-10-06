@@ -11,7 +11,7 @@ import (
 )
 
 func TestExposition(t *testing.T) {
-	r := New(func() uint64 { return 7 })
+	r := New("dogfight", func() uint64 { return 7 })
 	r.Rooms.Set(2)
 	r.Humans.Add(3)
 	r.MsgsIn.Add(10)
@@ -47,7 +47,7 @@ func TestExposition(t *testing.T) {
 }
 
 func TestHandlerAndSummary(t *testing.T) {
-	r := New(nil)
+	r := New("dogfight", nil)
 	h := Handler(r)
 	for path, code := range map[string]int{"/metrics": 200, "/": 404, "/debug/pprof/": 404} {
 		rec := httptest.NewRecorder()
@@ -95,7 +95,7 @@ func TestHistogramQuantileAndSum(t *testing.T) {
 }
 
 func TestSummaryFormat(t *testing.T) {
-	r := New(nil)
+	r := New("dogfight", nil)
 	r.Rooms.Set(1)
 	r.Humans.Set(2)
 	r.Bots.Set(6)
@@ -109,7 +109,7 @@ func TestSummaryFormat(t *testing.T) {
 }
 
 func TestHandlerHeadersAndHead(t *testing.T) {
-	r := New(nil)
+	r := New("dogfight", nil)
 	r.API.Inc("me")
 	h := Handler(r)
 	rec := httptest.NewRecorder()
@@ -139,7 +139,7 @@ func TestHistogramIgnoresNonFinite(t *testing.T) {
 		t.Fatalf("invalid %d sum %v p100 %v", h.Invalid(), h.sumValue(), h.Quantile(1))
 	}
 	var b strings.Builder
-	r := New(nil)
+	r := New("dogfight", nil)
 	r.TickSeconds.Observe(math.NaN())
 	r.WriteText(&b)
 	if !strings.Contains(b.String(), "dogfight_tick_seconds_sum 0\n") || !strings.Contains(b.String(), "dogfight_tick_seconds_count 0\n") {
@@ -160,6 +160,19 @@ func TestLabelValuesEscaped(t *testing.T) {
 	for _, want := range []string{`x_total{path="a\"b"} 1`, `x_total{path="c\\d"} 1`, `x_total{path="e\nf"} 1`} {
 		if !strings.Contains(b.String(), want+"\n") {
 			t.Fatalf("missing %s in\n%s", want, b.String())
+		}
+	}
+}
+
+func TestNamespacePrefixesEveryName(t *testing.T) {
+	var b bytes.Buffer
+	if err := New("f1", nil).WriteText(&b); err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range strings.Split(strings.TrimSpace(b.String()), "\n") {
+		name := strings.Fields(strings.TrimPrefix(strings.TrimPrefix(l, "# HELP "), "# TYPE "))[0]
+		if !strings.HasPrefix(name, "f1_") && !strings.HasPrefix(name, "go_") {
+			t.Fatalf("unprefixed metric %q", l)
 		}
 	}
 }
