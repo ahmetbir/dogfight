@@ -535,11 +535,11 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 ```
 cmd/dogfight/        main: flags, HTTP server, embedded web/, graceful shutdown, drain, -healthcheck
 cmd/loadtest/        WebSocket load generator and CPU bench
-internal/server/     HTTP routes (/, /r/{code}, /healthz, /ws, /api/*), security headers, handshake, limits
-internal/limit/      token bucket, per-address bucket table (bounded memory), connection gate
-internal/wsconn/     WebSocket connection: reader + writer goroutines, bounded queue
-internal/lobby/      room codes (4 letters), room lifecycle, room cap
-internal/room/       room actor: one goroutine, 60 Hz tick, 30 Hz snapshots, input queues
+core/                game-agnostic Go stack: wsconn, limit, pilot, metrics, netproto, room, lobby,
+                     server, loadtest, internal/fakegame + fakekit (test doubles)
+internal/match/      Dogfight on core: room, seat, summary and lobby aliases, game adapter
+internal/front/      Dogfight's HTTP front: server wiring, stats API
+internal/golden/     frozen wire-format goldens and the core import-boundary test
 internal/protocol/   JSON message types and conversions
 internal/game/       one room's match: world, rules, scoreboard, bots, roster
 internal/mode/       team / FFA / Base Attack rules, scoreboard, structure HP
@@ -550,10 +550,10 @@ internal/maps/       4 map generators: base layout, runway, hangars, buildings, 
 internal/terrain/    heightmap from a seed, flattening, bilinear sampling
 internal/weather/    6 weather types: wind, gusts, missile lock range multiplier (visuals in the client)
 internal/rng/        seeded splitmix (no global randomness)
-internal/pilot/      pilot token: generation, format check, SHA-256 hash, log masking
 internal/stats/      pilot stats store: actor, JSONL journal + snapshot, leaderboard
-internal/metrics/    hand-written Prometheus text format, 60 s summary log
 internal/geom/       vectors and quaternions
+client/src/core/     game-agnostic TypeScript: reconnecting socket, prediction, interpolation,
+                     i18n, store, audio and UI shells (never imports Three.js or game code)
 client/src/          net (socket), predict (prediction + interpolation), render (Three.js),
                      input (mouse, keyboard, touch, tilt), audio (Web Audio jet sound),
                      ui (DOM), game (loop, cameras, killcam, replay), sim (TS flight/ground port),
@@ -573,6 +573,14 @@ docs/superpowers/    design specs and implementation plans (in Turkish)
 - **Design docs:** `docs/superpowers/specs/2026-10-06-dogfight-design.md` (v1) and
   `docs/superpowers/specs/2026-10-07-dogfight-v2-design.md` (v2); implementation plans under
   `docs/superpowers/plans/`.
+
+### Shared core
+
+`core/` (Go) and `client/src/core/` (TypeScript) are the game-agnostic multiplayer stack: rooms,
+lobby, handshake, limits, blue/green drain, pilot tokens, metrics, load test; reconnecting socket,
+prediction, interpolation, i18n and UI shells. Dogfight is one game on it (`internal/match`,
+`internal/front`). Neither tree may import game code; tests enforce it. Design:
+`docs/superpowers/specs/2026-10-07-core-extraction-design.md`.
 
 ## Contributing
 

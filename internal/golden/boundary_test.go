@@ -72,3 +72,10 @@ func TestDockerfileCopiesEveryGoDir(t *testing.T) {
 		}
 	}
 }
+
+// The extraction is complete: no core package may import Dogfight.
+func TestCoreAllowlistIsEmpty(t *testing.T) {
+	if len(coreAllow) != 0 {
+		t.Fatalf("core still allowed to import Dogfight: %v", coreAllow)
+	}
+}
