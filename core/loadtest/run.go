@@ -8,6 +8,14 @@ import (
 )
 
 // Script is what a game tells the load test.
+//
+// Concurrency: methods are called from several goroutines at once. For one
+// player, Hello and Create run on the player's goroutine, Input on its send
+// goroutine and React on its read goroutine, so Input and React run
+// concurrently; one player's React calls are serial. Different players run
+// concurrently too. An implementation must guard any state it shares between
+// them. React's replies are best-effort: one dropped while another is still
+// waiting to be sent is not retried.
 type Script interface {
 	Hello(i int) any                            // player i's hello
 	Create() any                                // a creator's create message

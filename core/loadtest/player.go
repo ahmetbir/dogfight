@@ -16,7 +16,7 @@ import (
 
 const (
 	dialTimeout = 10 * time.Second // dial + hello + create/join + welcome
-	readLimit   = 8 << 20          // the welcome carries the ~45 KB heightmap
+	readLimit   = 8 << 20          // a welcome may carry large static data
 	pingEvery   = 60               // input ticks between pings (1 s)
 )
 

@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -26,8 +28,33 @@ func (s *script) React(i, you int, t string, raw []byte) any {
 	return nil
 }
 
-// echoServer: welcome, one roster, snapshots at 30 Hz, pongs; counts colors.
-func echoServer(t *testing.T, colors *atomic.Int32) *httptest.Server {
+// wireLog records the entry messages and the first ping the server saw.
+type wireLog struct {
+	mu      sync.Mutex
+	entries []string
+	ping    string
+}
+
+func (w *wireLog) entry(b []byte) {
+	w.mu.Lock()
+	w.entries = append(w.entries, string(b))
+	w.mu.Unlock()
+}
+
+func (w *wireLog) firstPing(b []byte) {
+	w.mu.Lock()
+	if w.ping == "" {
+		w.ping = string(b)
+	}
+	w.mu.Unlock()
+}
+
+// echoServer: welcome, one roster, snapshots at 30 Hz, pongs; counts colors
+// and records entries and pings in wire (nil = not recorded).
+func echoServer(t *testing.T, colors *atomic.Int32, wire *wireLog) *httptest.Server {
+	if wire == nil {
+		wire = &wireLog{}
+	}
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ws, err := websocket.Accept(w, r, nil)
 		if err != nil {
@@ -36,7 +63,11 @@ func echoServer(t *testing.T, colors *atomic.Int32) *httptest.Server {
 		defer ws.CloseNow()
 		ctx := r.Context()
 		ws.Read(ctx) // hello
-		ws.Read(ctx) // entry
+		_, entry, err := ws.Read(ctx)
+		if err != nil {
+			return
+		}
+		wire.entry(entry)
 		ws.Write(ctx, websocket.MessageText, []byte(`{"t":"welcome","you":1,"code":"ABCD"}`))
 		ws.Write(ctx, websocket.MessageText, []byte(`{"t":"roster"}`))
 		go func() {
@@ -54,6 +85,7 @@ func echoServer(t *testing.T, colors *atomic.Int32) *httptest.Server {
 			json.Unmarshal(b, &m)
 			switch m["t"] {
 			case "ping":
+				wire.firstPing(b)
 				ws.Write(ctx, websocket.MessageText, []byte(`{"t":"pong","ts":`+itoa(int(m["ts"].(float64)))+`}`))
 			case "color":
 				colors.Add(1)
@@ -66,7 +98,7 @@ func itoa(n int) string { b, _ := json.Marshal(n); return string(b) }
 
 func TestRunDrivesAScript(t *testing.T) {
 	var colors atomic.Int32
-	srv := echoServer(t, &colors)
+	srv := echoServer(t, &colors, nil)
 	defer srv.Close()
 	sc := &script{}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -89,5 +121,43 @@ func TestRoomCodeHandsOverOnce(t *testing.T) {
 	c.set("ZZZZ")
 	if code, ok := c.wait(context.Background()); !ok || code != "ABCD" {
 		t.Errorf("wait = %q, %v; want ABCD", code, ok)
+	}
+}
+
+// The entry and ping messages are anonymous structs in the player loop; their
+// JSON is what protocol.ClientMsg produced before the extraction (join and
+// quick carry only t [+ code], ping t + ts), so it is pinned. (The create
+// entry is the Script's own message.)
+func TestEntryAndPingJSON(t *testing.T) {
+	run := func(players, rooms int) (entries []string, ping string) {
+		var colors atomic.Int32
+		w := &wireLog{}
+		srv := echoServer(t, &colors, w)
+		defer srv.Close()
+		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+		defer cancel()
+		Run(ctx, Config{URL: "ws" + strings.TrimPrefix(srv.URL, "http"), Players: players, Rooms: rooms,
+			Duration: 1500 * time.Millisecond, Ramp: 100 * time.Millisecond, Every: time.Second}, &script{})
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		return append([]string(nil), w.entries...), w.ping
+	}
+	pingRe := regexp.MustCompile(`^\{"t":"ping","ts":[0-9]+(\.[0-9]+)?\}$`)
+
+	entries, ping := run(2, 1)
+	got := map[string]int{}
+	for _, e := range entries {
+		got[e]++
+	}
+	if got[`{"seats":2,"t":"create"}`] != 1 || got[`{"t":"join","code":"ABCD"}`] != 1 || len(entries) != 2 {
+		t.Errorf("room entries = %q; want one create and join {\"t\":\"join\",\"code\":\"ABCD\"}", entries)
+	}
+	if !pingRe.MatchString(ping) {
+		t.Errorf("ping = %q; want {\"t\":\"ping\",\"ts\":<ms>}", ping)
+	}
+
+	quick, _ := run(1, 0)
+	if len(quick) != 1 || quick[0] != `{"t":"quick"}` {
+		t.Errorf("quick entries = %q; want [{\"t\":\"quick\"}]", quick)
 	}
 }
