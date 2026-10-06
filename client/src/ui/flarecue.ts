@@ -7,7 +7,7 @@ import { KEYBOARD_KEYS, keys, MOUSE_KEYS } from "../input/bindings.ts";
 import { DT } from "../sim/flight.ts";
 import { h, text } from "./dom.ts";
 
-// RULES is checked against Go by core/room/book_rules_test.go.
+// RULES is checked against Go by internal/match/book_rules_test.go.
 export const FLARE_CUE_M = RULES.flareWarn;
 export const FLARE_COOLDOWN_TICKS = Math.round(RULES.flareCooldownS / DT);
 export const DECOY_NOTE_MS = 1500;

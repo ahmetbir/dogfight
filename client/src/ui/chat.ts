@@ -17,7 +17,7 @@ export function chatText(id: number): string | undefined {
 }
 
 export const CHAT_LIFE_MS = 5000;
-// core/room ChatCooldown is 120 ticks (2 s); +100 ms so a send at exactly
+// core/room's default ChatCooldown is 120 ticks (2 s); +100 ms so a send at exactly
 // +2 s cannot land inside it after network jitter and be dropped silently
 const COOLDOWN_MS = 2100;
 
