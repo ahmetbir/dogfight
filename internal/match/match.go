@@ -134,11 +134,7 @@ func (m *Match) Handle(id room.PlayerID, msg protocol.ClientMsg, out room.Outbox
 // SnapEvery ticks, with the events since the last one), the roster when it
 // changed, the round when its key changed or every RoundEvery ticks.
 func (m *Match) Step(inputs map[room.PlayerID]sim.Input, out room.Outbox) {
-	in := make(map[sim.ID]sim.Input, len(inputs))
-	for id, v := range inputs {
-		in[sim.ID(id)] = v
-	}
-	evs := m.g.Step(in)
+	evs := m.g.Step(inputs)
 	m.countEvents(evs)
 	tick := m.g.Tick()
 	m.events = append(m.events, protocol.NewEvents(evs, tick)...)

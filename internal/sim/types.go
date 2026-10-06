@@ -3,10 +3,13 @@ package sim
 import (
 	"math"
 
+	"playground/core/netproto"
 	"playground/internal/geom"
 )
 
-type ID uint32
+// ID is a plane's id; it is the wire PlayerID, so the room's input map
+// reaches the game without a per-tick conversion.
+type ID = netproto.PlayerID
 
 type Input struct {
 	Pitch, Roll, Yaw         float64 // [-1,1]
