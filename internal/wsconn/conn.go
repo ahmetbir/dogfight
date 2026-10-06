@@ -65,8 +65,7 @@ type Conn struct {
 	cancel    context.CancelFunc
 	closeOnce sync.Once
 	stalled   atomic.Bool
-	code      atomic.Int32           // close status the writer sends; 0 = normal
-	reason    atomic.Pointer[string] // close reason the writer sends; nil = none
+	closing   atomic.Pointer[closeInfo] // close status and reason the writer sends; nil = normal, no reason
 	wg        sync.WaitGroup
 }
 
@@ -111,7 +110,7 @@ func (c *Conn) Send(v any) bool {
 
 // Fail queues v as the last message, then closes with StatusPolicyViolation.
 func (c *Conn) Fail(v any) {
-	c.code.CompareAndSwap(0, int32(websocket.StatusPolicyViolation))
+	c.closing.CompareAndSwap(nil, &closeInfo{code: websocket.StatusPolicyViolation})
 	if !c.enqueue(outMsg{v: v, at: time.Now(), last: true}) {
 		c.Close()
 	}
@@ -171,17 +170,22 @@ func (c *Conn) Close() {
 	})
 }
 
+// closeInfo is the close frame the writer sends: code and reason are set
+// together (one atomic pointer), so a close never goes out without its reason.
+type closeInfo struct {
+	code   websocket.StatusCode
+	reason string
+}
+
 // Restart closes with StatusServiceRestart (1012) and reason: the server is
 // being replaced and the client should reconnect.
 func (c *Conn) Restart(reason string) {
-	if c.code.CompareAndSwap(0, int32(websocket.StatusServiceRestart)) {
-		c.reason.Store(&reason)
-	}
+	c.closing.CompareAndSwap(nil, &closeInfo{code: websocket.StatusServiceRestart, reason: reason})
 	c.Close()
 }
 
 func (c *Conn) closeWith(code websocket.StatusCode) {
-	c.code.CompareAndSwap(0, int32(code))
+	c.closing.CompareAndSwap(nil, &closeInfo{code: code})
 	c.Close()
 }
 
@@ -233,15 +237,11 @@ func (c *Conn) writeLoop() {
 		c.ws.CloseNow()
 		return
 	}
-	code := websocket.StatusCode(c.code.Load())
-	if code == 0 {
-		code = websocket.StatusNormalClosure
+	ci := closeInfo{code: websocket.StatusNormalClosure}
+	if p := c.closing.Load(); p != nil {
+		ci = *p
 	}
-	reason := ""
-	if r := c.reason.Load(); r != nil {
-		reason = *r
-	}
-	c.ws.Close(code, reason)
+	c.ws.Close(ci.code, ci.reason)
 }
 
 // writeAll runs until Close or a final message; it reports false on a
