@@ -395,6 +395,25 @@ without restarting it. The scripts touch only the containers `dogfight-blue` and
 (by exact name) and the `dogfight:<version>` images; the upstream line must name one of the two
 colors.
 
+### 3. Deploy from CI (optional)
+
+`.github/workflows/ci.yml` deploys main after an approval:
+
+1. Create a GitHub environment `production` with yourself as the required reviewer and `main` as
+   the only deployment branch. Protect `main` (pull requests only).
+2. On the server, install `deploy/ci-deploy.sh` as `<DEPLOY_DIR>/ci/ci-deploy.sh` (root, mode
+   700) next to a `deploy.env` that has `DEPLOY_HOST=local`.
+3. Generate a dedicated ed25519 key and add its public half to the deploy user's
+   `authorized_keys` as `command="<DEPLOY_DIR>/ci/ci-deploy.sh",restrict ssh-ed25519 …`: it can
+   run nothing else, open no shell and forward nothing.
+4. Store `DEPLOY_SSH_KEY` (the private key), `DEPLOY_SSH_HOST` and `DEPLOY_KNOWN_HOSTS` (the
+   server's host key line) as secrets of the `production` environment, not of the repository.
+
+The release job uploads a tar of the binary, `dist/VERSION`, `Dockerfile.runtime`,
+`deploy/compose.yml`, `deploy/switch-upstream.sh` and `scripts/deploy.sh`; `ci-deploy.sh`
+refuses anything else, then runs the same blue/green deploy as above. Rollbacks stay manual
+(`scripts/deploy.sh --rollback <version>`).
+
 ### Container settings (`deploy/compose.yml`)
 
 - Read-only root filesystem, non-root user (65532), `cap_drop: ALL`, `no-new-privileges`.

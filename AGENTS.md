@@ -317,6 +317,12 @@ bucket; otherwise players get kicked with `flood`. Core types (`hello`, `create`
   `dist/dogfight-linux-arm64` and `dist/VERSION`.
 - Deploy: README [Deployment](README.md#deployment). All host-specific settings come from the
   gitignored `deploy/deploy.env`; `scripts/deploy.sh` stops if it is missing.
+- **CI** (`.github/workflows/ci.yml`): every push and pull request runs vet, race tests, the client
+  checks and the smoke test on arm64. A push to main also builds the release and waits for the
+  owner to approve the `production` environment; then it pipes a tar bundle over ssh to the
+  server, where the key's forced command `deploy/ci-deploy.sh` checks the bundle and runs
+  `scripts/deploy.sh` locally with server-side settings. Contributors cannot deploy: main takes
+  only reviewed pull requests, and the environment's secrets reach only approved main runs.
 - `TestDockerfileCopiesEveryGoDir` fails if a new top-level Go directory is not `COPY`'d in the
   `Dockerfile`.
 
