@@ -1,5 +1,5 @@
 // The aircraft table the manual uses outside a game: built from rules.ts,
-// whose aircraft entries internal/room/book_rules_test.go checks against
+// whose aircraft entries internal/match/book_rules_test.go checks against
 // internal/sim's spec table.
 import type { AircraftInfo, AircraftKind } from "../net/protocol.ts";
 import { AIRCRAFT, RULES } from "./rules.ts";

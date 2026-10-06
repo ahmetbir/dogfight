@@ -1,4 +1,4 @@
-// Test model of the server session queue (core/room/session.go; used by the prediction tests only):
+// Test model of the server session queue (core/room/queue.go, sizes pinned by its crosslang_test.go; used by the prediction tests only):
 // inputs with seq <= the last accepted one are dropped, a full queue (8)
 // loses its oldest entry, a backlog above 4 is dropped at tick time, and a
 // starved queue repeats the last input (ack does not move).
