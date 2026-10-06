@@ -386,12 +386,11 @@ nginx decides which color is live through the single
    older than the two colors.
 
 Deploy, rollback and `switch-upstream.sh` hold a `flock` on `$DEPLOY_DIR/deploy.lock`, so a
-second run stops immediately. A new deploy is refused while an older container is still
-draining, unless `--force-drain-overlap` is passed as the first argument. A rollback to a version
-that is still draining sends it `SIGUSR2` and switches nginx back without restarting it.
-
-`deploy/legacy-handoff.sh` and `deploy/legacy-rollback.sh` handle a one-time migration from a
-single pre-blue/green container; a fresh setup does not need them.
+second run stops immediately. A new deploy is refused while the idle color still drains another
+version. A rollback to a version that is still draining sends it `SIGUSR2` and switches nginx back
+without restarting it. The scripts touch only the containers `dogfight-blue` and `dogfight-green`
+(by exact name) and the `dogfight:<version>` images; the upstream line must name one of the two
+colors.
 
 ### Container settings (`deploy/compose.yml`)
 

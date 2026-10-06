@@ -11,9 +11,7 @@
 # bluegreen: 1  (scripts/deploy.sh refuses to run a version whose compose file lacks this line in a color)
 services:
   # Not "dogfight": compose adds the service name as a DNS alias on the edge
-  # network, and "dogfight" is the pre-blue/green container's name. During the
-  # migration (and its rollback) nginx resolves http://dogfight:8080, which
-  # must reach only that container.
+  # network; nginx must resolve only the color names dogfight-blue/green.
   dogfight-bg:
     image: dogfight:${VERSION:?set VERSION}
     container_name: dogfight-${COLOR:?set COLOR to blue or green}

@@ -7,12 +7,10 @@
 #   scripts/deploy.sh --rollback <version> make a version already on the server live again
 #   scripts/deploy.sh --status             colors, versions, open sockets
 #   scripts/deploy.sh --doctor             invariants: nginx's target runs healthy, one live
-#                                          color, no stale helper, nginx -t (exit 1 on a problem)
+#                                          color, nginx shares a network with it, nginx -t (exit 1 on a problem)
 #   scripts/deploy.sh --preflight-network [host:port | https://url ...]
 #                                          set up EDGE_NETWORK and prove it before any deploy
 #                                          uses it (see preflight_network)
-#   --force-drain-overlap (before the others): deploy even while the
-#                                          pre-blue/green container still drains (3 containers)
 #
 # Lock: deploys, rollbacks and switch-upstream.sh hold flock on
 # $DIR/deploy.lock on the server for their whole run; a second one fails at
@@ -24,8 +22,8 @@
 # under their own names; no published port. Which color is live is
 # whatever nginx routes to: the one line
 #   set $dogfight_upstream http://dogfight-<color>:8080;
-# in NGINX_CONF (http://dogfight:8080 = the pre-blue/green container
-# `dogfight`, migrated once, see below). A deploy:
+# in NGINX_CONF. Only the containers dogfight-blue and dogfight-green are
+# ever touched (by exact name); nothing else on the box. A deploy:
 #   1. starts the new version in the idle color and waits for its healthcheck
 #      (the live color is untouched; an unhealthy start is stopped, nothing
 #      else changes),
@@ -44,25 +42,18 @@
 # color's store opens when the old color hands the lock over. Never removed
 # here (no `down -v`, external volume).
 #
-# Migration (first run against the pre-blue/green `dogfight` container): a
-# busybox helper (deploy/legacy-handoff.sh) holds the stats lock for it from
-# before blue starts, then, after the switch, stops it once it has no
-# players (or after 30 min); blue's stats open then.
-#
 # Layout on the server (DIR):
 #   compose-<v>.yml  version v's compose file (its flags)
 #   env-<color>      VERSION, COLOR, EDGE_NETWORK, TRUST_PROXY, PUBLIC_HOST for that color
-#   server.env       NGINX_CONTAINER, NGINX_CONF for legacy-rollback.sh
 #   version-<color>  the version last started in that color
 #   current/previous the live version and the one before it
-#   switch-upstream.sh, legacy-handoff.sh, <conf>.bak.* (last 10 switches)
+#   switch-upstream.sh, <conf>.bak.* (last 10 switches)
 # Back up the stats volume with:
 #   docker run --rm -v dogfight-data:/data:ro -v "$PWD":/b busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e tar czf /b/dogfight-data.tgz -C /data .
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 BUSYBOX=busybox:1.37.0@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
-HANDOFF=dogfight-handoff # the legacy migration helper container
 NETPROBE=dogfight-netprobe # --preflight-network's throwaway server on EDGE_NETWORK
 # Throwaway busybox probes run unprivileged, read-only and small.
 PROBE_OPTS="--rm --read-only --cap-drop ALL --security-opt no-new-privileges:true --user 65532:65532 --memory 16m --pids-limit 16"
@@ -117,8 +108,6 @@ ship() { if [[ "$HOST" == local ]]; then cp "$1" "$2"; else scp -q "$1" "$HOST:$
 [[ "$PUBLIC_HOST" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]+)?$ ]] || die "bad PUBLIC_HOST '$PUBLIC_HOST'"
 [[ "$DIR" =~ ^/[A-Za-z0-9/_.-]+$ && "$CONF" =~ ^/[A-Za-z0-9/_.-]+$ ]] || die "bad DEPLOY_DIR or NGINX_CONF"
 [[ "$DRAIN_MAX" =~ ^([0-9]+)([smh])$ ]] || die "bad DRAIN_MAX '$DRAIN_MAX' (e.g. 30m)"
-case "${BASH_REMATCH[2]}" in s) DRAIN_S=1 ;; m) DRAIN_S=60 ;; h) DRAIN_S=3600 ;; esac
-DRAIN_S=$(( ${BASH_REMATCH[1]} * DRAIN_S )) # the legacy helper's drain max, in seconds
 
 # lock_box: hold flock on $DIR/deploy.lock on the server until this script
 # exits (a remote `cat` reads fd 8 until EOF); refuse if it is taken.
@@ -192,14 +181,14 @@ state() {
   printf '%s' "$v"
 }
 
-# live: the container nginx routes to (dogfight-blue, dogfight-green or the
-# legacy dogfight), from the one upstream line in CONF.
+# live: the color container nginx routes to (dogfight-blue or
+# dogfight-green), from the one upstream line in CONF.
 live() {
   local l
-  l="$(remote "grep -E '^[[:space:]]*set[[:space:]]+[\$]dogfight_upstream[[:space:]]+http://dogfight(-blue|-green)?:8080;' '$CONF'")" ||
-    die "no dogfight upstream line in $CONF on $HOST"
+  l="$(remote "grep -E '^[[:space:]]*set[[:space:]]+[\$]dogfight_upstream[[:space:]]+http://dogfight-(blue|green):8080;' '$CONF'")" ||
+    die "no dogfight-blue/green upstream line in $CONF on $HOST"
   [[ "$(wc -l <<<"$l")" -eq 1 ]] || die "more than one dogfight upstream line in $CONF"
-  [[ "$l" =~ http://(dogfight(-blue|-green)?):8080 ]] || die "unreadable upstream line: $l"
+  [[ "$l" =~ http://(dogfight-(blue|green)):8080 ]] || die "unreadable upstream line: $l"
   printf '%s' "${BASH_REMATCH[1]}"
 }
 
@@ -218,18 +207,6 @@ bluegreen() {
   remote "test -f '$DIR/compose-$1.yml'" || die "no $DIR/compose-$1.yml on $HOST (version never shipped, or cleaned up)"
   remote "grep -q '^# bluegreen: 1' '$DIR/compose-$1.yml'" ||
     die "$1 predates blue/green (no '# bluegreen: 1' in compose-$1.yml); see README (Geri dönüş)"
-}
-
-# overlap_check: refuse while the pre-blue/green container (or its handoff
-# helper) still drains after the migration: a deploy would run 3 servers.
-overlap_check() {
-  local c i
-  [[ "$(live)" != dogfight && "${FORCE_OVERLAP:-0}" != 1 ]] || return 0
-  for c in dogfight "$HANDOFF"; do
-    read -r -a i <<<"$(info "$c")"
-    [[ "${i[0]:-}" != true ]] ||
-      die "$c still runs (the legacy server drains, at most 30 min after the migration); wait, or pass --force-drain-overlap"
-  done
 }
 
 # compose COLOR ARGS...: docker compose for COLOR with its env file (which
@@ -286,14 +263,11 @@ stats_report() {
   echo "deploy: $name stats still waiting for the old server's lock (they open when it hands over or exits)"
 }
 
-# unhandoff FROM: a failed migration gives the stats lock back to the legacy server.
-unhandoff() { [[ "$1" != dogfight ]] || remote "docker stop '$HANDOFF' >/dev/null 2>&1" || true; }
-
 # idle_color: the color a deploy starts (the one nginx does not route to).
 idle_color() {
   case "$(live)" in
     dogfight-blue) printf green ;;
-    *) printf blue ;; # dogfight-green, or the legacy dogfight
+    *) printf blue ;; # dogfight-green
   esac
 }
 
@@ -315,32 +289,22 @@ promote() {
   idle="$(idle_color)"
   to="dogfight-$idle"
   bluegreen "$v"
-  overlap_check
   if idle_running "$v"; then undrain=1; fi
   remote "docker volume inspect dogfight-data >/dev/null 2>&1 || docker volume create dogfight-data >/dev/null" ||
     die "cannot create the dogfight-data volume"
   since="$(remote "date -u +%Y-%m-%dT%H:%M:%SZ")"
   echo "deploy: live $from -> $to ($v)"
 
-  [[ "$from" != dogfight ]] || MIGRATING=1
-  if [[ "$from" == dogfight ]]; then # migration: hold the stats lock for the legacy server
-    remote "docker rm -f '$HANDOFF' >/dev/null 2>&1; docker run -d --rm --name '$HANDOFF' --pid container:dogfight --network container:dogfight \
-      --user 65532:65532 --read-only --tmpfs /tmp:size=1m,uid=65532 --cap-drop ALL --security-opt no-new-privileges:true \
-      --memory 16m --pids-limit 16 -e DRAIN_MAX_S=$DRAIN_S \
-      -v dogfight-data:/data -v '$DIR/legacy-handoff.sh:/handoff.sh:ro' '$BUSYBOX' flock -x /data/stats.lock sh /handoff.sh >/dev/null" ||
-      die "cannot start the legacy stats handoff helper (is the dogfight container running?)"
-  fi
   if [[ "$undrain" == 1 ]]; then
     started="$(remote "docker inspect -f '{{.State.StartedAt}}' '$to'")"
     remote "docker kill -s USR2 '$to' >/dev/null && docker update --restart=unless-stopped '$to' >/dev/null" ||
-      { unhandoff "$from"; die "cannot undrain $to"; }
+      die "cannot undrain $to"
     sleep 1 # a drainer that was just exiting (0 sockets) must not be mistaken for an undrained one
     [[ "$(remote "docker inspect -f '{{.State.Running}} {{.State.StartedAt}}' '$to'" || true)" == "true $started" ]] ||
-      { unhandoff "$from"; die "$to exited or restarted while being undrained; nothing switched, run the rollback again"; }
+      die "$to exited or restarted while being undrained; nothing switched, run the rollback again"
   elif ! up "$idle" "$v"; then
     compose "$idle" logs --tail 50 dogfight-bg || true
     compose "$idle" down || true
-    unhandoff "$from"
     die "$v is not healthy in $idle; $from still serves, nothing switched"
   fi
 
@@ -348,7 +312,6 @@ promote() {
   # EDGE_NETWORK. Prove that path before nginx points at it.
   if ! reach "$NGINX" "http://$to:8080/healthz"; then
     if [[ "$undrain" == 1 ]]; then drain "$to"; else compose "$idle" down || true; fi
-    unhandoff "$from"
     die "$NGINX cannot reach http://$to:8080/healthz over its docker networks ($EDGE_NETWORK?); $from still serves, nothing switched"
   fi
 
@@ -362,20 +325,14 @@ promote() {
       echo "deploy: WARNING: the switch reported a failure, but $CONF points to $to and nginx reloaded it; carrying on" >&2
     elif [[ "$now" == "$from" ]]; then
       if [[ "$undrain" == 1 ]]; then drain "$to"; else compose "$idle" down || true; fi
-      unhandoff "$from"
       die "nginx switch failed; $from still serves"
     else
       die "cannot tell where nginx points (connection lost?); nothing stopped, nothing drained: run $0 --status"
     fi
   fi
 
-  if [[ "$from" == dogfight ]]; then
-    remote "docker update --restart=no dogfight >/dev/null && docker exec '$HANDOFF' touch /tmp/go" ||
-      echo "deploy: WARNING: legacy dogfight not handed off; stop it yourself when empty: docker stop dogfight" >&2
-  else
-    read -r -a i <<<"$(info "$from")"
-    [[ "${i[0]:-}" == true ]] && drain "$from"
-  fi
+  read -r -a i <<<"$(info "$from")"
+  [[ "${i[0]:-}" == true ]] && drain "$from"
   old="$(state current)"
   if [[ -n "$old" && "$old" != "$v" ]]; then remote "printf '%s\n' '$old' > '$DIR/previous'"; fi
   remote "printf '%s\n' '$v' > '$DIR/current'"
@@ -385,9 +342,8 @@ promote() {
 # doctor: check the invariants; print every problem; return non-zero if any.
 #  - the container nginx routes to is running and healthy, with restart
 #    policy unless-stopped (a reboot brings it back)
-#  - exactly one live server: any other running dogfight container drains
+#  - exactly one live server: the other color, if running, drains
 #    (restart policy no)
-#  - the legacy handoff helper exists only while the legacy server drains
 #  - nginx shares a docker network with the live container
 #  - the nginx container's config passes nginx -t
 doctor() {
@@ -400,21 +356,13 @@ doctor() {
   elif [[ "${i[2]:-}" != unless-stopped ]]; then
     problem "$up (live) has restart policy ${i[2]:-?}: it would not come back after a reboot"
   fi
-  for c in dogfight-blue dogfight-green dogfight; do
+  for c in dogfight-blue dogfight-green; do
     [[ "$c" != "$up" ]] || continue
     read -r -a i <<<"$(info "$c")"
     if [[ "${i[0]:-}" == true && "${i[2]:-}" != no ]]; then
       problem "$c runs (restart ${i[2]:-?}) next to the live $up; a second server should be draining (restart no)"
     fi
   done
-  read -r -a i <<<"$(remote "docker inspect -f '{{.State.Status}}' '$HANDOFF' 2>/dev/null" || true)"
-  if [[ -n "${i[0]:-}" ]]; then
-    local legacy
-    legacy="$(info dogfight)"
-    if [[ "${i[0]}" != running || "$up" == dogfight || "$legacy" != true* ]]; then
-      problem "stale $HANDOFF (${i[0]}; legacy ${legacy%% *}, live $up): remove it with docker rm -f $HANDOFF once nothing needs its stats lock"
-    fi
-  fi
   if [[ -z "$(comm -12 <(networks "$up" | sort) <(networks "$NGINX" | sort) | grep .)" ]]; then
     problem "$NGINX shares no docker network with $up (nginx recreated?): docker network connect $EDGE_NETWORK $NGINX"
   fi
@@ -497,10 +445,10 @@ status() {
   local l c i
   l="$(live)"
   echo "live: $l ($(state current)); previous: $(state previous)"
-  for c in dogfight-blue dogfight-green dogfight "$HANDOFF"; do
+  for c in dogfight-blue dogfight-green; do
     read -r -a i <<<"$(info "$c")"
     [[ -n "${i[0]:-}" ]] || continue
-    if [[ "${i[0]}" == true && "$c" != "$HANDOFF" ]]; then
+    if [[ "${i[0]}" == true ]]; then
       echo "$c: running ${i[1]} restart=${i[2]} sockets=$(conns "$c")"
     else
       echo "$c: running=${i[0]} ${i[1]}"
@@ -508,33 +456,19 @@ status() {
   done
 }
 
-# cleanup: keep both colors' versions, and while the pre-blue/green
-# container `dogfight` exists (running or exited) its version too, image and
-# compose/env files: deploy/legacy-rollback.sh restarts that container. The
-# exited legacy container goes on a later deploy, its image and files on the
-# one after.
+# cleanup: remove dogfight:<version> images (and their compose files) that
+# neither color runs. Containers are never removed here.
 cleanup() {
-  local keep tag i
+  local keep tag
   keep=" $(state version-blue) $(state version-green) "
-  read -r -a i <<<"$(info dogfight)"
-  if [[ "${i[1]:-}" == dogfight:* ]]; then keep+="${i[1]#dogfight:} "; fi
   for tag in $(remote "docker images dogfight --filter dangling=false --format '{{.Tag}}'"); do
     isversion "$tag" || continue
     case "$keep" in
       *" $tag "*) ;;
-      *) remote "docker rmi 'dogfight:$tag' >/dev/null 2>&1 && rm -f '$DIR/compose-$tag.yml' '$DIR/env-$tag'" || true ;;
+      *) remote "docker rmi 'dogfight:$tag' >/dev/null 2>&1 && rm -f '$DIR/compose-$tag.yml'" || true ;;
     esac
   done
-  # Never in the migration deploy itself: legacy may already have emptied
-  # and exited, and legacy-rollback.sh restarts that very container.
-  if [[ "$MIGRATING" == 0 && "$(live)" != dogfight && "$(info dogfight)" == false* ]]; then
-    remote "docker rm dogfight >/dev/null" || true
-  fi
 }
-
-FORCE_OVERLAP=0
-MIGRATING=0 # set by promote when this run takes over the pre-blue/green container
-if [[ "${1:-}" == --force-drain-overlap ]]; then FORCE_OVERLAP=1; shift; fi
 
 case "${1:-}" in
   --status)
@@ -564,7 +498,7 @@ case "${1:-}" in
     exit 0
     ;;
   "") ;;
-  *) die "usage: $0 [--force-drain-overlap] [--rollback <version> | --status | --doctor | --preflight-network [host:port | https://url ...]]" ;;
+  *) die "usage: $0 [--rollback <version> | --status | --doctor | --preflight-network [host:port | https://url ...]]" ;;
 esac
 
 [[ -f dist/dogfight-linux-arm64 && -f dist/VERSION ]] || die "no dist/; run scripts/release.sh first"
@@ -575,20 +509,17 @@ info="$(file dist/dogfight-linux-arm64)"
 [[ "$info" == *"ARM aarch64"*"statically linked"* ]] || die "dist binary is not a static linux/arm64 ELF"
 lock_box
 live >/dev/null || exit 1
-overlap_check
 remote "docker inspect '$NGINX' >/dev/null" || die "no nginx container $NGINX on $HOST"
 idle_running "$VERSION" || true # refuses before shipping while the idle color drains another version
 edge_network
 edge_subnet >/dev/null || exit 1 # fail before shipping anything
 
-remote "mkdir -p '$DIR/dist' && printf '%s\n' 'NGINX_CONTAINER=$NGINX' 'NGINX_CONF=$CONF' > '$DIR/server.env'"
+remote "mkdir -p '$DIR/dist'"
 ship dist/dogfight-linux-arm64 "$DIR/dist/dogfight-linux-arm64"
 ship Dockerfile.runtime "$DIR/Dockerfile.runtime"
 ship deploy/compose.yml "$DIR/compose-$VERSION.yml"
 ship deploy/switch-upstream.sh "$DIR/switch-upstream.sh"
-ship deploy/legacy-handoff.sh "$DIR/legacy-handoff.sh"
-ship deploy/legacy-rollback.sh "$DIR/legacy-rollback.sh"
-remote "chmod 0755 '$DIR/switch-upstream.sh' '$DIR/legacy-rollback.sh' && chmod 0644 '$DIR/legacy-handoff.sh'"
+remote "chmod 0755 '$DIR/switch-upstream.sh'"
 remote "cd '$DIR' && docker build -q -f Dockerfile.runtime -t 'dogfight:$VERSION' ." >/dev/null
 
 promote "$VERSION"

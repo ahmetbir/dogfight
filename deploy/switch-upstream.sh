@@ -3,7 +3,7 @@
 # the WebSockets it already proxies (nginx -s reload: old workers keep their
 # connections until they close).
 #   switch-upstream.sh <vhost conf on the host> <nginx container> <target>
-# target: dogfight-blue | dogfight-green | dogfight (the pre-blue/green name).
+# target: dogfight-blue | dogfight-green.
 # Run on the server by scripts/deploy.sh (shipped next to it as
 # $DEPLOY_DIR/switch-upstream.sh), or by hand (runbook).
 #
@@ -27,7 +27,7 @@ die() { echo "switch-upstream: $*" >&2; exit 1; }
 
 [[ $# -eq 3 ]] || die "usage: $0 <conf> <nginx-container> <target>"
 conf="$1" nginx="$2" target="$3"
-[[ "$target" =~ ^dogfight(-blue|-green)?$ ]] || die "bad target '$target'"
+[[ "$target" =~ ^dogfight-(blue|green)$ ]] || die "bad target '$target'"
 [[ "$nginx" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || die "bad nginx container '$nginx'"
 [[ -f "$conf" && -w "$conf" ]] || die "$conf is not a writable file"
 dir="$(cd "$(dirname "$0")" && pwd)"
@@ -37,10 +37,10 @@ if [[ "${DOGFIGHT_DEPLOY_LOCK_HELD:-}" != 1 ]]; then
   flock -n 9 || die "another deploy or switch is running ($dir/deploy.lock); nothing changed"
 fi
 
-line='^[[:space:]]*set[[:space:]]+\$dogfight_upstream[[:space:]]+http://dogfight(-blue|-green)?:8080;'
+line='^[[:space:]]*set[[:space:]]+\$dogfight_upstream[[:space:]]+http://dogfight-(blue|green):8080;'
 want="set[[:space:]]+\\\$dogfight_upstream[[:space:]]+http://$target:8080;"
 n="$(grep -cE "$line" "$conf" || true)"
-[[ "$n" == 1 ]] || die "expected exactly one 'set \$dogfight_upstream http://dogfight[-color]:8080;' line in $conf, found $n"
+[[ "$n" == 1 ]] || die "expected exactly one 'set \$dogfight_upstream http://dogfight-<color>:8080;' line in $conf, found $n"
 if grep -qE "^[[:space:]]*$want" "$conf"; then
   echo "switch-upstream: already $target"
   exit 0
@@ -51,7 +51,7 @@ base="$(basename "$conf")"
 bak="$dir/$base.bak.$stamp" new="$dir/$base.new.$stamp"
 cp -p "$conf" "$bak"
 ls -1t "$dir/$base".bak.* 2>/dev/null | tail -n +11 | while read -r old; do rm -f "$old"; done
-sed -E "s#^([[:space:]]*set[[:space:]]+\\\$dogfight_upstream[[:space:]]+http://)dogfight(-blue|-green)?(:8080;)#\\1$target\\3#" "$bak" > "$new"
+sed -E "s#^([[:space:]]*set[[:space:]]+\\\$dogfight_upstream[[:space:]]+http://)dogfight-(blue|green)(:8080;)#\\1$target\\3#" "$bak" > "$new"
 changed="$(diff "$bak" "$new" | grep -c '^[<>]' || true)"
 [[ "$changed" == 2 ]] || { rm -f "$new"; die "rewrite changed $changed diff lines, expected 2 (one out, one in); $conf untouched"; }
 
