@@ -3,6 +3,7 @@
 // rule. The returned functions are closures over the instance's state, so they
 // are safe to destructure. Stored labels follow a switch via relabel; screens
 // that build text on demand follow on their next render.
+import { safeStore, type Store } from "../store.ts";
 import { relabel, track } from "./live.ts";
 import type { Msg, Params, Plural } from "./types.ts";
 
@@ -14,7 +15,7 @@ export type I18nOptions<L extends string, K extends string> = {
   detect(prefs: readonly string[]): L;
 };
 
-export type Store = Pick<Storage, "getItem" | "setItem">;
+export type { Store };
 
 export type I18n<L extends string, K extends string> = {
   lang(): L;
@@ -28,14 +29,6 @@ export type I18n<L extends string, K extends string> = {
   lt(key: K, params?: Params): Text;
   lattr<E extends Element>(e: E, name: string, key: K, params?: Params): E;
 };
-
-function safeStore(): Store | null {
-  try {
-    return globalThis.localStorage ?? null;
-  } catch {
-    return null;
-  }
-}
 
 export function createI18n<L extends string, K extends string>(o: I18nOptions<L, K>): I18n<L, K> {
   const fallback = o.dicts[o.source];
