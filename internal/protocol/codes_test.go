@@ -10,31 +10,25 @@ import (
 	"playground/core/netproto"
 )
 
-// The client lists the same error and notice codes (client/src/core/net/codes.ts, client/src/net/codes.ts)
-// and translates each; the two lists must not drift.
-func TestCodesMatchClient(t *testing.T) {
-	for _, c := range []struct {
-		file, name string
-		want       []string
-	}{
-		{"../../client/src/core/net/codes.ts", "ERROR_CODES", netproto.ErrorCodes()},
-		{"../../client/src/net/codes.ts", "NOTICE_CODES", NoticeCodes()},
-	} {
-		b, err := os.ReadFile(c.file)
-		if err != nil {
-			t.Fatal(err)
-		}
-		m := regexp.MustCompile(`(?s)export const ` + c.name + ` = \[(.*?)\] as const`).FindSubmatch(b)
-		if m == nil {
-			t.Fatalf("%s lacks %s", c.file, c.name)
-		}
-		var got []string
-		for _, q := range regexp.MustCompile(`"([a-z_]+)"`).FindAllSubmatch(m[1], -1) {
-			got = append(got, string(q[1]))
-		}
-		if !slices.Equal(got, c.want) {
-			t.Fatalf("%s: client %v, server %v", c.name, got, c.want)
-		}
+// The client lists the same notice codes (client/src/net/codes.ts) and
+// translates each; the lists must not drift. (The core error codes are
+// pinned in core/netproto.)
+func TestNoticeCodesMatchClient(t *testing.T) {
+	const file = "../../client/src/net/codes.ts"
+	b, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`(?s)export const NOTICE_CODES = \[(.*?)\] as const`).FindSubmatch(b)
+	if m == nil {
+		t.Fatalf("%s lacks NOTICE_CODES", file)
+	}
+	var got []string
+	for _, q := range regexp.MustCompile(`"([a-z_]+)"`).FindAllSubmatch(m[1], -1) {
+		got = append(got, string(q[1]))
+	}
+	if !slices.Equal(got, NoticeCodes()) {
+		t.Fatalf("NOTICE_CODES: client %v, server %v", got, NoticeCodes())
 	}
 }
 

@@ -54,7 +54,7 @@ var ErrFull = errors.New("room: full")
 // none may block, start goroutines or keep the Outbox.
 type Game[M Msg[In], In Input[In], X any] interface {
 	Join(who Who) (PlayerID, error)
-	Welcome(id PlayerID, code, newToken string, out Outbox)
+	Welcome(id PlayerID, code, newToken string, out Outbox) // sends id a message carrying netproto.Welcome's fields (you=id, code, tok=newToken)
 	Leave(id PlayerID)
 	Handle(id PlayerID, m M, out Outbox) // in-room messages other than in, ping and chat
 	Step(inputs map[PlayerID]In, out Outbox)

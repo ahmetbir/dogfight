@@ -8,6 +8,8 @@ export type Quick = { t: "quick" };
 /** The handshake and keepalive messages the socket itself sends. */
 export type Hello = { t: "hello"; v: number; name: string; tok?: string };
 export type Ping = { t: "ping"; ts: number };
+/** The envelope every game's welcome carries (core/netproto Welcome): code is kept to rejoin after a 1012. */
+export type Welcome = { t: "welcome"; you: number; code: string; tok?: string };
 
 /** A game's wire: its protocol version and its outbound shaping. */
 export type SocketOpts<C extends Envelope> = { version: number; policy: ShaperPolicy<C> };
@@ -50,9 +52,9 @@ export type Env = {
 export const RECONNECT_MS = [500, 1000, 2000, 4000, 8000];
 /** Dials before the first welcome until the socket gives up (~15 s of backoff). */
 export const FIRST_TRIES = 6;
-export const PING_MS = 15000; // server idle-closes after 30 s without input
+export const PING_MS = 15000; // server idle-closes after 30 s without input (pinned by core/wsconn crosslang_test.go)
 const OPEN = 1;
-/** WebSocket close code of a draining server (Service Restart): reconnect. */
+/** WebSocket close code of a draining server (Service Restart): reconnect. Pinned by core/wsconn crosslang_test.go. */
 export const CLOSE_RESTART = 1012;
 /** The server's error code when the rejoined room does not exist; ROOM_GONE replaces it right after an update. */
 const NO_ROOM = "no_room";
@@ -189,7 +191,7 @@ export class Socket<C extends Envelope, S extends Envelope> {
         return;
       case "welcome":
         this.updated = false;
-        this.entry = { t: "join", code: (m as unknown as { code: string }).code };
+        this.entry = { t: "join", code: (m as unknown as Welcome).code };
         this.attempt = 0;
         this.joined = true;
         this.welcomed = true;

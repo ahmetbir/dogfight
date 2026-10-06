@@ -1,7 +1,8 @@
 // Package netproto is the part of the wire protocol every game shares: the
 // message envelope, the core message types (handshake, ping, chat, errors,
-// notices) and the error-code registry. A game's own messages are flat JSON
-// objects with the same "t" field; its snapshot starts {"t":"snap","tick":N.
+// notices), the welcome envelope and the error-code registry. A game's own
+// messages are flat JSON objects with the same "t" field; its snapshot
+// starts {"t":"snap","tick":N; its welcome carries the Welcome fields.
 package netproto
 
 import (
@@ -34,6 +35,22 @@ const (
 	TPing   = "ping"
 	TChat   = "chat"
 )
+
+// TWelcome is the type of the message that seats a player.
+const TWelcome = "welcome"
+
+// Welcome is the envelope every game's welcome (room.Game.Welcome) carries,
+// flat beside the game's own fields: {"t":"welcome","you":…,"code":…}. It is
+// a core contract, not a game choice: the client core keeps Code to rejoin
+// the same room after a 1012 (drain) close, and the load test reads Code
+// (joiners) and You. A game that renames them loses reconnect-after-deploy
+// silently. The TS twin is Welcome in client/src/core/net/socket.ts.
+type Welcome struct {
+	T    string   `json:"t"`             // "welcome"
+	You  PlayerID `json:"you"`           // the player's id in this room
+	Code string   `json:"code"`          // the room's code (join, rejoin)
+	Tok  string   `json:"tok,omitempty"` // a pilot token, only when just issued (room.Who.NewToken)
+}
 
 // Pong answers a ping, echoing its timestamp.
 type Pong struct {

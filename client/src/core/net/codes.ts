@@ -1,4 +1,4 @@
-// Core error codes (core/netproto/codes.go); TestCodesMatchClient keeps the lists equal.
+// Core error codes (core/netproto/codes.go); core/netproto TestErrorCodesMatchClientCore keeps the lists equal.
 // The client shows the text of the code in its own language; the message's msg is a fallback.
 
 export const ERROR_CODES = [

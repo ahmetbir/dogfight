@@ -1,6 +1,7 @@
 package room_test
 
 import (
+	"encoding/json"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -94,5 +95,37 @@ func TestFlushStatsAndLeaveReachTheGame(t *testing.T) {
 		if !r.FlushStats(t.Context()) {
 			t.Fatal("a stopped room reports flushed")
 		}
+	})
+}
+
+// The welcome a game sends carries the core envelope (netproto.Welcome):
+// the client core rejoins with its code after a drain close.
+func TestWelcomeCarriesTheCoreEnvelope(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r, cancel := start(t, fakegame.Settings{}, nil)
+		defer cancel()
+		out := &fakeSender{}
+		s, err := r.Join(t.Context(), room.Who{Name: "a", NewToken: "tok-new"}, out)
+		if err != nil {
+			t.Fatal(err)
+		}
+		synctest.Wait()
+		out.mu.Lock()
+		defer out.mu.Unlock()
+		for _, m := range out.msgs {
+			b, err := json.Marshal(m)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var w netproto.Welcome
+			if json.Unmarshal(b, &w) != nil || w.T != netproto.TWelcome {
+				continue
+			}
+			if w.Code != "ABCD" || w.You != s.ID() || w.Tok != "tok-new" {
+				t.Fatalf("welcome envelope %+v from %s", w, b)
+			}
+			return
+		}
+		t.Fatal("no welcome")
 	})
 }
