@@ -230,6 +230,9 @@ up() {
   read -r cid img <<<"$out"
   [[ "$cid" =~ ^[0-9a-f]{64}$ ]] || { echo "deploy: no dogfight-$color container after start" >&2; return 1; }
   [[ "$img" == "dogfight:$v" ]] || { echo "deploy: dogfight-$color runs '$img', not dogfight:$v" >&2; return 1; }
+  # compose reuses an unchanged stopped container as is, keeping the `no`
+  # its last drain set (a rollback to the version that color last ran).
+  remote "docker update --restart=unless-stopped '$cid' >/dev/null" || return 1
   for i in $(seq 1 45); do
     status="$(remote "docker inspect -f '{{.State.Health.Status}}' '$cid'" 2>/dev/null || true)"
     [[ "$status" == healthy ]] && break
