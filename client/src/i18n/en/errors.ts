@@ -21,8 +21,8 @@ export const errors: Area<typeof tr> = {
   "notice.team_uneven": "The teams would be uneven",
   "notice.team_full": "That team is full",
   "notice.team_cooldown": "Wait {n} s to switch teams",
-  "notice.team_late": "No switching in the round's last minute",
-  "notice.team_locked": "You can't switch teams while locked",
+  "notice.team_late": "No team switching in the round's last {n} s",
+  "notice.team_locked": "You can't switch teams while a missile is locked on you",
   "notice.team_hurt": "Wait {n} s after taking damage",
   "notice.team_none": "This mode has no teams",
 };

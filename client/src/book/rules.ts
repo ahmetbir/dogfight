@@ -93,6 +93,10 @@ export const RULES = {
   matchS: 60,
   newPilotFlightS: 60,
   pickTimeoutS: 15,
+  // team switch (internal/game team.go)
+  switchCooldownS: 30,
+  switchCloseS: 60,
+  hurtS: 10,
   playHalf: 4000,
   // aircraft (internal/sim aircraft.go): the table the welcome message also carries
   f16MaxHP: 90,

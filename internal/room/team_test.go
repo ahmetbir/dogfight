@@ -57,7 +57,7 @@ func TestTeamSwitchChatSummaryNotice(t *testing.T) {
 		sa.Input(protocol.ClientMsg{T: protocol.TTeam, Team: "nato"})
 		time.Sleep(100 * time.Millisecond)
 		synctest.Wait()
-		if n := a.notices(); len(n) != 1 || n[0] != msgTeamCooldown {
+		if n := a.notices(); len(n) != 1 || n[0] != "Takım değiştirmek için 30 sn bekle" {
 			t.Fatalf("notices %q", n)
 		}
 		if len(b.notices()) != 0 {
@@ -88,7 +88,7 @@ func TestSwitchWinGoesToTeamAtRoundEnd(t *testing.T) {
 
 func TestTeamRefusalTexts(t *testing.T) {
 	for err, want := range map[error][2]string{
-		game.ErrLate:     {protocol.CodeTeamLate, "Raundun son dakikasında değiştirilemez"},
+		game.ErrLate:     {protocol.CodeTeamLate, "Raundun son 60 saniyesinde takım değiştirilemez"},
 		game.ErrLocked:   {protocol.CodeTeamLocked, "Kilitliyken takım değiştiremezsin"},
 		game.ErrHurt:     {protocol.CodeTeamHurt, "Hasar aldıktan sonra 10 sn bekle"},
 		game.ErrUneven:   {protocol.CodeTeamUneven, "Takımlar dengesiz olur"},

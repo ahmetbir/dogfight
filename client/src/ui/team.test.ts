@@ -52,7 +52,7 @@ test("menu switch: last minute in every team mode, cooldown, fire gates, balance
   assert.equal(switchBlock(v), null);
   assert.equal(switchBlock({ ...v, sinceSwitchS: 12.2 }), "Takım değiştirmek için 18 sn bekle");
   for (const mode of ["team", "base"]) {
-    assert.equal(switchBlock({ ...v, mode, round: { phase: "playing", left: SWITCH_CLOSE_TICKS - 1 } }), "Raundun son dakikasında değiştirilemez");
+    assert.equal(switchBlock({ ...v, mode, round: { phase: "playing", left: SWITCH_CLOSE_TICKS - 1 } }), "Raundun son 60 saniyesinde takım değiştirilemez");
   }
   assert.equal(switchBlock({ ...v, round: { phase: "playing", left: SWITCH_CLOSE_TICKS } }), null);
   assert.equal(switchBlock({ ...v, round: { phase: "ended", left: 100 } }), null, "the scoreboard break is not the last minute");

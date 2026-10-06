@@ -4,17 +4,21 @@
 import { lattr, lt, t, type Key } from "../i18n/index.ts";
 import { noticeText } from "../i18n/messages.ts";
 import type { EventJSON, MissileJSON, NoticeMsg, PlaneJSON, PlayerJSON, RoundMsg, ServerMsg, Team, TeamChoice } from "../net/protocol.ts";
+import { RULES } from "../book/rules.ts";
 import { h, text } from "./dom.ts";
 
 export type Side = "nato" | "soviet";
 export type Counts = Record<Side, number>;
 
-/** game.SwitchCooldownTicks / 60. */
-export const SWITCH_COOLDOWN_S = 30;
-/** game.SwitchCloseTicks: no switch in the round's last minute (every team mode). */
-export const SWITCH_CLOSE_TICKS = 60 * 60;
-/** game.HurtTicks / 60: no switch this soon after taking damage. */
-export const HURT_S = 10;
+// The server's switch rules (game.SwitchCooldownTicks, SwitchCloseTicks,
+// HurtTicks), from the Go-checked RULES table.
+/** Least time between two switches, s. */
+export const SWITCH_COOLDOWN_S = RULES.switchCooldownS;
+/** No switch in the round's last SWITCH_CLOSE_S (every team mode); in ticks for round.left. */
+export const SWITCH_CLOSE_S = RULES.switchCloseS;
+export const SWITCH_CLOSE_TICKS = SWITCH_CLOSE_S * 60;
+/** No switch this soon after taking damage, s. */
+export const HURT_S = RULES.hurtS;
 /** Debounce of selector clicks: team messages share the server's pick bucket (a burst over it kicks). */
 export const CHOOSE_GAP_MS = 400;
 
@@ -25,7 +29,8 @@ export const uneven = () => t("notice.team_uneven");
 
 /** A server notice (a refused team choice) in the current language, with this client's cooldown numbers. */
 export function noticeOf(m: NoticeMsg): string {
-  return noticeText(m.code, m.msg, { n: m.code === "team_hurt" ? HURT_S : SWITCH_COOLDOWN_S });
+  const n = m.code === "team_hurt" ? HURT_S : m.code === "team_late" ? SWITCH_CLOSE_S : SWITCH_COOLDOWN_S;
+  return noticeText(m.code, m.msg, { n });
 }
 
 export function hasTeams(mode: string): boolean {
@@ -68,7 +73,7 @@ export type SwitchView = {
 /** Why the menu's switch is closed now, or null when it is open. */
 export function switchBlock(v: SwitchView): string | null {
   if (!hasTeams(v.mode) || (v.mine !== "nato" && v.mine !== "soviet")) return t("notice.team_none");
-  if (v.round?.phase === "playing" && v.round.left < SWITCH_CLOSE_TICKS) return t("notice.team_late");
+  if (v.round?.phase === "playing" && v.round.left < SWITCH_CLOSE_TICKS) return t("notice.team_late", { n: SWITCH_CLOSE_S });
   if (v.sinceSwitchS < SWITCH_COOLDOWN_S) return t("notice.team_cooldown", { n: Math.ceil(SWITCH_COOLDOWN_S - v.sinceSwitchS) });
   if (v.alive && v.threat) return t("notice.team_locked");
   if (v.alive && v.hurtAgoS < HURT_S) return t("notice.team_hurt", { n: HURT_S });

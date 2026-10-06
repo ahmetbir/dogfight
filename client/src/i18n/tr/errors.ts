@@ -18,7 +18,7 @@ export const errors = {
   "notice.team_uneven": "Takımlar dengesiz olur",
   "notice.team_full": "Takım dolu",
   "notice.team_cooldown": "Takım değiştirmek için {n} sn bekle",
-  "notice.team_late": "Raundun son dakikasında değiştirilemez",
+  "notice.team_late": "Raundun son {n} saniyesinde takım değiştirilemez",
   "notice.team_locked": "Kilitliyken takım değiştiremezsin",
   "notice.team_hurt": "Hasar aldıktan sonra {n} sn bekle",
   "notice.team_none": "Bu modda takım yok",

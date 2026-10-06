@@ -133,9 +133,11 @@ func goRules(t *testing.T) map[string]float64 {
 		"baseRoundMin": float64(mode.NewRules(mode.Base, 2).DurationTicks()) / ticks / 60,
 		"roundEndS":    game.EndedTicks / ticks, "teamMaxPerSide": float64(mode.NewRules(mode.Team, 99).Slots() / 2),
 		"teamMinPerSide": float64(mode.NewRules(mode.Team, 0).Slots() / 2),
-		"ffaMin": float64(mode.NewRules(mode.FFA, 0).Slots()), "ffaMax": float64(mode.NewRules(mode.FFA, 99).Slots()),
+		"ffaMin":         float64(mode.NewRules(mode.FFA, 0).Slots()), "ffaMax": float64(mode.NewRules(mode.FFA, 99).Slots()),
 		"matchS": MatchTicks / ticks, "playHalf": terrain.PlayHalf,
 		"newPilotFlightS": stats.MinFlightTicks / ticks, "pickTimeoutS": game.PickTimeoutTicks / ticks,
+		"switchCooldownS": game.SwitchCooldownTicks / ticks, "switchCloseS": game.SwitchCloseTicks / ticks,
+		"hurtS": game.HurtTicks / ticks,
 	}
 	if math.Abs(float64(mode.NewRules(mode.FFA, 2).DurationTicks())/ticks/60-r["roundMin"]) > 1e-9 {
 		t.Fatal("team and FFA rounds differ in length: the manual quotes one roundMin")
