@@ -107,7 +107,7 @@ func (s *Slot) Dropped() uint64 {
 	return n
 }
 
-// Top is Store.Top; empty with no open store.
+// Top is Store.Top; week "" with no open store.
 func (s *Slot) Top(p Period, n int) ([]Entry, string) {
 	if st := s.store(); st != nil {
 		return st.Top(p, n)

@@ -292,3 +292,20 @@ func TestUnknownAPIPathIsJSON(t *testing.T) {
 		t.Fatalf("%d %s", res.StatusCode, res.Header.Get("Content-Type"))
 	}
 }
+
+// A board the store could not answer (closed after Ready) is not cached:
+// the next request rebuilds it instead of serving an empty board for boardTTL.
+func TestAPICacheKeepsNoNilBody(t *testing.T) {
+	var c apiCache
+	now, builds := time.Unix(0, 0), 0
+	build := func(b []byte) func() []byte { return func() []byte { builds++; return b } }
+	if c.get(now, time.Minute, build(nil)) != nil {
+		t.Fatal("nil body")
+	}
+	if string(c.get(now, time.Minute, build([]byte("x")))) != "x" || builds != 2 {
+		t.Fatalf("nil body was cached (builds %d)", builds)
+	}
+	if string(c.get(now, time.Minute, build([]byte("y")))) != "x" || builds != 2 {
+		t.Fatal("a real body is cached for ttl")
+	}
+}

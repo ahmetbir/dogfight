@@ -153,11 +153,16 @@ func (s *Store) Record(d Delta) bool {
 
 func (s *Store) Dropped() uint64 { return s.dropped.Load() }
 
-// Top returns the best n pilots of the period and the current week key.
+// Top returns the best n pilots of the period and the current week key;
+// week "" when the store closed before answering (no board).
 func (s *Store) Top(p Period, n int) ([]Entry, string) {
 	var e []Entry
 	var wk string
-	s.call(func(s *Store) (bool, error) { e, wk = s.top(p, n); return false, nil })
+	ran := false // read after call returns: the reply is received after the actor set it
+	s.call(func(s *Store) (bool, error) { e, wk = s.top(p, n); ran = true; return false, nil })
+	if !ran {
+		return nil, ""
+	}
 	if wk == "" {
 		wk = WeekKey(s.o.Now())
 	}

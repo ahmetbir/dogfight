@@ -25,7 +25,7 @@ const (
 	msgRequests  = "çok fazla istek"
 )
 
-// apiCache holds one JSON body for ttl.
+// apiCache holds one JSON body for ttl; a nil body from build is not kept.
 type apiCache struct {
 	mu   sync.Mutex
 	at   time.Time
@@ -124,8 +124,11 @@ func (s *Server) apiLeaderboard(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, errorJSON(msgBadPeriod))
 		return
 	}
-	writeJSON(w, http.StatusOK, s.boards[period].get(s.o.Now(), boardTTL, func() []byte {
+	body := s.boards[period].get(s.o.Now(), boardTTL, func() []byte {
 		top, week := s.o.Stats.Top(period, boardSize)
+		if week == "" { // the store closed after Ready: no board, nothing cached
+			return nil
+		}
 		if top == nil {
 			top = []stats.Entry{}
 		}
@@ -135,7 +138,12 @@ func (s *Server) apiLeaderboard(w http.ResponseWriter, r *http.Request) {
 			Top    []stats.Entry `json:"top"`
 		}{name, week, top})
 		return b
-	}))
+	})
+	if body == nil {
+		writeJSON(w, http.StatusServiceUnavailable, errorJSON(msgStatsOff))
+		return
+	}
+	writeJSON(w, http.StatusOK, body)
 }
 
 // noPilot is /api/me's answer for a missing, malformed, oversize or unknown

@@ -225,8 +225,8 @@ func TestCloseIsIdempotentAndFinal(t *testing.T) {
 	if _, ok := s.Me("aa"); ok {
 		t.Fatal("me after close")
 	}
-	if top, wk := s.Top(All, 20); top != nil || wk != "2026-W41" {
-		t.Fatalf("top after close %v %s", top, wk)
+	if top, wk := s.Top(All, 20); top != nil || wk != "" { // week "": no board (the API answers 503, caches nothing)
+		t.Fatalf("top after close %v %q", top, wk)
 	}
 }
 
