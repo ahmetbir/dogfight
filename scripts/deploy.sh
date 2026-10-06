@@ -62,6 +62,18 @@ NCPROBE='for t in "$@"; do if nc -z -w 3 "${t%:*}" "${t##*:}" 2>/dev/null; then 
 
 die() { echo "deploy: $*" >&2; exit 1; }
 
+# static_arm64 FILE: a 64-bit little-endian ELF executable for aarch64 with
+# no program interpreter (statically linked). Reads the header with od, so
+# it needs no `file` (absent on minimal servers, where CI deploys run).
+static_arm64() {
+  local h
+  h="$(od -An -tx1 -N20 "$1" | tr -d ' \n')" || return 1
+  # 7f454c46 = \x7fELF, 02 = 64-bit, 01 = little-endian; e_type (offset 16)
+  # 0200 = executable; e_machine (offset 18) b700 = aarch64.
+  [[ "$h" == 7f454c460201* && "${h:32:4}" == 0200 && "${h:36:4}" == b700 ]] || return 1
+  ! LC_ALL=C grep -q -a 'ld-linux' "$1"
+}
+
 # load_env FILE: KEY=value lines of the known keys; the environment wins.
 load_env() {
   local line k
@@ -510,8 +522,7 @@ esac
 VERSION="$(cat dist/VERSION)"
 valid "$VERSION"
 [[ "$VERSION" != *-dirty ]] || die "refusing a dirty build ($VERSION)"
-info="$(file dist/dogfight-linux-arm64)"
-[[ "$info" == *"ARM aarch64"*"statically linked"* ]] || die "dist binary is not a static linux/arm64 ELF"
+static_arm64 dist/dogfight-linux-arm64 || die "dist binary is not a static linux/arm64 ELF"
 lock_box
 live >/dev/null || exit 1
 remote "docker inspect '$NGINX' >/dev/null" || die "no nginx container $NGINX on $HOST"
