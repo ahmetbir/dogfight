@@ -21,6 +21,9 @@ func TestTokenNeverLogged(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		if len(m) == 0 {
+			t.Errorf("directory %s matched no files", dir)
+		}
 		files = append(files, m...)
 	}
 	if len(files) < 10 {
