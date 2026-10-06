@@ -61,7 +61,7 @@ type Conn struct {
 	wake      chan struct{} // cap 1: queue became non-empty
 	in        chan []byte
 	done      chan struct{}
-	ctx       context.Context // cancelled by Close; bounds writes and lag waits
+	ctx       context.Context // cancelled by abort (and when the writer ends); bounds writes
 	cancel    context.CancelFunc
 	closeOnce sync.Once
 	stalled   atomic.Bool
@@ -140,8 +140,7 @@ func (c *Conn) enqueue(m outMsg) bool {
 		c.o.Count.Drop()
 	}
 	if stalled {
-		c.stalled.Store(true)
-		c.Close()
+		c.abort()
 		return false
 	}
 	if ok {
@@ -162,12 +161,18 @@ func (c *Conn) next() (outMsg, bool) {
 func (c *Conn) Recv() <-chan []byte   { return c.in }
 func (c *Conn) Done() <-chan struct{} { return c.done }
 
-// Close never blocks: it signals both goroutines; the writer closes the socket.
+// Close never blocks: it signals both goroutines; the writer closes the
+// socket after the write in flight, if any, so the close frame (code and
+// reason) always follows a complete message.
 func (c *Conn) Close() {
-	c.closeOnce.Do(func() {
-		close(c.done)
-		c.cancel()
-	})
+	c.closeOnce.Do(func() { close(c.done) })
+}
+
+// abort tears down without a handshake: the write in flight is cancelled.
+func (c *Conn) abort() {
+	c.stalled.Store(true)
+	c.cancel()
+	c.Close()
 }
 
 // closeInfo is the close frame the writer sends: code and reason are set
@@ -196,8 +201,7 @@ func (c *Conn) Wait() { c.wg.Wait() }
 func (c *Conn) recoverPanic(where string) {
 	if v := recover(); v != nil {
 		slog.Error("wsconn panic", "where", where, "panic", v)
-		c.stalled.Store(true) // tear down without a handshake
-		c.Close()
+		c.abort()
 		c.ws.CloseNow()
 	}
 }
@@ -230,6 +234,7 @@ func (c *Conn) readLoop() {
 // writeLoop marshals and writes queued messages, then performs the close:
 // a handshake normally, an immediate close after a stall or write error.
 func (c *Conn) writeLoop() {
+	defer c.cancel()
 	defer c.recoverPanic("writer")
 	graceful := c.writeAll()
 	c.Close()

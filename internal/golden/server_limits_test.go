@@ -49,27 +49,13 @@ func (s *sock) sawFlare(you int) bool {
 }
 
 // liveDrain: a draining server whose room ends under its player closes the
-// socket with 1012 and the update reason. The close can race a snapshot
-// write still in flight, which ends the socket without a close frame; such
-// an attempt is repeated (up to 5) on a fresh server, so the golden holds
-// the close the server means to send.
+// socket with 1012 and the update reason, after the snapshot in flight.
 func liveDrain(t *testing.T, tr *transcript) {
-	for range 5 {
-		try := newTranscript()
-		srv, s, stop := newServer(t, srvOpts{lim: open})
-		live := exchange(t, srv, try, "live_drain", "welcome", hello, fmt.Sprintf(ffa2, 4))
-		s.Drain(true)
-		stop()
-		live.read("")
-		lines := try.sessions["live_drain"]
-		if last := lines[len(lines)-1]; string(last.M) != `{"status":"none"}` {
-			for _, l := range lines {
-				tr.sessions["live_drain"] = append(tr.sessions["live_drain"], l)
-			}
-			return
-		}
-	}
-	t.Fatal("live drain: no close frame in 5 attempts")
+	srv, s, stop := newServer(t, srvOpts{lim: open})
+	live := exchange(t, srv, tr, "live_drain", "welcome", hello, fmt.Sprintf(ffa2, 4))
+	s.Drain(true)
+	stop()
+	live.read("")
 }
 
 const ffa2 = `{"t":"create","mode":"ffa","size":2,"diff":"easy","seed":%d}`

@@ -254,6 +254,18 @@ func (x *h) fly(n int, names ...string) {
 	}
 }
 
+// flyUntil flies the named seats in 60-tick steps until names[0] hears
+// phase; past limit ticks it fails (with the transcript diff), never spins.
+func (x *h) flyUntil(phase string, limit int, names ...string) {
+	n := 0
+	for ; x.phase(names[0]) != phase && n < limit; n += 60 {
+		x.fly(60, names...)
+	}
+	if x.phase(names[0]) != phase {
+		x.t.Errorf("phase %q not reached in %d ticks", phase, limit)
+	}
+}
+
 // burst queues k inputs of one seat inside one tick, the first ones
 // carrying the one-shot presses press sets: more than the room keeps
 // (backlog trim) or holds (queue overflow), so presses must merge forward.

@@ -176,9 +176,8 @@ func TestGoldenServerFrames(t *testing.T) {
 	exchange(t, srv, tr, "welcome", "welcome", hello, `{"t":"create","mode":"ffa","size":4,"diff":"easy","seed":1}`).ws.CloseNow()
 	exchange(t, srv, tr, "busy", "", hello, `{"t":"create","mode":"ffa","size":4,"diff":"easy","seed":2}`)
 	exchange(t, srv, tr, "bad_msg_in_room", "", hello, `{"t":"quick"}`, `{"t":"nope"}`)
-	// A binary or an oversized frame before the handshake ends: no write is
-	// in flight then, so the close code arrives intact (in a room it races
-	// the snapshot being written, see the Phase 0 report).
+	// A binary or an oversized frame before the handshake ends (in a room:
+	// TestServerInRoomBinaryCloses1003).
 	bin := dial(t, srv, tr, "binary_first")
 	bin.send(hello)
 	if err := bin.ws.Write(bin.ctx, websocket.MessageBinary, []byte{1}); err != nil {
@@ -198,4 +197,24 @@ func TestGoldenServerFrames(t *testing.T) {
 	exchange(t, srv2, tr, "create_ok", "welcome", hello, create).ws.CloseNow()
 	exchange(t, srv2, tr, "creates", "", hello, create)
 	check(t, "server_frames", tr.bytes())
+}
+
+// TestServerInRoomBinaryCloses1003: a binary frame from a player whose room
+// is streaming snapshots closes with the code and reason binary_first froze
+// in server_frames: the close waits for the snapshot in flight.
+func TestServerInRoomBinaryCloses1003(t *testing.T) {
+	srv, _, _ := newServer(t, srvOpts{lim: open})
+	for seed := range 5 {
+		tr := newTranscript()
+		s := exchange(t, srv, tr, "in_room", "welcome", hello, fmt.Sprintf(ffa2, seed+1))
+		s.read("snap")
+		if err := s.ws.Write(s.ctx, websocket.MessageBinary, []byte{1}); err != nil {
+			t.Fatal(err)
+		}
+		s.read("")
+		lines := tr.sessions["in_room"]
+		if got := string(lines[len(lines)-1].M); got != `{"status":1003,"reason":""}` {
+			t.Fatalf("seed %d: in-room close %s", seed+1, got)
+		}
+	}
 }

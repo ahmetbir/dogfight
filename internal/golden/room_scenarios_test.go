@@ -136,16 +136,12 @@ func TestGoldenRoomRoundEnd(t *testing.T) {
 			x.pick("b", "f15", "su27", "radar")
 			x.autopilot("a", 41)
 			x.autopilot("b", 42)
-			for x.phase("a") != "ended" {
-				x.fly(60, "a", "b")
-			}
+			x.flyUntil("ended", 30000, "a", "b") // the round clock ends it at 21600
 			x.fly(120, "a", "b")
 			x.join("c", "pilot-c", "")
 			x.pick("c", "f16", "mig29", "ir") // during the scoreboard: spawns with the next round
 			x.autopilot("c", 43)
-			for x.phase("a") != "playing" {
-				x.fly(60, "a", "b", "c")
-			}
+			x.flyUntil("playing", 3600, "a", "b", "c")
 			x.fly(600, "a", "b", "c")
 		})
 }
