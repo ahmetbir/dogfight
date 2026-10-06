@@ -19,7 +19,7 @@ import (
 
 	"playground/core/metrics"
 	"playground/core/pilot"
-	"playground/core/server"
+	"playground/internal/front"
 	"playground/internal/match"
 	"playground/internal/stats"
 )
@@ -97,7 +97,7 @@ func run(cfg config) error {
 	lb := match.NewLobby(ctx, cfg.maxRooms, reg, sink)
 	o := cfg.server(sub, st)
 	o.Metrics = reg
-	h := server.New(lb, o)
+	h := front.NewServer(lb, o)
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGUSR1, syscall.SIGUSR2)
 	defer signal.Stop(sig)

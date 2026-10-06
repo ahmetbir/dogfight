@@ -1,15 +1,17 @@
-package server
+package server_test
 
 import (
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+
+	"playground/core/server"
 )
 
 // Spec §10.4: /api/* is GET (and HEAD) only.
 func TestAPIMethods(t *testing.T) {
-	srv := newServer(t, Options{})
+	srv, _ := newFake(t, server.Options{}, 0)
 	for _, path := range []string{"/api/rooms", "/api/leaderboard?period=week", "/api/me"} {
 		res, err := http.Post(srv.URL+path, "application/json", strings.NewReader("{}"))
 		if err != nil {

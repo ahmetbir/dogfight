@@ -27,7 +27,7 @@ const (
 	defaultStatsWt = 40 * time.Minute // > drainMax: an old server that never drains holds the lock until it exits
 )
 
-// drainable is the server side of a drain (*server.Server).
+// drainable is the server side of a drain (*front.Server).
 type drainable interface {
 	Drain(on bool)
 	Conns() int

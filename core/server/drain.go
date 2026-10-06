@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"sync/atomic"
 
+	"playground/core/room"
 	"playground/core/wsconn"
-	"playground/internal/match"
 )
 
 // msgUpdating is the close reason (and API error) of a draining server: a
@@ -23,18 +23,18 @@ type drain struct {
 // room play on; every new socket is closed with 1012 (msgUpdating), as is
 // each player's socket when its room ends; /api/* answers 503. Drain(false)
 // serves again (rollback).
-func (s *Server) Drain(on bool) {
+func (s *Server[S, M, In, X]) Drain(on bool) {
 	s.drain.on.Store(on)
 	s.lobby.Drain(on)
 }
 
 // Conns is the number of open game sockets.
-func (s *Server) Conns() int { return int(s.drain.open.Load()) }
+func (s *Server[S, M, In, X]) Conns() int { return int(s.drain.open.Load()) }
 
-func (s *Server) draining() bool { return s.drain.on.Load() }
+func (s *Server[S, M, In, X]) draining() bool { return s.drain.on.Load() }
 
 // apiDraining answers 503 while draining and reports whether it did.
-func (s *Server) apiDraining(w http.ResponseWriter) bool {
+func (s *Server[S, M, In, X]) apiDraining(w http.ResponseWriter) bool {
 	if !s.draining() {
 		return false
 	}
@@ -47,11 +47,11 @@ func (s *Server) apiDraining(w http.ResponseWriter) bool {
 // stopping on a normal closure.
 type roomConn struct {
 	*wsconn.Conn
-	s *Server
+	draining func() bool
 }
 
 func (c roomConn) Close() {
-	if c.s.draining() {
+	if c.draining() {
 		c.Restart(msgUpdating)
 		return
 	}
@@ -59,7 +59,7 @@ func (c roomConn) Close() {
 }
 
 // counted tracks the open game socket requests for Conns.
-func (s *Server) counted(next http.HandlerFunc) http.HandlerFunc {
+func (s *Server[S, M, In, X]) counted(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		s.drain.open.Add(1)
 		defer s.drain.open.Add(-1)
@@ -69,11 +69,11 @@ func (s *Server) counted(next http.HandlerFunc) http.HandlerFunc {
 
 // updating closes the handshaking socket with 1012 (msgUpdating); the
 // socket handler's later Fail is a no-op on the closed connection.
-func (s *Server) updating(p *peer) (*match.Seat, string) {
+func (s *Server[S, M, In, X]) updating(p *peer[M]) (*room.Seat[M], string) {
 	p.conn.Restart(msgUpdating)
 	return nil, msgUpdating
 }
 
 // FlushStats makes every room hand its open tallies to the stats sink (see
 // lobby.FlushStats); the drainer calls it before closing the stats store.
-func (s *Server) FlushStats(ctx context.Context) bool { return s.lobby.FlushStats(ctx) }
+func (s *Server[S, M, In, X]) FlushStats(ctx context.Context) bool { return s.lobby.FlushStats(ctx) }

@@ -1,4 +1,4 @@
-package server
+package front
 
 import (
 	"strings"
@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"playground/core/metrics"
+	"playground/core/server"
 	"playground/internal/protocol"
 )
 
 func TestServerCounters(t *testing.T) {
 	reg := metrics.New("dogfight", nil)
-	srv := newServer(t, Options{Metrics: reg})
+	srv := newServer(t, server.Options{Metrics: reg})
 	c := dial(t, srv)
 	c.send(hello("a"))
 	c.send(protocol.ClientMsg{T: "create", Mode: "ffa", Size: 2, Diff: "easy"})
@@ -42,7 +43,7 @@ func TestServerCounters(t *testing.T) {
 // Every refusal is counted under its reason, not only the logged ones.
 func TestRejectCounters(t *testing.T) {
 	reg := metrics.New("dogfight", nil)
-	srv := newServer(t, Options{Metrics: reg, Limits: tight(func(l *Limits) { l.MaxConnsIP = 1 })})
+	srv := newServer(t, server.Options{Metrics: reg, Limits: tight(func(l *server.Limits) { l.MaxConnsIP = 1 })})
 	if _, code := rawDial(t, srv.URL, nil); code != 101 {
 		t.Fatalf("first dial %d", code)
 	}

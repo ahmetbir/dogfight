@@ -1,4 +1,4 @@
-package server
+package front
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/coder/websocket"
 
+	"playground/core/server"
 	"playground/internal/match"
 	"playground/internal/protocol"
 )
@@ -21,7 +22,7 @@ func drainServer(t *testing.T) (*httptest.Server, *Server, *match.Lobby, context
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	lb := match.NewLobby(ctx, 0, nil, nil)
-	s := New(lb, Options{Web: web, Limits: Limits{MaxConnsIP: 1000, CreatePerMinIP: 1000, JoinFailPerMinIP: 1000, JoinPerMinIP: 1000}})
+	s := NewServer(lb, server.Options{Web: web, Limits: server.Limits{MaxConnsIP: 1000, CreatePerMinIP: 1000, JoinFailPerMinIP: 1000, JoinPerMinIP: 1000}})
 	srv := httptest.NewServer(s)
 	t.Cleanup(func() { cancel(); srv.Close() })
 	return srv, s, lb, cancel

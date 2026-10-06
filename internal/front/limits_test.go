@@ -1,4 +1,4 @@
-package server
+package front
 
 import (
 	"context"
@@ -12,13 +12,14 @@ import (
 
 	"github.com/coder/websocket"
 
+	"playground/core/server"
 	"playground/internal/match"
 	"playground/internal/protocol"
 )
 
 // tight returns limits that are generous except for the field under test.
-func tight(f func(*Limits)) Limits {
-	l := Limits{MaxConnsIP: 1000, CreatePerMinIP: 1000, JoinFailPerMinIP: 1000, JoinPerMinIP: 1000}
+func tight(f func(*server.Limits)) server.Limits {
+	l := server.Limits{MaxConnsIP: 1000, CreatePerMinIP: 1000, JoinFailPerMinIP: 1000, JoinPerMinIP: 1000}
 	f(&l)
 	return l
 }
@@ -40,7 +41,7 @@ func rawDial(t *testing.T, url string, h http.Header) (*websocket.Conn, int) {
 }
 
 func TestPerIPConnLimit(t *testing.T) {
-	srv := newServer(t, Options{Limits: tight(func(l *Limits) { l.MaxConnsIP = 2 })})
+	srv := newServer(t, server.Options{Limits: tight(func(l *server.Limits) { l.MaxConnsIP = 2 })})
 	for range 2 {
 		if _, code := rawDial(t, srv.URL, nil); code != 101 {
 			t.Fatalf("dial under cap = %d", code)
@@ -52,8 +53,8 @@ func TestPerIPConnLimit(t *testing.T) {
 }
 
 func TestTrustedProxyLimitsByRealIP(t *testing.T) {
-	proxies, _ := ParsePrefixes("127.0.0.0/8")
-	srv := newServer(t, Options{TrustProxy: proxies, Limits: tight(func(l *Limits) { l.MaxConnsIP = 1 })})
+	proxies, _ := server.ParsePrefixes("127.0.0.0/8")
+	srv := newServer(t, server.Options{TrustProxy: proxies, Limits: tight(func(l *server.Limits) { l.MaxConnsIP = 1 })})
 	ip := func(a string) http.Header { return http.Header{"X-Real-IP": {a}} }
 	if _, code := rawDial(t, srv.URL, ip("198.51.100.1")); code != 101 {
 		t.Fatal(code)
@@ -67,7 +68,7 @@ func TestTrustedProxyLimitsByRealIP(t *testing.T) {
 }
 
 func TestGlobalConnLimit(t *testing.T) {
-	srv := newServer(t, Options{Limits: tight(func(l *Limits) { l.MaxConns = 1 })})
+	srv := newServer(t, server.Options{Limits: tight(func(l *server.Limits) { l.MaxConns = 1 })})
 	rawDial(t, srv.URL, nil)
 	if _, code := rawDial(t, srv.URL, nil); code != http.StatusServiceUnavailable {
 		t.Fatalf("over global cap = %d, want 503", code)
@@ -96,7 +97,7 @@ func joined(t *testing.T, srv string) *client {
 }
 
 func TestPickAndPingFlood(t *testing.T) {
-	srv := newServer(t, Options{Web: web, Limits: tight(func(*Limits) {})})
+	srv := newServer(t, server.Options{Web: web, Limits: tight(func(*server.Limits) {})})
 	for name, raw := range map[string]string{
 		"pick": `{"t":"pick","kind":"f16"}`,
 		"ping": `{"t":"ping","ts":1}`,
@@ -116,7 +117,7 @@ func TestPickAndPingFlood(t *testing.T) {
 }
 
 func TestSteadyInputNotLimited(t *testing.T) {
-	srv := newServer(t, Options{Web: web, Limits: tight(func(*Limits) {})})
+	srv := newServer(t, server.Options{Web: web, Limits: tight(func(*server.Limits) {})})
 	c := joined(t, srv.URL)
 	tk := time.NewTicker(time.Second / 60)
 	defer tk.Stop()
@@ -135,7 +136,7 @@ func TestSteadyInputNotLimited(t *testing.T) {
 // and no wall-clock race decides the outcome. That the limiter itself admits
 // the bunch is pinned deterministically by TestBunchedInputPassesTheGuard.
 func TestBunchedInputNotLimited(t *testing.T) {
-	srv := newServer(t, Options{Web: web, Limits: tight(func(*Limits) {})})
+	srv := newServer(t, server.Options{Web: web, Limits: tight(func(*server.Limits) {})})
 	c := joined(t, srv.URL)
 	in := protocol.ClientMsg{T: protocol.TIn, Th: 1}
 	for in.Seq = 1; in.Seq <= 100; in.Seq++ {
@@ -159,7 +160,7 @@ func TestBunchedInputNotLimited(t *testing.T) {
 }
 
 func TestMaxRoomsServerFull(t *testing.T) {
-	srv := newServerRooms(t, Options{Web: web}, 1)
+	srv := newServerRooms(t, server.Options{Web: web}, 1)
 	joined(t, srv.URL)
 	c := dial(t, srv)
 	c.send(hello("y"))
@@ -168,7 +169,7 @@ func TestMaxRoomsServerFull(t *testing.T) {
 }
 
 func TestCreateRatePerIP(t *testing.T) {
-	srv := newServer(t, Options{Web: web, Limits: tight(func(l *Limits) { l.CreatePerMinIP = 3 })})
+	srv := newServer(t, server.Options{Web: web, Limits: tight(func(l *server.Limits) { l.CreatePerMinIP = 3 })})
 	for range 3 {
 		joined(t, srv.URL)
 	}
@@ -179,7 +180,7 @@ func TestCreateRatePerIP(t *testing.T) {
 }
 
 func TestJoinFailsPerIP(t *testing.T) {
-	srv := newServer(t, Options{Web: web, Limits: tight(func(l *Limits) { l.JoinFailPerMinIP = 2 })})
+	srv := newServer(t, server.Options{Web: web, Limits: tight(func(l *server.Limits) { l.JoinFailPerMinIP = 2 })})
 	try := func(want string) {
 		c := dial(t, srv)
 		c.send(hello("y"))
@@ -195,7 +196,7 @@ func TestDrainOnShutdown(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	l := match.NewLobby(ctx, 0, nil, nil)
-	s := New(l, Options{Web: web})
+	s := NewServer(l, server.Options{Web: web})
 	srv := httptest.NewServer(s)
 	defer srv.Close()
 	c := joined(t, srv.URL)
@@ -216,7 +217,7 @@ func TestDrainOnShutdown(t *testing.T) {
 // While the server is full, retrying a create answers "sunucu dolu" and
 // spends no create token.
 func TestFullServerKeepsCreateTokens(t *testing.T) {
-	srv := newServerRooms(t, Options{Web: web, Limits: tight(func(l *Limits) { l.CreatePerMinIP = 2 })}, 1)
+	srv := newServerRooms(t, server.Options{Web: web, Limits: tight(func(l *server.Limits) { l.CreatePerMinIP = 2 })}, 1)
 	joined(t, srv.URL)
 	for range 3 {
 		c := dial(t, srv)
@@ -226,18 +227,10 @@ func TestFullServerKeepsCreateTokens(t *testing.T) {
 	}
 }
 
-func TestBurstOf(t *testing.T) {
-	for in, want := range map[float64]int{0.5: 1, 1: 1, 2.2: 3, 3: 3, 10: 10} {
-		if got := burstOf(in); got != want {
-			t.Errorf("burstOf(%v)=%d want %d", in, got, want)
-		}
-	}
-}
-
 // Concurrent creates from one address cannot share a create token: the
 // check and the spend are one step.
 func TestConcurrentCreatesShareNoToken(t *testing.T) {
-	srv := newServer(t, Options{Web: web, Limits: tight(func(l *Limits) { l.CreatePerMinIP = 1 })})
+	srv := newServer(t, server.Options{Web: web, Limits: tight(func(l *server.Limits) { l.CreatePerMinIP = 1 })})
 	const n = 8
 	cs := make([]*client, n)
 	for i := range cs {

@@ -9,14 +9,15 @@ import (
 
 	"github.com/coder/websocket"
 
-	"playground/internal/protocol"
+	"playground/core/internal/fakegame"
+	"playground/core/netproto"
 )
 
 // Inputs are only dropped, but sustained spam (here 400/s) still ends the
 // connection at the hard ceiling, within one 5 s window.
 func TestSustainedInputSpamKicked(t *testing.T) {
 	srv := newServer(t, Options{Web: web, Limits: tight(func(*Limits) {})})
-	c := joined(t, srv.URL)
+	c, _ := joined(t, srv.URL)
 	start := time.Now()
 	closed := make(chan websocket.StatusCode, 1)
 	go func() { closed <- c.closeStatus(8 * time.Second) }()
@@ -43,7 +44,7 @@ func TestSustainedInputSpamKicked(t *testing.T) {
 // One 5 s stall (300 inputs at once) and live input after it: no kick.
 func TestFiveSecondStallBurstNotKicked(t *testing.T) {
 	srv := newServer(t, Options{Web: web, Limits: tight(func(*Limits) {})})
-	c := joined(t, srv.URL)
+	c, _ := joined(t, srv.URL)
 	seq := 0
 	for range 300 {
 		seq++
@@ -83,10 +84,10 @@ func TestCeilingBytes(t *testing.T) {
 // admitted input, as the room's own backlog trim keeps them.
 func TestDroppedInputPressesLatch(t *testing.T) {
 	now := time.Unix(100, 0)
-	p := &peer{ip: "x", guard: newMsgGuard(Limits{MsgRate: 1, MsgBurst: 1, PickRate: 1, PickBurst: 1, PingRate: 1, PingBurst: 1},
+	p := &peer[fakegame.Msg]{ip: "x", guard: newMsgGuard(Limits{MsgRate: 1, MsgBurst: 1, PickRate: 1, PickBurst: 1, PingRate: 1, PingBurst: 1},
 		func() time.Time { return now })}
-	s := &Server{}
-	feed := func(raw string) (protocol.ClientMsg, bool) {
+	s := &fakeServer{kit: fakeKit{}}
+	feed := func(raw string) (fakegame.Msg, bool) {
 		t.Helper()
 		m, ok, err := s.admit(p, []byte(raw))
 		if err != nil {
@@ -97,18 +98,18 @@ func TestDroppedInputPressesLatch(t *testing.T) {
 	if _, ok := feed(`{"t":"in","seq":1}`); !ok {
 		t.Fatal("first input dropped")
 	}
-	if _, ok := feed(`{"t":"in","seq":2,"m":true}`); ok {
+	if _, ok := feed(`{"t":"in","seq":2,"shot":true}`); ok {
 		t.Fatal("input over the burst admitted")
 	}
-	feed(`{"t":"in","seq":3,"fl":true}`)
-	feed(`{"t":"in","seq":4,"bo":true}`)
+	feed(`{"t":"in","seq":3}`)
+	feed(`{"t":"in","seq":4}`)
 	now = now.Add(time.Second)
 	m, ok := feed(`{"t":"in","seq":5}`)
-	if !ok || !m.M || !m.FL || !m.BO || m.Seq != 5 {
-		t.Fatalf("next admitted input = %+v ok=%v, want seq 5 with missile, flare and bomb", m, ok)
+	if !ok || !m.Shot || m.Seq != 5 {
+		t.Fatalf("next admitted input = %+v ok=%v, want seq 5 with the dropped shot", m, ok)
 	}
 	now = now.Add(time.Second)
-	if m, _ := feed(`{"t":"in","seq":6}`); m.M || m.FL || m.BO {
+	if m, _ := feed(`{"t":"in","seq":6}`); m.Shot {
 		t.Fatal("the latch is cleared once used")
 	}
 	if p.drops.total != 3 {
@@ -123,10 +124,10 @@ func TestFloodTextMatchesClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if errCode(msgFlood) != protocol.CodeFlood {
+	if errCode(msgFlood) != netproto.CodeFlood {
 		t.Fatalf("errCode(msgFlood) = %q", errCode(msgFlood))
 	}
-	if want := `RECOVERABLE = new Set(["` + protocol.CodeFlood + `"])`; !strings.Contains(string(b), want) {
+	if want := `RECOVERABLE = new Set(["` + netproto.CodeFlood + `"])`; !strings.Contains(string(b), want) {
 		t.Fatalf("client/src/net/codes.ts lacks %s", want)
 	}
 }

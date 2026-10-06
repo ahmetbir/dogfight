@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"playground/core/limit"
-	"playground/internal/protocol"
+	"playground/core/netproto"
 )
 
 // msgGuard rate-limits one connection's inbound messages; owned by that
@@ -48,22 +48,25 @@ func (g *msgGuard) frame(n int) (verdict, string) {
 	return pass, ""
 }
 
-// check admits a decoded message of type t; a refusal names its bucket.
-func (g *msgGuard) check(t string) (verdict, string) {
+// check admits a decoded message of type t and rate class c; a refusal
+// names its bucket. The core types come first: inputs have their own
+// bucket, pings theirs; c only adds the choice bucket to a game type, and
+// every type but the input is charged to the shared bucket after it.
+func (g *msgGuard) check(t string, c Class) (verdict, string) {
 	now := g.now()
-	switch t {
-	case protocol.TIn:
+	switch {
+	case t == netproto.TIn:
 		if !g.in.Allow(now) {
 			return drop, "in"
 		}
 		return pass, ""
-	case protocol.TPick, protocol.TTeam: // a team choice opens the pick screen: one bucket
-		if !g.pick.Allow(now) {
-			return kick, "pick"
-		}
-	case protocol.TPing:
+	case t == netproto.TPing:
 		if !g.ping.Allow(now) {
 			return kick, "ping"
+		}
+	case c == ClassChoice:
+		if !g.pick.Allow(now) {
+			return kick, "pick"
 		}
 	}
 	if !g.all.Allow(now) {

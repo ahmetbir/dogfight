@@ -1,10 +1,13 @@
-package server
+package server_test
 
 import (
+	"io"
 	"net/http"
 	"strings"
 	"testing"
 	"testing/fstest"
+
+	"playground/core/server"
 )
 
 var webWithDirs = fstest.MapFS{
@@ -15,6 +18,17 @@ var webWithDirs = fstest.MapFS{
 	"models/manifest.json": {Data: []byte("[]")},
 	"models/sub/x.glb":     {Data: []byte("glTF")},
 	"empty/index.html":     {Data: []byte("nested index")},
+}
+
+func get(t *testing.T, url string) (int, string) {
+	t.Helper()
+	res, err := http.Get(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	b, _ := io.ReadAll(res.Body)
+	return res.StatusCode, string(b)
 }
 
 func head(t *testing.T, url string) *http.Response {
@@ -28,7 +42,7 @@ func head(t *testing.T, url string) *http.Response {
 }
 
 func TestSecurityHeadersEverywhere(t *testing.T) {
-	srv := newServer(t, Options{Web: webWithDirs})
+	srv, _ := newFake(t, server.Options{Web: webWithDirs}, 0)
 	want := map[string]string{
 		"Content-Security-Policy":    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
 		"X-Content-Type-Options":     "nosniff",
@@ -50,13 +64,14 @@ func TestSecurityHeadersEverywhere(t *testing.T) {
 }
 
 func TestConnectSrcExtra(t *testing.T) {
-	if got := csp([]string{"wss://dogfight.example"}); !strings.Contains(got, "connect-src 'self' wss://dogfight.example;") {
+	srv, _ := newFake(t, server.Options{ConnectSrc: []string{"wss://dogfight.example"}}, 0)
+	if got := head(t, srv.URL+"/healthz").Header.Get("Content-Security-Policy"); !strings.Contains(got, "connect-src 'self' wss://dogfight.example;") {
 		t.Fatal(got)
 	}
 }
 
 func TestNoDirectoryListing(t *testing.T) {
-	srv := newServer(t, Options{Web: webWithDirs})
+	srv, _ := newFake(t, server.Options{Web: webWithDirs}, 0)
 	for _, path := range []string{"/models/", "/models", "/models/sub/", "/empty/", "/empty"} {
 		if res := head(t, srv.URL+path); res.StatusCode != http.StatusNotFound {
 			t.Errorf("GET %s = %d, want 404", path, res.StatusCode)
@@ -68,7 +83,7 @@ func TestNoDirectoryListing(t *testing.T) {
 }
 
 func TestCacheControl(t *testing.T) {
-	srv := newServer(t, Options{Web: webWithDirs})
+	srv, _ := newFake(t, server.Options{Web: webWithDirs}, 0)
 	for path, want := range map[string]string{
 		"/":                     "no-cache",
 		"/r/ABCD":               "no-cache",
@@ -85,7 +100,7 @@ func TestCacheControl(t *testing.T) {
 }
 
 func TestHealthz(t *testing.T) {
-	srv := newServer(t, Options{})
+	srv, _ := newFake(t, server.Options{}, 0)
 	if code, body := get(t, srv.URL+"/healthz"); code != 200 || body != "ok" {
 		t.Fatalf("healthz = %d %q", code, body)
 	}

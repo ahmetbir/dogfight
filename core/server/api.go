@@ -8,13 +8,11 @@ import (
 	"time"
 
 	"playground/core/pilot"
-	"playground/internal/stats"
 )
 
 const (
-	roomsTTL  = time.Second      // how long one /api/rooms body is served before it is rebuilt
-	boardTTL  = 10 * time.Second // same for each /api/leaderboard period
-	boardSize = 20
+	roomsTTL = time.Second      // how long one /api/rooms body is served before it is rebuilt
+	boardTTL = 10 * time.Second // same for each /api/leaderboard period
 )
 
 // User-facing API error texts.
@@ -57,7 +55,7 @@ func errorJSON(msg string) []byte {
 
 // apiAllow spends one API token of the caller's address; when none is left
 // it answers 429 (503 while draining) and reports false.
-func (s *Server) apiAllow(w http.ResponseWriter, r *http.Request) bool {
+func (s *Server[S, M, In, X]) apiAllow(w http.ResponseWriter, r *http.Request) bool {
 	if s.o.Metrics != nil {
 		s.o.Metrics.API.Inc(strings.TrimPrefix(r.URL.Path, "/api/")) // fixed set; anything else is "other"
 	}
@@ -74,34 +72,18 @@ func (s *Server) apiAllow(w http.ResponseWriter, r *http.Request) bool {
 	return false
 }
 
-type roomJSON struct {
-	Code   string  `json:"code"`
-	Mode   string  `json:"mode"`
-	Map    string  `json:"map"`
-	Wx     string  `json:"wx"`
-	Humans int     `json:"humans"`
-	Seats  int     `json:"seats"`
-	Phase  string  `json:"phase"`
-	Left   int     `json:"left"`            // seconds left in the round
-	Teams  *[2]int `json:"teams,omitempty"` // humans on NATO, Soviet (team and base modes)
-}
-
 // apiRooms is GET /api/rooms: the listed rooms, rebuilt at most once per roomsTTL.
-func (s *Server) apiRooms(w http.ResponseWriter, r *http.Request) {
+func (s *Server[S, M, In, X]) apiRooms(w http.ResponseWriter, r *http.Request) {
 	if !s.apiAllow(w, r) {
 		return
 	}
 	writeJSON(w, http.StatusOK, s.rooms.get(s.o.Now(), roomsTTL, func() []byte {
 		list := s.lobby.List()
 		out := struct {
-			Rooms []roomJSON `json:"rooms"`
-		}{Rooms: make([]roomJSON, 0, len(list))}
+			Rooms []any `json:"rooms"`
+		}{Rooms: make([]any, 0, len(list))}
 		for _, x := range list {
-			row := roomJSON{x.Code, x.Game.Mode, x.Game.Map, x.Game.Weather, x.Humans, x.Seats, x.Game.Phase, x.Game.LeftS, nil}
-			if x.Game.Mode != "ffa" {
-				row.Teams = &[2]int{x.Game.NATO, x.Game.Soviet}
-			}
-			out.Rooms = append(out.Rooms, row)
+			out.Rooms = append(out.Rooms, s.kit.Row(x))
 		}
 		b, _ := json.Marshal(out)
 		return b
@@ -110,7 +92,7 @@ func (s *Server) apiRooms(w http.ResponseWriter, r *http.Request) {
 
 // apiLeaderboard is GET /api/leaderboard?period=week|all: the top pilots,
 // rebuilt at most once per boardTTL per period.
-func (s *Server) apiLeaderboard(w http.ResponseWriter, r *http.Request) {
+func (s *Server[S, M, In, X]) apiLeaderboard(w http.ResponseWriter, r *http.Request) {
 	if !s.apiAllow(w, r) {
 		return
 	}
@@ -119,27 +101,13 @@ func (s *Server) apiLeaderboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := r.URL.Query().Get("period")
-	period, ok := stats.ParsePeriod(name) // whitelisted before it is echoed
+	c, ok := s.boards[name] // whitelisted (Stats.Periods) before it is echoed
 	if !ok {
 		writeJSON(w, http.StatusBadRequest, errorJSON(msgBadPeriod))
 		return
 	}
-	body := s.boards[period].get(s.o.Now(), boardTTL, func() []byte {
-		top, week := s.o.Stats.Top(period, boardSize)
-		if week == "" { // the store closed after Ready: no board, nothing cached
-			return nil
-		}
-		if top == nil {
-			top = []stats.Entry{}
-		}
-		b, _ := json.Marshal(struct {
-			Period string        `json:"period"`
-			Week   string        `json:"week"`
-			Top    []stats.Entry `json:"top"`
-		}{name, week, top})
-		return b
-	})
-	if body == nil {
+	body := c.get(s.o.Now(), boardTTL, func() []byte { return s.o.Stats.Board(name) })
+	if body == nil { // the store closed after Ready: no board, nothing cached
 		writeJSON(w, http.StatusServiceUnavailable, errorJSON(msgStatsOff))
 		return
 	}
@@ -156,7 +124,7 @@ const dummyToken = "AAAAAAAAAAAAAAAAAAAAAA"
 
 // apiMe is GET /api/me with the X-Pilot-Token header: {"pilot":{...}} with
 // the caller's own card, or {"pilot":null}. Stats off: 503.
-func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
+func (s *Server[S, M, In, X]) apiMe(w http.ResponseWriter, r *http.Request) {
 	if !s.apiAllow(w, r) {
 		return
 	}
@@ -169,22 +137,16 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 	if !valid {
 		tok = dummyToken
 	}
-	p, ok := s.o.Stats.Me(pilot.Hash(tok))
+	body, ok := s.o.Stats.Me(pilot.Hash(tok)) // the game sees only the hash
 	if !valid || !ok {
 		writeJSON(w, http.StatusOK, noPilot)
 		return
 	}
-	b, _ := json.Marshal(struct {
-		Pilot any `json:"pilot"`
-	}{struct {
-		stats.Pilot
-		Favorite string `json:"favorite"`
-	}{p, p.Favorite()}})
-	writeJSON(w, http.StatusOK, b)
+	writeJSON(w, http.StatusOK, body)
 }
 
 // apiNotFound answers any other /api/ path in JSON.
-func (s *Server) apiNotFound(w http.ResponseWriter, r *http.Request) {
+func (s *Server[S, M, In, X]) apiNotFound(w http.ResponseWriter, r *http.Request) {
 	if !s.apiAllow(w, r) {
 		return
 	}

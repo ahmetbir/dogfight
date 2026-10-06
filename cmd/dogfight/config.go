@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"playground/core/server"
+	"playground/internal/front"
 	"playground/internal/stats"
 )
 
@@ -82,7 +83,7 @@ func parseFlags(args []string) (config, error) {
 func (c config) server(web fs.FS, st *stats.Slot) server.Options {
 	return server.Options{
 		Web: web, Lag: c.lag, Origins: splitList(c.origin),
-		TrustProxy: c.proxies, ConnectSrc: splitList(c.publicOrigin), Limits: c.limits, Stats: st,
+		TrustProxy: c.proxies, ConnectSrc: splitList(c.publicOrigin), Limits: c.limits, Stats: front.NewStats(st),
 	}
 }
 

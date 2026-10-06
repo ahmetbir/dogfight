@@ -1,4 +1,4 @@
-package server
+package front
 
 import (
 	"context"
@@ -14,22 +14,23 @@ import (
 	"github.com/coder/websocket"
 
 	"playground/core/pilot"
+	"playground/core/server"
 	"playground/internal/match"
 	"playground/internal/protocol"
 )
 
-func newServer(t *testing.T, o Options) *httptest.Server {
+func newServer(t *testing.T, o server.Options) *httptest.Server {
 	t.Helper()
 	return newServerRooms(t, o, 0)
 }
 
-func newServerRooms(t *testing.T, o Options, maxRooms int) *httptest.Server {
+func newServerRooms(t *testing.T, o server.Options, maxRooms int) *httptest.Server {
 	t.Helper()
-	if o.Limits == (Limits{}) { // tests share 127.0.0.1: lift the per-address caps
-		o.Limits = Limits{MaxConnsIP: 1000, CreatePerMinIP: 1000, JoinFailPerMinIP: 1000, JoinPerMinIP: 1000}
+	if o.Limits == (server.Limits{}) { // tests share 127.0.0.1: lift the per-address caps
+		o.Limits = server.Limits{MaxConnsIP: 1000, CreatePerMinIP: 1000, JoinFailPerMinIP: 1000, JoinPerMinIP: 1000}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	srv := httptest.NewServer(New(match.NewLobby(ctx, maxRooms, nil, nil), o))
+	srv := httptest.NewServer(NewServer(match.NewLobby(ctx, maxRooms, nil, nil), o))
 	t.Cleanup(func() { cancel(); srv.Close() })
 	return srv
 }
@@ -51,7 +52,7 @@ func get(t *testing.T, url string) (int, string) {
 }
 
 func TestRoutes(t *testing.T) {
-	srv := newServer(t, Options{Web: web})
+	srv := newServer(t, server.Options{Web: web})
 	for path, want := range map[string]string{"/": "dogfight", "/r/ABCD": "dogfight", "/app.js": "console.log"} {
 		if code, body := get(t, srv.URL+path); code != 200 || !strings.Contains(body, want) {
 			t.Errorf("GET %s = %d %q", path, code, body)
@@ -60,7 +61,7 @@ func TestRoutes(t *testing.T) {
 	if code, _ := get(t, srv.URL+"/missing.js"); code != 404 {
 		t.Errorf("GET /missing.js = %d", code)
 	}
-	empty := newServer(t, Options{Web: fstest.MapFS{}})
+	empty := newServer(t, server.Options{Web: fstest.MapFS{}})
 	if code, body := get(t, empty.URL+"/r/ABCD"); code != 503 || !strings.Contains(body, "client derlenmemiş") {
 		t.Errorf("no client: %d %q", code, body)
 	}
@@ -126,7 +127,7 @@ func hello(name string) protocol.ClientMsg {
 }
 
 func TestCreateJoinPlay(t *testing.T) {
-	srv := newServer(t, Options{Web: web})
+	srv := newServer(t, server.Options{Web: web})
 	a := dial(t, srv)
 	a.send(hello("Ace"))
 	a.send(protocol.ClientMsg{T: protocol.TCreate, Mode: "ffa", Size: 4, Diff: "easy"})
@@ -180,7 +181,7 @@ func expectError(t *testing.T, c *client, want string) {
 }
 
 func TestHandshakeErrors(t *testing.T) {
-	srv := newServer(t, Options{Web: web})
+	srv := newServer(t, server.Options{Web: web})
 	for name, tc := range map[string]struct {
 		msgs []protocol.ClientMsg
 		want string
@@ -206,7 +207,7 @@ func TestHandshakeErrors(t *testing.T) {
 }
 
 func TestInGameProtocolErrors(t *testing.T) {
-	srv := newServer(t, Options{Web: web})
+	srv := newServer(t, server.Options{Web: web})
 	for name, raw := range map[string]string{
 		"unknown type": `{"t":"nope"}`,
 		"garbage":      `{{{`,
@@ -228,7 +229,7 @@ func TestInGameProtocolErrors(t *testing.T) {
 }
 
 func TestHandshakeDeadline(t *testing.T) {
-	srv := newServer(t, Options{Web: web, HandshakeTimeout: 200 * time.Millisecond})
+	srv := newServer(t, server.Options{Web: web, HandshakeTimeout: 200 * time.Millisecond})
 	c := dial(t, srv)
 	c.send(hello("slow")) // hello alone must not extend the deadline
 	if !c.closed(2 * time.Second) {
@@ -237,7 +238,7 @@ func TestHandshakeDeadline(t *testing.T) {
 }
 
 func TestCrossOriginRejected(t *testing.T) {
-	srv := newServer(t, Options{Web: web})
+	srv := newServer(t, server.Options{Web: web})
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	h := http.Header{"Origin": {"https://evil.example"}}
@@ -248,7 +249,7 @@ func TestCrossOriginRejected(t *testing.T) {
 }
 
 func TestTokenIssuedOnce(t *testing.T) {
-	srv := newServer(t, Options{})
+	srv := newServer(t, server.Options{})
 	c := dial(t, srv)
 	c.send(hello("a"))
 	c.send(protocol.ClientMsg{T: "create", Mode: "ffa", Size: 2, Diff: "easy"})

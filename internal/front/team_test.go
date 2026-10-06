@@ -1,4 +1,4 @@
-package server
+package front
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"playground/core/server"
 	"playground/internal/protocol"
 )
 
@@ -13,7 +14,7 @@ import (
 // unknown team ends the connection like any malformed message.
 func TestTeamMessageEndToEnd(t *testing.T) {
 	now := time.Unix(1000, 0)
-	srv := newServer(t, Options{Now: func() time.Time { return now }})
+	srv := newServer(t, server.Options{Now: func() time.Time { return now }})
 	c := dial(t, srv)
 	c.send(hello("a"))
 	c.send(protocol.ClientMsg{T: "create", Mode: "team", Size: 2, Diff: "easy"})
@@ -47,20 +48,5 @@ func TestTeamMessageEndToEnd(t *testing.T) {
 	c.writeRaw(`{"t":"team","team":"martian"}`)
 	if !c.closed(2 * time.Second) {
 		t.Fatal("an unknown team must end the connection")
-	}
-}
-
-// Team choices are rate-limited like picks, from the same bucket.
-func TestGuardTeamSharesPickBucket(t *testing.T) {
-	now := time.Unix(0, 0)
-	g := newMsgGuard(Limits{MsgRate: 90, MsgBurst: 10, PickRate: 2, PickBurst: 2, PingRate: 2, PingBurst: 1}, func() time.Time { return now })
-	if v, _ := g.check(protocol.TTeam); v != pass {
-		t.Fatal("first team refused")
-	}
-	if v, _ := g.check(protocol.TPick); v != pass {
-		t.Fatal("pick after one team refused")
-	}
-	if v, b := g.check(protocol.TTeam); v != kick || b != "pick" {
-		t.Fatalf("team over the pick burst = %v %q", v, b)
 	}
 }

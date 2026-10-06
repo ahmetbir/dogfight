@@ -86,13 +86,26 @@ const (
 	All
 )
 
-// ParsePeriod accepts exactly "week" or "all".
+// Periods lists every period: the single source of the ?period= names.
+func Periods() []Period { return []Period{Week, All} }
+
+// Name is the period's ?period= name ("week", "all"); "" for no period.
+func (p Period) Name() string {
+	switch p {
+	case Week:
+		return "week"
+	case All:
+		return "all"
+	}
+	return ""
+}
+
+// ParsePeriod accepts exactly the name of one of Periods.
 func ParsePeriod(s string) (Period, bool) {
-	switch s {
-	case "week":
-		return Week, true
-	case "all":
-		return All, true
+	for _, p := range Periods() {
+		if p.Name() == s {
+			return p, true
+		}
 	}
 	return 0, false
 }

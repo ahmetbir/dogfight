@@ -20,13 +20,24 @@ func NewStats(slot *stats.Slot) server.Stats {
 	return statsAPI{slot}
 }
 
-func (a statsAPI) Ready() bool     { return a.slot.Ready() }
-func (statsAPI) Periods() []string { return []string{"week", "all"} }
+func (a statsAPI) Ready() bool { return a.slot.Ready() }
+
+// Periods are the stats package's period names (its single list).
+func (statsAPI) Periods() []string {
+	var out []string
+	for _, p := range stats.Periods() {
+		out = append(out, p.Name())
+	}
+	return out
+}
 
 // Board is GET /api/leaderboard's body: {"period","week","top"}. nil when
 // the store closed after Ready (nothing to cache), as the server did before.
 func (a statsAPI) Board(name string) []byte {
-	period, _ := stats.ParsePeriod(name) // the server only passes allowed names
+	period, ok := stats.ParsePeriod(name) // the server only passes Periods; anything else is no board
+	if !ok {
+		return nil
+	}
 	top, week := a.slot.Top(period, boardSize)
 	if week == "" {
 		return nil

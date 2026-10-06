@@ -3,6 +3,7 @@ package server
 import (
 	"time"
 
+	"playground/core/netproto"
 	"playground/core/room"
 )
 
@@ -10,6 +11,19 @@ import (
 type Msg[M, In any] interface {
 	room.Msg[In]
 	Latch(dropped M) M // m plus the one-shot presses of an input dropped over its rate
+}
+
+// coreType reports whether t is a core message type: the handshake's
+// (hello, create, join, quick) or the in-room core's (in, ping, chat). The
+// server decides these itself and never asks the Kit's Class or InRoom
+// about them, so no game can reopen the handshake inside a room or move a
+// core type to another rate bucket.
+func coreType(t string) bool {
+	switch t {
+	case netproto.THello, netproto.TCreate, netproto.TJoin, netproto.TQuick, netproto.TIn, netproto.TPing, netproto.TChat:
+		return true
+	}
+	return false
 }
 
 // Class is the rate class of a game message type (core types have their own).

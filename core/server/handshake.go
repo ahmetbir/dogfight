@@ -5,37 +5,29 @@ import (
 	"errors"
 	"log/slog"
 	"net"
-	"time"
 
 	"playground/core/limit"
 	"playground/core/lobby"
 	"playground/core/netproto"
 	"playground/core/pilot"
 	"playground/core/room"
-	"playground/internal/bot"
-	"playground/internal/game"
-	"playground/internal/maps"
-	"playground/internal/match"
-	"playground/internal/mode"
-	"playground/internal/protocol"
-	"playground/internal/sim"
-	"playground/internal/weather"
 )
 
 // handshake reads hello then create|join|quick and seats the player. On failure
 // it returns the user-facing error text.
-func (s *Server) handshake(ctx context.Context, p *peer) (*match.Seat, string) {
+func (s *Server[S, M, In, X]) handshake(ctx context.Context, p *peer[M]) (*room.Seat[M], string) {
 	m, err := s.recv(ctx, p)
 	if err != nil {
 		return nil, s.msgOf(err, p)
 	}
-	if m.T != protocol.THello {
+	h := m.Head()
+	if h.T != netproto.THello {
 		return nil, msgBad
 	}
-	if m.V != protocol.Version {
+	if h.V != s.kit.Version() {
 		return nil, msgVersion
 	}
-	who := identify(netproto.CleanName(m.Name), m.Tok)
+	who := identify(netproto.CleanName(h.Name), h.Tok)
 
 	m, err = s.recv(ctx, p)
 	if err != nil {
@@ -44,10 +36,10 @@ func (s *Server) handshake(ctx context.Context, p *peer) (*match.Seat, string) {
 	if s.draining() {
 		return s.updating(p)
 	}
-	var rm *match.Room
-	switch m.T {
-	case protocol.TCreate:
-		st, ok := settings(m, s.o.Now())
+	var rm *room.Room[M, In, X]
+	switch h = m.Head(); h.T {
+	case netproto.TCreate:
+		st, ok := s.kit.Settings(m, s.o.Now())
 		if !ok {
 			return nil, msgBadRoom
 		}
@@ -55,15 +47,15 @@ func (s *Server) handshake(ctx context.Context, p *peer) (*match.Seat, string) {
 		if rm, msg = s.create(p, st); msg != "" {
 			return nil, msg
 		}
-	case protocol.TQuick:
+	case netproto.TQuick:
 		if seat, msg, done := s.quickJoin(ctx, p, who); done {
 			return seat, msg
 		}
 		var msg string
-		if rm, msg = s.create(p, quickSettings(s.o.Now())); msg != "" {
+		if rm, msg = s.create(p, s.kit.QuickSettings(s.o.Now())); msg != "" {
 			return nil, msg
 		}
-	case protocol.TJoin:
+	case netproto.TJoin:
 		if s.joinFails.Blocked(p.key, s.o.Now()) {
 			s.rejects.note(s.keyedReason(s.joinFails, p.key, "join-fail-rate"), p.ip)
 			return nil, msgJoins
@@ -75,7 +67,7 @@ func (s *Server) handshake(ctx context.Context, p *peer) (*match.Seat, string) {
 			return nil, msgJoins
 		}
 		var ok bool
-		if rm, ok = s.lobby.Get(m.Code); !ok {
+		if rm, ok = s.lobby.Get(h.Code); !ok {
 			s.joins.Refund(p.key, s.o.Now())
 			s.joinFails.Allow(p.key, s.o.Now())
 			return nil, msgNoRoom
@@ -84,9 +76,9 @@ func (s *Server) handshake(ctx context.Context, p *peer) (*match.Seat, string) {
 		return nil, msgBad
 	}
 
-	seat, err := rm.Join(ctx, who, roomConn{p.conn, s})
+	seat, err := rm.Join(ctx, who, roomConn{p.conn, s.draining})
 	switch {
-	case errors.Is(err, game.ErrFull):
+	case errors.Is(err, room.ErrFull):
 		return nil, msgFull
 	case errors.Is(err, room.ErrClosed):
 		return nil, msgNoRoom
@@ -109,7 +101,7 @@ func identify(name, tok string) room.Who {
 
 // create makes a room under the address's create limit. On failure it
 // returns the user-facing error text.
-func (s *Server) create(p *peer, st game.Settings) (*match.Room, string) {
+func (s *Server[S, M, In, X]) create(p *peer[M], st S) (*room.Room[M, In, X], string) {
 	// Take the token first (check and spend in one step, so concurrent
 	// creates cannot share one); a create that fails gives it back.
 	if !s.creates.Allow(p.key, s.o.Now()) {
@@ -138,7 +130,7 @@ func (s *Server) create(p *peer, st game.Settings) (*match.Room, string) {
 // limit. done is false when no listed room has a free seat, or the picked
 // one filled or closed before the join (its token is given back): the
 // caller then makes a new room.
-func (s *Server) quickJoin(ctx context.Context, p *peer, who room.Who) (seat *match.Seat, msg string, done bool) {
+func (s *Server[S, M, In, X]) quickJoin(ctx context.Context, p *peer[M], who room.Who) (seat *room.Seat[M], msg string, done bool) {
 	r, ok := s.quickPick()
 	if !ok {
 		return nil, "", false
@@ -147,85 +139,43 @@ func (s *Server) quickJoin(ctx context.Context, p *peer, who room.Who) (seat *ma
 		s.rejects.note(s.keyedReason(s.joins, p.key, "join-rate"), p.ip)
 		return nil, msgJoins, true
 	}
-	seat, err := r.Join(ctx, who, roomConn{p.conn, s})
+	seat, err := r.Join(ctx, who, roomConn{p.conn, s.draining})
 	switch {
 	case err == nil:
 		return seat, "", true
-	case errors.Is(err, game.ErrFull), errors.Is(err, room.ErrClosed):
+	case errors.Is(err, room.ErrFull), errors.Is(err, room.ErrClosed):
 		s.joins.Refund(p.key, s.o.Now())
 		return nil, "", false
 	}
 	return nil, s.msgOf(err, p), true
 }
 
-// quickSettings is the room quick play makes when none is free (spec §9.2).
-func quickSettings(now time.Time) game.Settings {
-	return game.Settings{Mode: mode.Team, Size: 2, Difficulty: bot.Normal, Seed: now.UnixNano(),
-		Map: maps.Ada, Weather: weather.Clear, Start: sim.StartAir, Listed: true}
-}
-
 // keyedReason names a Keyed refusal: its own reason, or "limiter-full" when
 // the table refused a new address (key) because it is at capacity.
-func (s *Server) keyedReason(k *limit.Keyed, key, reason string) string {
+func (s *Server[S, M, In, X]) keyedReason(k *limit.Keyed, key, reason string) string {
 	if k.Full() && !k.Known(key) {
 		return "limiter-full"
 	}
 	return reason
 }
 
-// settings builds room settings from a create message; missing optional
-// fields take the spec §8 defaults (ada, acik, hava, acik). Unknown values
-// of any field are refused.
-func settings(m protocol.ClientMsg, now time.Time) (game.Settings, bool) {
-	k, ok1 := mode.ParseKind(m.Mode)
-	d, ok2 := bot.ParseDifficulty(m.Diff)
-	mk, ok3 := orDefault(m.Map, "ada", maps.ParseKind)
-	wk, ok4 := orDefault(m.Wx, "acik", weather.ParseKind)
-	start, ok5 := orDefault(m.Start, "hava", parseStart)
-	listed, ok6 := orDefault(m.Vis, "acik", parseVis)
-	seed := m.Seed
-	if seed == 0 {
-		seed = now.UnixNano()
-	}
-	return game.Settings{Mode: k, Size: m.Size, Difficulty: d, Seed: seed, Map: mk, Weather: wk, Start: start, Listed: listed},
-		ok1 && ok2 && ok3 && ok4 && ok5 && ok6
-}
-
-func orDefault[T any](s, def string, parse func(string) (T, bool)) (T, bool) {
-	if s == "" {
-		s = def
-	}
-	return parse(s)
-}
-
-func parseStart(s string) (sim.StartMode, bool) {
-	switch s {
-	case "pist":
-		return sim.StartRunway, true
-	case "hava":
-		return sim.StartAir, true
-	}
-	return 0, false
-}
-
-func parseVis(s string) (bool, bool) { return s == "acik", s == "acik" || s == "ozel" }
-
 // recv waits for the next handshake message, answering pings on the way.
-func (s *Server) recv(ctx context.Context, p *peer) (protocol.ClientMsg, error) {
+func (s *Server[S, M, In, X]) recv(ctx context.Context, p *peer[M]) (M, error) {
+	var zero M
 	for {
 		select {
 		case <-ctx.Done():
-			return protocol.ClientMsg{}, errTimeout
+			return zero, errTimeout
 		case b, ok := <-p.conn.Recv():
 			if !ok {
-				return protocol.ClientMsg{}, net.ErrClosed
+				return zero, net.ErrClosed
 			}
 			m, err := s.next(p, b)
 			if err != nil {
 				return m, err
 			}
-			if m.T == protocol.TPing {
-				p.conn.Send(netproto.NewPong(m.TS))
+			if h := m.Head(); h.T == netproto.TPing {
+				p.conn.Send(netproto.NewPong(h.TS))
 				continue
 			}
 			return m, nil

@@ -1,10 +1,11 @@
-package server
+package front
 
 import (
 	"encoding/json"
 	"testing"
 	"time"
 
+	"playground/core/server"
 	"playground/internal/protocol"
 )
 
@@ -24,7 +25,7 @@ func roomCode(t *testing.T, srv string) string {
 // Successful joins are limited per address: a public room code must not let
 // one client churn a room's seats (and its bots) as fast as it can dial.
 func TestJoinsPerIP(t *testing.T) {
-	srv := newServer(t, Options{Web: web, Limits: tight(func(l *Limits) { l.JoinPerMinIP = 2 })})
+	srv := newServer(t, server.Options{Web: web, Limits: tight(func(l *server.Limits) { l.JoinPerMinIP = 2 })})
 	code := roomCode(t, srv.URL)
 	join := func(code string) *client {
 		c := dial(t, srv)

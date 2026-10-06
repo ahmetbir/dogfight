@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"playground/internal/protocol"
+	"playground/core/netproto"
 )
 
 // Every user-facing error text carries a code, every socket error code has a
@@ -21,8 +21,8 @@ func TestEveryErrorTextHasACode(t *testing.T) {
 		}
 		codes = append(codes, c)
 	}
-	if !slices.Equal(codes, protocol.ErrorCodes()) {
-		t.Fatalf("socket codes %v, protocol %v", codes, protocol.ErrorCodes())
+	if !slices.Equal(codes, netproto.ErrorCodes()) {
+		t.Fatalf("socket codes %v, protocol %v", codes, netproto.ErrorCodes())
 	}
 	for _, m := range []string{msgStatsOff, msgBadPeriod, msgNoAPI, msgRequests} {
 		var body map[string]string

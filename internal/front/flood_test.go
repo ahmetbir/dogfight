@@ -1,4 +1,4 @@
-package server
+package front
 
 import (
 	"strconv"
@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+
+	"playground/core/server"
 )
 
 // writeRaw writes one text frame; false once the server has closed.
@@ -21,7 +23,7 @@ func inMsg(seq int) string { return `{"t":"in","seq":` + strconv.Itoa(seq) + `,"
 // A 3 s stall, its one ping included, must not end the connection, and the
 // live inputs after it must reach the room.
 func TestStalledInputsDoNotKick(t *testing.T) {
-	srv := newServer(t, Options{Web: web, Limits: tight(func(*Limits) {})})
+	srv := newServer(t, server.Options{Web: web, Limits: tight(func(*server.Limits) {})})
 	c := joined(t, srv.URL)
 	seq := 0
 	for range 180 { // 3 s of 60 Hz input released at once
@@ -46,7 +48,7 @@ func TestStalledInputsDoNotKick(t *testing.T) {
 
 // A 10 s stall (far beyond any burst) still only drops inputs.
 func TestHugeInputBunchOnlyDrops(t *testing.T) {
-	srv := newServer(t, Options{Web: web, Limits: tight(func(*Limits) {})})
+	srv := newServer(t, server.Options{Web: web, Limits: tight(func(*server.Limits) {})})
 	c := joined(t, srv.URL)
 	for seq := 1; seq <= 600; seq++ {
 		if !c.writeRaw(inMsg(seq)) {
@@ -61,7 +63,7 @@ func TestHugeInputBunchOnlyDrops(t *testing.T) {
 // The most a legit client sends of the other kinds in a stall: its pick gate
 // allows one per 500 ms (4 in 2 s) and it pings every 15 s.
 func TestLegitPicksAndPingsBunchedPass(t *testing.T) {
-	srv := newServer(t, Options{Web: web, Limits: tight(func(*Limits) {})})
+	srv := newServer(t, server.Options{Web: web, Limits: tight(func(*server.Limits) {})})
 	c := joined(t, srv.URL)
 	for range 4 {
 		c.writeRaw(`{"t":"pick","kind":"f16"}`)
@@ -72,7 +74,7 @@ func TestLegitPicksAndPingsBunchedPass(t *testing.T) {
 
 // Non-input floods still end the connection.
 func TestChatFloodClosedWithPolicyViolation(t *testing.T) {
-	srv := newServer(t, Options{Web: web, Limits: tight(func(*Limits) {})})
+	srv := newServer(t, server.Options{Web: web, Limits: tight(func(*server.Limits) {})})
 	c := joined(t, srv.URL)
 	for range 400 {
 		if !c.writeRaw(`{"t":"chat","id":1}`) {

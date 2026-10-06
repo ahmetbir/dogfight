@@ -9,6 +9,7 @@ import (
 	"math"
 
 	"playground/core/room"
+	"playground/core/wsconn"
 	"playground/internal/game"
 	"playground/internal/mode"
 	"playground/internal/protocol"
@@ -64,6 +65,9 @@ type Match struct {
 var (
 	_ room.Game[protocol.ClientMsg, sim.Input, Info] = (*Match)(nil)
 	_ room.Acker                                     = protocol.Snap{}
+	// Snapshots are the only messages a full outbound queue may evict, and
+	// an evicted one hands its events to the next.
+	_ wsconn.Carrier = protocol.Snap{}
 )
 
 // New builds the game (every seat a bot). sink nil: nothing is counted.

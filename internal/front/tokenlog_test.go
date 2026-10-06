@@ -1,4 +1,4 @@
-package server
+package front
 
 import (
 	"os"
@@ -15,7 +15,8 @@ func TestTokenNeverLogged(t *testing.T) {
 	sink := regexp.MustCompile(`slog\.|\.(Info|Warn|Error|Debug|Inc|Observe)\(`)
 	tok := regexp.MustCompile(`(?i)\btok\b|NewToken|fresh|pilot\.Header|X-Pilot-Token`)
 	var files []string
-	for _, dir := range []string{".", "../room", "../lobby", "../stats", "../metrics", "../pilot", "../../cmd/dogfight"} {
+	for _, dir := range []string{".", "../../core/server", "../../core/room", "../../core/lobby", "../stats", "../match",
+		"../../core/metrics", "../../core/pilot", "../../cmd/dogfight"} {
 		m, err := filepath.Glob(filepath.Join(dir, "*.go"))
 		if err != nil {
 			t.Fatal(err)

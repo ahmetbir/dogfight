@@ -3,14 +3,13 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"playground/core/limit"
 	"playground/core/netproto"
+	"playground/core/room"
 	"playground/core/wsconn"
-	"playground/internal/match"
-	"playground/internal/protocol"
-	"playground/internal/sim"
 )
 
 // User-facing error texts.
@@ -33,6 +32,7 @@ var (
 	errTimeout = errors.New("server: handshake timeout")
 	errFlood   = errors.New("server: message rate exceeded")
 	errDropped = errors.New("server: input over its rate, dropped")
+	errDecode  = errors.New("server: undecodable message")
 )
 
 // floodError is errFlood naming the bucket that refused and the message type.
@@ -42,18 +42,18 @@ func (e floodError) Error() string        { return errFlood.Error() + ": " + e.b
 func (e floodError) Is(target error) bool { return target == errFlood }
 
 // peer is one game socket: its connection, its address and its limits.
-type peer struct {
+type peer[M any] struct {
 	conn  *wsconn.Conn
 	ip    string // for logs
 	key   string // for per-address limits
 	guard *msgGuard
-	held  protocol.ClientMsg // one-shot presses of dropped inputs
-	drops dropLog            // inputs dropped over their rate
+	held  M       // one-shot presses of dropped inputs
+	drops dropLog // inputs dropped over their rate
 }
 
-func (s *Server) socket(w http.ResponseWriter, r *http.Request) {
+func (s *Server[S, M, In, X]) socket(w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r, s.o.TrustProxy)
-	p := &peer{ip: ip.String(), key: limitKey(ip), guard: newMsgGuard(s.o.Limits, s.o.Now)}
+	p := &peer[M]{ip: ip.String(), key: limitKey(ip), guard: newMsgGuard(s.o.Limits, s.o.Now)}
 	if err := s.conns.Acquire(p.key); err != nil {
 		if isNet(err) {
 			s.rejects.note("conns-per-net", p.ip)
@@ -100,30 +100,44 @@ func fail(conn *wsconn.Conn, msg string) {
 }
 
 // next decodes one inbound message within the connection's rate limits:
-// errDropped for an input over its rate, a floodError for anything else.
-func (s *Server) next(p *peer, b []byte) (protocol.ClientMsg, error) {
+// errDropped for an input over its rate, a floodError for anything else,
+// errDecode for a frame the game cannot decode. The hard ceiling counts the
+// raw frame before the game's decoder sees it.
+func (s *Server[S, M, In, X]) next(p *peer[M], b []byte) (M, error) {
+	var zero M
 	if s.o.Metrics != nil {
 		s.o.Metrics.MsgsIn.Inc()
 	}
 	if v, lim := p.guard.frame(len(b)); v == kick {
-		return protocol.ClientMsg{}, floodError{lim, "any"}
+		return zero, floodError{lim, "any"}
 	}
-	m, err := protocol.DecodeClient(b)
+	m, err := s.kit.Decode(b)
 	if err != nil {
-		return m, err
+		// %v, not %w: whatever the game's error wraps, it is a bad message.
+		return zero, fmt.Errorf("%w: %v", errDecode, err)
 	}
-	switch v, bucket := p.guard.check(m.T); v {
+	t := m.Head().T
+	switch v, bucket := p.guard.check(t, s.class(t)); v {
 	case drop:
 		return m, errDropped
 	case kick:
-		return m, floodError{bucket, m.T}
+		return m, floodError{bucket, t}
 	}
 	return m, nil
 }
 
+// class is the rate class of message type t: the game's, except for the
+// core types, which the guard rates by their own rules.
+func (s *Server[S, M, In, X]) class(t string) Class {
+	if coreType(t) {
+		return ClassAll
+	}
+	return s.kit.Class(t)
+}
+
 // admit is next for the game: an input over its rate is dropped (ok false)
 // and its one-shot presses carry over to the next admitted input.
-func (s *Server) admit(p *peer, b []byte) (m protocol.ClientMsg, ok bool, err error) {
+func (s *Server[S, M, In, X]) admit(p *peer[M], b []byte) (m M, ok bool, err error) {
 	m, err = s.next(p, b)
 	switch {
 	case errors.Is(err, errDropped):
@@ -133,14 +147,15 @@ func (s *Server) admit(p *peer, b []byte) (m protocol.ClientMsg, ok bool, err er
 	case err != nil:
 		return m, false, err
 	}
-	if m.T == protocol.TIn {
+	if m.Head().T == netproto.TIn {
 		m = m.Latch(p.held)
-		p.held = protocol.ClientMsg{}
+		var zero M
+		p.held = zero
 	}
 	return m, true, nil
 }
 
-func (s *Server) msgOf(err error, p *peer) string {
+func (s *Server[S, M, In, X]) msgOf(err error, p *peer[M]) string {
 	switch {
 	case errors.Is(err, errFlood):
 		var fe floodError
@@ -155,8 +170,10 @@ func (s *Server) msgOf(err error, p *peer) string {
 
 // pump forwards in-game messages to the room until the connection or the
 // room ends. It returns an error text for a message that breaks protocol
-// or the connection's rate limits.
-func (s *Server) pump(p *peer, seat *match.Seat) string {
+// or the connection's rate limits. The core types are decided here: in,
+// ping and chat go to the room, the handshake's are refused; only a game
+// type is the Kit's to admit.
+func (s *Server[S, M, In, X]) pump(p *peer[M], seat *room.Seat[M]) string {
 	defer p.drops.flush(p.ip)
 	done := seat.Done()
 	for {
@@ -174,13 +191,11 @@ func (s *Server) pump(p *peer, seat *match.Seat) string {
 			if !ok {
 				continue
 			}
-			switch m.T {
-			case protocol.TIn, protocol.TPing, protocol.TChat, protocol.TTeam: // team: DecodeClient whitelisted it
-			case protocol.TPick:
-				if _, ok := sim.ParseKind(m.Kind); !ok {
-					return msgBad
-				}
-			default:
+			switch t := m.Head().T; {
+			case t == netproto.TIn, t == netproto.TPing, t == netproto.TChat:
+			case coreType(t): // the handshake is over
+				return msgBad
+			case !s.kit.InRoom(m):
 				return msgBad
 			}
 			seat.Input(m)

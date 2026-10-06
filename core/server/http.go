@@ -31,7 +31,7 @@ func secure(next http.Handler, policy string) http.Handler {
 	})
 }
 
-func (s *Server) index(w http.ResponseWriter, _ *http.Request) {
+func (s *Server[S, M, In, X]) index(w http.ResponseWriter, _ *http.Request) {
 	if s.page == nil {
 		http.Error(w, msgNoClient, http.StatusServiceUnavailable)
 		return

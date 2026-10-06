@@ -1,45 +1,45 @@
 package server
 
-import "playground/internal/protocol"
+import "playground/core/netproto"
 
 // errCode is the protocol code of a user-facing error text (socket "error"
 // messages and API error bodies); "" for a text without one.
 func errCode(msg string) string {
 	switch msg {
 	case msgVersion:
-		return protocol.CodeVersion
+		return netproto.CodeVersion
 	case msgNoRoom:
-		return protocol.CodeNoRoom
+		return netproto.CodeNoRoom
 	case msgBadRoom:
-		return protocol.CodeBadRoom
+		return netproto.CodeBadRoom
 	case msgFull:
-		return protocol.CodeFull
+		return netproto.CodeFull
 	case msgBad:
-		return protocol.CodeBad
+		return netproto.CodeBad
 	case msgNoCreate:
-		return protocol.CodeNoCreate
+		return netproto.CodeNoCreate
 	case msgBusy:
-		return protocol.CodeBusy
+		return netproto.CodeBusy
 	case msgCreates:
-		return protocol.CodeCreates
+		return netproto.CodeCreates
 	case msgJoins:
-		return protocol.CodeJoins
+		return netproto.CodeJoins
 	case msgFlood:
-		return protocol.CodeFlood
+		return netproto.CodeFlood
 	case msgConns:
-		return protocol.CodeConns
+		return netproto.CodeConns
 	case msgTimeout:
-		return protocol.CodeTimeout
+		return netproto.CodeTimeout
 	case msgUpdating:
-		return protocol.CodeUpdating
+		return netproto.CodeUpdating
 	case msgStatsOff:
-		return protocol.CodeStatsOff
+		return netproto.CodeStatsOff
 	case msgBadPeriod:
-		return protocol.CodeBadPeriod
+		return netproto.CodeBadPeriod
 	case msgNoAPI:
-		return protocol.CodeNotFound
+		return netproto.CodeNotFound
 	case msgRequests:
-		return protocol.CodeRate
+		return netproto.CodeRate
 	}
 	return ""
 }

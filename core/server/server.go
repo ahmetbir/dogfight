@@ -10,11 +10,10 @@ import (
 	"time"
 
 	"playground/core/limit"
+	"playground/core/lobby"
 	"playground/core/metrics"
+	"playground/core/room"
 	"playground/core/wsconn"
-	"playground/internal/match"
-	"playground/internal/protocol"
-	"playground/internal/stats"
 )
 
 type Options struct {
@@ -26,7 +25,7 @@ type Options struct {
 	ConnectSrc       []string       // extra CSP connect-src sources, e.g. wss://host
 	Limits           Limits
 	Now              func() time.Time  // clock for the limiters; default time.Now
-	Stats            *stats.Slot       // nil or not ready: /api/leaderboard and /api/me answer 503
+	Stats            Stats             // nil or not ready: /api/leaderboard and /api/me answer 503
 	Metrics          *metrics.Registry // nil = not measured
 }
 
@@ -86,15 +85,13 @@ func (l Limits) withDefaults() Limits {
 	return l
 }
 
-// Snapshots are the only messages a full outbound queue may evict, and an
-// evicted one hands its events to the next.
-var _ wsconn.Carrier = protocol.Snap{}
-
 // Server is the HTTP handler: the client at / and /r/{code}, static files
 // under /, /healthz, the JSON API under /api/ (rooms, leaderboard, me), and
-// the game socket at /ws.
-type Server struct {
-	lobby     *match.Lobby
+// the game socket at /ws. S, M, In and X are the game's settings, client
+// message, tick input and lobby summary types; k is the game's Kit.
+type Server[S any, M Msg[M, In], In room.Input[In], X any] struct {
+	lobby     *lobby.Lobby[S, M, In, X]
+	kit       Kit[S, M, X]
 	o         Options
 	h         http.Handler
 	page      []byte // index.html with content-hashed bundle URLs; nil if not built
@@ -104,16 +101,16 @@ type Server struct {
 	joins     *limit.Keyed
 	apis      *limit.Keyed
 	rejects   *rejectLog
-	rooms     apiCache                   // GET /api/rooms body
-	boards    map[stats.Period]*apiCache // GET /api/leaderboard body per period
+	rooms     apiCache             // GET /api/rooms body
+	boards    map[string]*apiCache // GET /api/leaderboard body per allowed period (Stats.Periods)
 	// quickPick picks a room for quick play; the lobby's Quick, swapped in
 	// tests to race the picked room.
-	quickPick func() (*match.Room, bool)
+	quickPick func() (*room.Room[M, In, X], bool)
 	sockets   sync.WaitGroup
 	drain     drain
 }
 
-func New(l *match.Lobby, o Options) *Server {
+func New[S any, M Msg[M, In], In room.Input[In], X any](l *lobby.Lobby[S, M, In, X], k Kit[S, M, X], o Options) *Server[S, M, In, X] {
 	if o.Web == nil {
 		o.Web = emptyFS{}
 	}
@@ -125,15 +122,15 @@ func New(l *match.Lobby, o Options) *Server {
 	}
 	o.Limits = o.Limits.withDefaults()
 	lim := o.Limits
-	s := &Server{
-		lobby: l, o: o, page: loadPage(o.Web),
+	s := &Server[S, M, In, X]{
+		lobby: l, kit: k, o: o, page: loadPage(o.Web),
 		conns:     newConnGate(lim),
 		creates:   limit.NewKeyed(lim.CreatePerMinIP, burstOf(lim.CreatePerMinIP)),
 		joinFails: limit.NewKeyed(lim.JoinFailPerMinIP, burstOf(lim.JoinFailPerMinIP)),
 		joins:     limit.NewKeyed(lim.JoinPerMinIP, burstOf(lim.JoinPerMinIP)),
 		apis:      limit.NewKeyed(lim.APIPerMinIP, lim.APIBurst),
 		rejects:   newRejectLog(o.Now, rejectCounter(o.Metrics)),
-		boards:    map[stats.Period]*apiCache{stats.Week: {}, stats.All: {}},
+		boards:    boards(o.Stats),
 		quickPick: l.Quick,
 	}
 	mux := http.NewServeMux()
@@ -150,16 +147,28 @@ func New(l *match.Lobby, o Options) *Server {
 	return s
 }
 
+// boards is one leaderboard cache per period the stats allow (none when
+// stats are off): the ?period= whitelist.
+func boards(st Stats) map[string]*apiCache {
+	b := map[string]*apiCache{}
+	if st != nil {
+		for _, p := range st.Periods() {
+			b[p] = &apiCache{}
+		}
+	}
+	return b
+}
+
 // burstOf is the burst for a per-minute rate: the rate rounded up, at least
 // 1, so a fractional rate never blocks everything.
 func burstOf(perMinute float64) int { return max(1, int(math.Ceil(perMinute))) }
 
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.h.ServeHTTP(w, r) }
+func (s *Server[S, M, In, X]) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.h.ServeHTTP(w, r) }
 
 // Wait blocks until every game socket handler has finished, close
 // handshakes included. Call it after http.Server.Shutdown, which stops new
 // sockets; rooms end when the lobby's context is cancelled.
-func (s *Server) Wait() { s.sockets.Wait() }
+func (s *Server[S, M, In, X]) Wait() { s.sockets.Wait() }
 
 // rejectCounter counts every refusal by reason; nil without metrics.
 func rejectCounter(m *metrics.Registry) func(string) {
@@ -176,7 +185,7 @@ func (c connCounters) Out()  { c.r.MsgsOut.Inc() }
 func (c connCounters) Drop() { c.r.SnapDrops.Inc() }
 
 // counters is the wsconn hook; nil (not a nil-holding value) without metrics.
-func (s *Server) counters() wsconn.Counters {
+func (s *Server[S, M, In, X]) counters() wsconn.Counters {
 	if s.o.Metrics == nil {
 		return nil
 	}
@@ -184,7 +193,7 @@ func (s *Server) counters() wsconn.Counters {
 }
 
 // connsGauge moves the open game sockets gauge.
-func (s *Server) connsGauge(d int64) {
+func (s *Server[S, M, In, X]) connsGauge(d int64) {
 	if s.o.Metrics != nil {
 		s.o.Metrics.Conns.Add(d)
 	}

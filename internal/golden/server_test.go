@@ -17,6 +17,7 @@ import (
 	"github.com/coder/websocket"
 
 	"playground/core/server"
+	"playground/internal/front"
 	"playground/internal/match"
 	"playground/internal/stats"
 )
@@ -41,14 +42,14 @@ type srvOpts struct {
 // newServer builds the HTTP handler the way cmd/dogfight does and returns
 // it with a stop that ends the lobby (every room closes). The only code
 // here later tasks may change (constructors move).
-func newServer(t *testing.T, so srvOpts) (*httptest.Server, *server.Server, context.CancelFunc) {
+func newServer(t *testing.T, so srvOpts) (*httptest.Server, *front.Server, context.CancelFunc) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	o := server.Options{Web: web, Limits: so.lim, HandshakeTimeout: 300 * time.Millisecond, Now: so.now}
 	if so.stats != nil {
-		o.Stats = so.stats
+		o.Stats = front.NewStats(so.stats)
 	}
-	s := server.New(match.NewLobby(ctx, so.maxRooms, nil, nil), o)
+	s := front.NewServer(match.NewLobby(ctx, so.maxRooms, nil, nil), o)
 	srv := httptest.NewServer(s)
 	t.Cleanup(func() { cancel(); srv.Close() })
 	return srv, s, cancel
