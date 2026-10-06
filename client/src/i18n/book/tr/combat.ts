@@ -96,7 +96,7 @@ export const combat: Combat = {
       ["Zamanlama her şeydir: füze ", b(dist(R.flareWarn)), " içine girince HUD'da ", b("FLARE!"),
         " yanıp söner. Çok erken atılan flare füze yaklaşmadan söner."],
       ["Flare ", sec(R.flareRegenS), "'de +1 yenilenir (yüke kadar)."],
-      ["Radar füzesini flare kandırmaz: HUD ", b("DİK UÇ!"), " der. Füzeye dik uç ve ", sec(R.radarBeamS), " öyle kal; ya da atanı ",
+      ["Radar füzesini flare kandırmaz: HUD ", b("DİK UÇ!"), " der. Füzeyi ", sec(R.radarBeamS), " boyunca saat 3 ya da 9 yönünde tut, iz kopar; ya da atanı ",
         "düşür ya da burnundan ", `${R.radarLeashDeg}°`, " dışına çık."]),
     sub("Bomba (Üs Saldırısı)"),
     p("Tuş: ", b(bind(M.bomb, K.bomb, "bomb", kb)), ". Uçak başına ", b(String(R.bombs)), " bomba; yalnız ikmalle dolar. Bomba uçağın hızıyla ",

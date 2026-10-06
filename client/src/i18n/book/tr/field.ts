@@ -80,8 +80,8 @@ export const field: Field = {
       ["Top için öndelik halkasını kullan, ", dist(R.gunRange), " içinde kısa seriler at; ısı dolarsa ", sec(R.overheatS), " silahsızsın."]),
     sub("Savunma"),
     list(
-      ["FÜZE UYARISI'nda füzeye doğru sert dön (dik açı), sonra ", b("FLARE!"), " yanınca flare at; birkaç flare art arda daha güvenlidir."],
-      ["Uyarı RADAR diyorsa flare boşa gider: ", b("DİK UÇ!"), " — füzeye dik dön ve ", sec(R.radarBeamS), " öyle kal. Uzaktaysan önce sen de at: ",
+      ["FÜZE UYARISI'nda füzenin yolunu dik kesecek biçimde sert dön, sonra ", b("FLARE!"), " yanınca flare at; birkaç flare art arda daha güvenlidir."],
+      ["Uyarı RADAR diyorsa flare boşa gider: ", b("DİK UÇ!"), " — füzeyi ", sec(R.radarBeamS), " boyunca saat 3 ya da 9 yönünde tut, iz kopar. Uzaktaysan önce sen de at: ",
         "atan, füzesi vurana dek burnunu sende tutmak zorunda."],
       ["Alçakta, vadide ya da binalar arasında dönmek takipçiyi araziye çarptırabilir — ama sen de çarpabilirsin."],
       ["Can azsa savaşı uzatma: kendi üssüne in, ", sec(R.rearmS), " dur, tam dolu kalk."]),
