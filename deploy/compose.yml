@@ -61,7 +61,7 @@ services:
 
 networks:
   edge:
-    name: ${EDGE_NETWORK:?set EDGE_NETWORK to the nginx container's docker network}
+    name: ${EDGE_NETWORK:?set EDGE_NETWORK to the edge docker network shared with nginx}
     external: true
 
 volumes:

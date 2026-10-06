@@ -343,7 +343,7 @@ cp deploy/deploy.env.example deploy/deploy.env
 | `DEPLOY_DIR` | Directory on the server for compose/env files, the deploy lock and backups (e.g. `/srv/dogfight`) |
 | `NGINX_CONTAINER` | Name of the nginx container that proxies the game |
 | `NGINX_CONF` | The vhost file on the server holding the `set $dogfight_upstream ...;` line (bind-mounted into the container as a single file) |
-| `EDGE_NETWORK` | External docker network shared by nginx and the dogfight containers |
+| `EDGE_NETWORK` | Docker network the dogfight containers share with nginx and nothing else (see [Edge network](#edge-network)); created by the deploy if missing |
 | `PUBLIC_HOST` | Public host name of the game (used for `-origin` and `-public-origin=wss://…`) |
 | `DRAIN_MAX` | How long a draining color keeps its players (e.g. `30m`) |
 
@@ -356,7 +356,7 @@ variable set in the environment wins over the file; `DEPLOY_ENV` points to anoth
 scripts/release.sh
 ```
 
-Refuses a dirty working tree, runs `npm ci && npm run build`, builds a static `linux/arm64`
+Refuses a dirty working tree and a Go other than the `toolchain` in `go.mod`, runs `npm ci && npm run build`, builds a static `linux/arm64`
 binary at `dist/dogfight-linux-arm64` and writes the version (`git describe`) to `dist/VERSION`.
 `dist/` is gitignored.
 
@@ -399,6 +399,7 @@ single pre-blue/green container; a fresh setup does not need them.
   during a deploy.
 - No published ports: the container joins `EDGE_NETWORK` under its own name, and only that
   network's IPv4 subnet is passed as `-trust-proxy` (looked up on the server at deploy time).
+  See [Edge network](#edge-network).
 - `-max-conns=72 -max-rooms=8`. On a small arm64 VM (1 CPU limit) about 64 concurrent players
   stayed healthy in load tests; measure your own hardware with `cmd/loadtest`.
 - JSON logs, rotated (10 MB × 3).
@@ -407,6 +408,32 @@ single pre-blue/green container; a fresh setup does not need them.
 - `-metrics-addr=127.0.0.1:9090`: readable only from inside the container, e.g.
   `docker exec dogfight-<color> /dogfight -get http://127.0.0.1:9090/metrics`. A `stats` summary
   line is also logged every 60 s.
+
+### Edge network
+
+Give the game its own docker network, shared only with nginx. If `EDGE_NETWORK` does not exist,
+every deploy and rollback creates it as
+
+```sh
+docker network create --driver bridge --internal -o com.docker.network.bridge.inhibit_ipv4=true <EDGE_NETWORK>
+```
+
+and connects `NGINX_CONTAINER` to it (`docker network connect`; nginx keeps its other networks).
+`--internal` leaves the network without a route out (the game needs no egress), and without an
+IPv4 address on the bridge the containers cannot reach the host's own ports either. So a dogfight
+container can reach nginx and the other color, and nothing else: no other container, no host
+service, no internet. `-trust-proxy` then covers only nginx and the two colors.
+
+If nginx is recreated by its own compose project, `docker network connect` is lost: list the
+network there as an external network of the nginx service. `scripts/deploy.sh --doctor` reports
+when nginx shares no network with the live color, and the next deploy reconnects it.
+
+An existing network named in `EDGE_NETWORK` is used as it is (the deploy prints a note if it is
+not internal). To move from a network shared with other services, set `EDGE_NETWORK` to a new
+name and deploy: the new color starts on the new network, nginx (now on both) switches to it,
+and the old color drains on the old network as usual. Nothing is disconnected, so this is as
+zero-downtime as any deploy. A rollback afterwards also starts on the new network; one that
+undrains a color still running on the old network keeps it there until its next start.
 
 Back up `/data` with a throwaway container that tars the volume (stop the live color first for a
 fully consistent copy); restore into a stopped setup and `chown -R 65532:65532 /data`.

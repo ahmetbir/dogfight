@@ -16,9 +16,10 @@
 # once ("another deploy ... is running").
 #
 # Two colors, containers dogfight-blue and dogfight-green (compose projects
-# of the same names), on the external docker network EDGE_NETWORK (the
-# nginx container's network) under their own names; no published
-# port. Which color is live is whatever nginx routes to: the one line
+# of the same names), on the docker network EDGE_NETWORK (shared with the
+# nginx container only; created internal if missing, see edge_network)
+# under their own names; no published port. Which color is live is
+# whatever nginx routes to: the one line
 #   set $dogfight_upstream http://dogfight-<color>:8080;
 # in NGINX_CONF (http://dogfight:8080 = the pre-blue/green container
 # `dogfight`, migrated once, see below). A deploy:
@@ -130,6 +131,28 @@ lock_box() {
   fi
   [[ "$got" == busy* ]] && die "another deploy, rollback or switch is running on $HOST ($DIR/deploy.lock); nothing changed"
   die "cannot take $DIR/deploy.lock on $HOST: ${got:-no answer}"
+}
+
+# networks NAME: the docker networks a container is attached to, one per
+# line ("" if it does not exist).
+networks() { remote "docker inspect -f '{{range \$k, \$v := .NetworkSettings.Networks}}{{\$k}}{{println}}{{end}}' '$1' 2>/dev/null" || true; }
+
+# edge_network: make sure EDGE_NETWORK exists and the nginx container is on
+# it. A missing network is created as an internal bridge whose bridge has no
+# IPv4 address: no route out (the game needs no egress) and no way to the
+# host's own ports, so a container on it reaches only its peers (nginx and
+# the other color). nginx is connected to it and keeps its other networks
+# (never disconnected here); a color already running elsewhere stays
+# reachable through them. An existing network is used as it is.
+edge_network() {
+  remote "docker network inspect '$EDGE_NETWORK' >/dev/null 2>&1 || docker network create --driver bridge --internal -o com.docker.network.bridge.inhibit_ipv4=true '$EDGE_NETWORK' >/dev/null" ||
+    die "cannot create docker network $EDGE_NETWORK on $HOST"
+  if ! grep -qxF "$EDGE_NETWORK" <<<"$(networks "$NGINX")"; then
+    echo "deploy: connecting $NGINX to $EDGE_NETWORK"
+    remote "docker network connect '$EDGE_NETWORK' '$NGINX'" || die "cannot connect $NGINX to docker network $EDGE_NETWORK"
+  fi
+  [[ "$(remote "docker network inspect -f '{{.Internal}}' '$EDGE_NETWORK'" || true)" == true ]] ||
+    echo "deploy: note: $EDGE_NETWORK is not an internal network; the game can reach whatever else is on it (see README, Deployment)" >&2
 }
 
 # edge_subnet: the IPv4 subnet of EDGE_NETWORK on the server; fails if unknown.
@@ -345,6 +368,7 @@ promote() {
 #  - exactly one live server: any other running dogfight container drains
 #    (restart policy no)
 #  - the legacy handoff helper exists only while the legacy server drains
+#  - nginx shares a docker network with the live container
 #  - the nginx container's config passes nginx -t
 doctor() {
   local up c i n=0
@@ -370,6 +394,9 @@ doctor() {
     if [[ "${i[0]}" != running || "$up" == dogfight || "$legacy" != true* ]]; then
       problem "stale $HANDOFF (${i[0]}; legacy ${legacy%% *}, live $up): remove it with docker rm -f $HANDOFF once nothing needs its stats lock"
     fi
+  fi
+  if [[ -z "$(comm -12 <(networks "$up" | sort) <(networks "$NGINX" | sort) | grep .)" ]]; then
+    problem "$NGINX shares no docker network with $up (nginx recreated?): docker network connect $EDGE_NETWORK $NGINX"
   fi
   remote "docker exec '$NGINX' nginx -t >/dev/null 2>&1" || problem "nginx -t fails in $NGINX: do not reload or restart it"
   if [[ "$n" == 0 ]]; then echo "doctor: ok (live $up)"; else echo "doctor: $n problem(s)" >&2; fi
@@ -433,6 +460,7 @@ case "${1:-}" in
     valid "$v"
     remote "docker image inspect 'dogfight:$v' >/dev/null" || die "image dogfight:$v not on $HOST"
     lock_box
+    edge_network
     promote "$v"
     echo "deploy: rolled back to $v"
     status
@@ -449,11 +477,12 @@ valid "$VERSION"
 [[ "$VERSION" != *-dirty ]] || die "refusing a dirty build ($VERSION)"
 info="$(file dist/dogfight-linux-arm64)"
 [[ "$info" == *"ARM aarch64"*"statically linked"* ]] || die "dist binary is not a static linux/arm64 ELF"
-edge_subnet >/dev/null || exit 1 # fail before shipping anything
 lock_box
 live >/dev/null || exit 1
 overlap_check
 remote "docker inspect '$NGINX' >/dev/null" || die "no nginx container $NGINX on $HOST"
+edge_network
+edge_subnet >/dev/null || exit 1 # fail before shipping anything
 idle_running "$VERSION" || true # refuses before shipping while the idle color drains another version
 
 remote "mkdir -p '$DIR/dist' && printf '%s\n' 'NGINX_CONTAINER=$NGINX' 'NGINX_CONF=$CONF' > '$DIR/server.env'"
