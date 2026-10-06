@@ -39,3 +39,19 @@ func TestGuardVerdicts(t *testing.T) {
 		t.Fatal("inputs pass again after a refill")
 	}
 }
+
+// A network stall delivers queued 60 Hz inputs in one bunch: up to the burst
+// (2 s worth) must pass the guard at one instant, and only then are they dropped.
+func TestBunchedInputPassesTheGuard(t *testing.T) {
+	now := time.Unix(0, 0)
+	l := Limits{}.withDefaults()
+	g := newMsgGuard(l, func() time.Time { return now })
+	for i := range 120 {
+		if v, b := g.check(protocol.TIn); v != pass {
+			t.Fatalf("input %d of a 120 bunch: %v %q", i+1, v, b)
+		}
+	}
+	if v, b := g.check(protocol.TIn); v != drop || b != "in" {
+		t.Fatalf("input 121 = %v %q, want drop in", v, b)
+	}
+}

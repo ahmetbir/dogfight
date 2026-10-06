@@ -127,15 +127,35 @@ func TestSteadyInputNotLimited(t *testing.T) {
 	c.until("snap", time.Second, func(b []byte) bool { return strings.Contains(string(b), `"ack":90`) })
 }
 
-// A network stall delivers queued 60 Hz inputs in one bunch: up to the
-// burst (2 s worth) must pass.
+// A network stall delivers queued 60 Hz inputs in one bunch. The bunch ends
+// at the room, not at the limiter, so this test is about the connection: it
+// survives the bunch and the room acks its newest input. The room's seat
+// inbox may legitimately shed part of a bunch (the newest included), so the
+// client keeps resending the last input, as the real client's stream does,
+// and no wall-clock race decides the outcome. That the limiter itself admits
+// the bunch is pinned deterministically by TestBunchedInputPassesTheGuard.
 func TestBunchedInputNotLimited(t *testing.T) {
 	srv := newServer(t, Options{Web: web, Limits: tight(func(*Limits) {})})
 	c := joined(t, srv.URL)
-	for seq := uint32(1); seq <= 100; seq++ {
-		c.send(protocol.ClientMsg{T: protocol.TIn, Seq: seq, Th: 1})
+	in := protocol.ClientMsg{T: protocol.TIn, Th: 1}
+	for in.Seq = 1; in.Seq <= 100; in.Seq++ {
+		c.send(in)
 	}
-	c.until("snap", 2*time.Second, func(b []byte) bool { return strings.Contains(string(b), `"ack":100`) })
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+	defer cancel()
+	resend := time.NewTicker(50 * time.Millisecond)
+	defer resend.Stop()
+	go func() {
+		for {
+			select {
+			case <-resend.C:
+				c.ws.Write(ctx, websocket.MessageText, []byte(`{"t":"in","seq":100,"th":1}`))
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	c.until("snap", 20*time.Second, func(b []byte) bool { return strings.Contains(string(b), `"ack":100`) })
 }
 
 func TestMaxRoomsServerFull(t *testing.T) {
