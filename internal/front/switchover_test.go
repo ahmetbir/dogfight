@@ -65,20 +65,20 @@ func TestPeriodsAreTheStatsPeriods(t *testing.T) {
 	}
 	sl.Set(st)
 	api := NewStats(sl)
-	var want []string
+	var want []server.BoardID
 	for _, p := range stats.Periods() {
 		if q, ok := stats.ParsePeriod(p.Name()); !ok || q != p {
 			t.Fatalf("period %d does not round-trip its name %q", p, p.Name())
 		}
-		want = append(want, p.Name())
+		want = append(want, server.BoardID{Period: p.Name()})
 	}
-	if !slices.Equal(api.Periods(), want) || !slices.Equal(want, []string{"week", "all"}) {
-		t.Fatalf("periods %v, stats %v", api.Periods(), want)
+	if !slices.Equal(api.Boards(), want) || !slices.Equal(want, []server.BoardID{{Period: "week"}, {Period: "all"}}) {
+		t.Fatalf("boards %v, stats %v", api.Boards(), want)
 	}
-	if api.Board("year") != nil {
-		t.Fatal("an unknown period built a board")
+	if api.Board(server.BoardID{Period: "year"}) != nil || api.Board(server.BoardID{Period: "all", Key: "x"}) != nil {
+		t.Fatal("an unknown board was built")
 	}
-	if b := api.Board("all"); !strings.HasPrefix(string(b), `{"period":"all","week":"`) || !strings.HasSuffix(string(b), `","top":[]}`) {
+	if b := api.Board(server.BoardID{Period: "all"}); !strings.HasPrefix(string(b), `{"period":"all","week":"`) || !strings.HasSuffix(string(b), `","top":[]}`) {
 		t.Fatalf("board %s", b)
 	}
 }

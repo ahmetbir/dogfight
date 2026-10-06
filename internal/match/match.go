@@ -203,7 +203,8 @@ func (m *Match) Info() room.Info[Info] {
 		phase = "ended"
 	}
 	nato, soviet := m.g.HumanTeams()
-	return room.Info[Info]{Humans: m.g.Humans(), Seats: m.seats, Listed: st.Listed, Game: Info{
+	humans := m.g.Humans()
+	return room.Info[Info]{Humans: humans, Seats: m.seats, Bots: m.seats - humans, Listed: st.Listed, Game: Info{
 		Mode: st.Mode.String(), Map: st.Map.String(), Weather: st.Weather.String(), Phase: phase,
 		LeftS: rd.TicksLeft / tickRate, NATO: nato, Soviet: soviet}}
 }

@@ -22,20 +22,21 @@ func NewStats(slot *stats.Slot) server.Stats {
 
 func (a statsAPI) Ready() bool { return a.slot.Ready() }
 
-// Periods are the stats package's period names (its single list).
-func (statsAPI) Periods() []string {
-	var out []string
+// Boards are one per stats period (its single list), without a key: the
+// URLs stay /api/leaderboard?period=week|all.
+func (statsAPI) Boards() []server.BoardID {
+	var out []server.BoardID
 	for _, p := range stats.Periods() {
-		out = append(out, p.Name())
+		out = append(out, server.BoardID{Period: p.Name()})
 	}
 	return out
 }
 
 // Board is GET /api/leaderboard's body: {"period","week","top"}. nil when
 // the store closed after Ready (nothing to cache), as the server did before.
-func (a statsAPI) Board(name string) []byte {
-	period, ok := stats.ParsePeriod(name) // the server only passes Periods; anything else is no board
-	if !ok {
+func (a statsAPI) Board(id server.BoardID) []byte {
+	period, ok := stats.ParsePeriod(id.Period) // the server only passes Boards; anything else is no board
+	if !ok || id.Key != "" {
 		return nil
 	}
 	top, week := a.slot.Top(period, boardSize)
@@ -49,7 +50,7 @@ func (a statsAPI) Board(name string) []byte {
 		Period string        `json:"period"`
 		Week   string        `json:"week"`
 		Top    []stats.Entry `json:"top"`
-	}{name, week, top})
+	}{id.Period, week, top})
 	return b
 }
 
