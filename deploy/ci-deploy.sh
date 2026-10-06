@@ -46,4 +46,6 @@ v="$(cat "$work/dist/VERSION")"
 
 echo "ci-deploy: deploying $v"
 cd "$work"
-DEPLOY_ENV="$CI_DIR/deploy.env" bash scripts/deploy.sh
+# A CI deploy waits for a still-draining idle color (its players finish)
+# rather than failing; DRAIN_MAX in deploy.env bounds that drain anyway.
+DRAIN_WAIT=2100 DEPLOY_ENV="$CI_DIR/deploy.env" bash scripts/deploy.sh

@@ -85,7 +85,7 @@ jobs:
   deploy:
     needs: release
     runs-on: ubuntu-24.04
-    timeout-minutes: 45 # the old color drains on its own; this waits only for the switch
+    timeout-minutes: 50 # may wait up to 35 min for a still-draining idle color (ci-deploy.sh)
     environment: production
     concurrency:
       group: deploy-production
@@ -105,7 +105,7 @@ jobs:
           mkdir -p "$d"
           printf '%s\n' "$KEY" > "$d/key"
           printf '%s\n' "$KNOWN_HOSTS" > "$d/known_hosts"
-          ssh -i "$d/key" -o IdentitiesOnly=yes -o BatchMode=yes \
+          ssh -i "$d/key" -o IdentitiesOnly=yes -o BatchMode=yes -o ServerAliveInterval=30 \
             -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$d/known_hosts" \
             "root@$HOST" < bundle.tar
           rm -f "$d/key"

@@ -287,14 +287,25 @@ idle_color() {
 }
 
 # idle_running V: whether the idle color still runs (draining); refuses
-# unless it runs V (then the deploy undrains it instead of starting V).
+# unless it runs V (then the deploy undrains it instead of starting V), or
+# waits up to DRAIN_WAIT seconds for an older version to finish draining.
 idle_running() {
-  local to i
+  local to i waited=0
   to="dogfight-$(idle_color)"
-  read -r -a i <<<"$(info "$to")"
-  [[ "${i[0]:-}" == true ]] || return 1
-  [[ "${i[1]}" == "dogfight:$1" ]] ||
-    die "$to still runs ${i[1]} with $(conns "$to") open sockets (draining); wait for it to exit, or drop them: docker stop $to"
+  while :; do
+    read -r -a i <<<"$(info "$to")"
+    [[ "${i[0]:-}" == true ]] || return 1
+    [[ "${i[1]}" == "dogfight:$1" ]] && return 0
+    # The idle color still drains an older version: its players keep their
+    # match. With DRAIN_WAIT=<seconds> (CI deploys) wait for it to exit
+    # instead of failing; nobody is dropped.
+    if ((waited >= ${DRAIN_WAIT:-0})); then
+      die "$to still runs ${i[1]} with $(conns "$to") open sockets (draining); wait for it to exit, or drop them: docker stop $to"
+    fi
+    ((waited == 0)) && echo "deploy: $to still drains ${i[1]} ($(conns "$to") open sockets); waiting up to ${DRAIN_WAIT}s for it to exit"
+    sleep 30
+    waited=$((waited + 30))
+  done
 }
 
 # promote V: make V live in the idle color and drain the live one.
