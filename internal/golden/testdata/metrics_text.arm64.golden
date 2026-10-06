@@ -1,2 +1,2 @@
 ## metrics
-{"t":"text","n":2447,"h":"b259c031c9f3a237"}
+{"t":"text","n":2447,"h":"b259c031c9f3a237","p":"# HELP dogfight_rooms Open rooms.\n# TYPE dogfight_rooms gauge\ndogfight_rooms 2\n# HELP dogfight_humans Human players in rooms.\n# TYPE dogfight_humans gauge\ndogfi"}

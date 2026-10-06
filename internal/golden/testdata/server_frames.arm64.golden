@@ -2,7 +2,7 @@
 {"t":"error","n":54,"m":{"t":"error","msg":"geçersiz mesaj","code":"bad_msg"}}
 {"t":"close","n":27,"m":{"status":1008,"reason":""}}
 ## bad_msg_in_room
-{"t":"welcome","n":46827,"h":"861bb7658993e107"}
+{"t":"welcome","n":46827,"h":"861bb7658993e107","p":"{\"t\":\"welcome\",\"you\":7,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
 {"t":"error","n":54,"m":{"t":"error","msg":"geçersiz mesaj","code":"bad_msg"}}
 {"t":"close","n":27,"m":{"status":1008,"reason":""}}
 ## bad_room
@@ -12,7 +12,7 @@
 {"t":"error","n":47,"m":{"t":"error","msg":"sunucu dolu","code":"busy"}}
 {"t":"close","n":27,"m":{"status":1008,"reason":""}}
 ## create_ok
-{"t":"welcome","n":46841,"h":"dc4edb2f35803fd6"}
+{"t":"welcome","n":46841,"h":"dc4edb2f35803fd6","p":"{\"t\":\"welcome\",\"you\":5,\"code\":\"CODE\",\"mode\":\"team\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\""}
 ## creates
 {"t":"error","n":73,"m":{"t":"error","msg":"çok fazla oda kurdun, biraz bekle","code":"creates"}}
 {"t":"close","n":27,"m":{"status":1008,"reason":""}}
@@ -28,4 +28,4 @@
 {"t":"error","n":74,"m":{"t":"error","msg":"sürüm uyuşmuyor, sayfayı yenile","code":"version"}}
 {"t":"close","n":27,"m":{"status":1008,"reason":""}}
 ## welcome
-{"t":"welcome","n":46827,"h":"c693785d1212e86b"}
+{"t":"welcome","n":46827,"h":"c693785d1212e86b","p":"{\"t\":\"welcome\",\"you\":5,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}

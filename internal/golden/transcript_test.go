@@ -8,25 +8,40 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"hash"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 )
 
 var update = flag.Bool("update", false, "rewrite golden files (Phase 0 tasks only)")
 
-// line is one recorded message: its type and size, and the full JSON for
-// small messages or a hash for snapshots, welcomes and anything over 512 B.
+// big is the size above which a message is kept as a hash next to a
+// readable prefix instead of in full.
+const big = 2048
+
+// line is one recorded message: its type and size, and the message itself
+// when small (JSON as is, anything else as a JSON string), else a hash and
+// a readable prefix. A run (see addRun) is one line: C messages, N bytes
+// in all, one hash over them.
 type line struct {
 	T string          `json:"t"`
+	C int             `json:"c,omitempty"`
 	N int             `json:"n"`
 	H string          `json:"h,omitempty"`
+	P string          `json:"p,omitempty"`
 	M json.RawMessage `json:"m,omitempty"`
+}
+
+// snapRun is a session's open run of messages.
+type snapRun struct {
+	c, n int
+	h    hash.Hash
 }
 
 // transcript records what each session received, in order. Sessions are
@@ -35,9 +50,12 @@ type line struct {
 type transcript struct {
 	mu       sync.Mutex
 	sessions map[string][]line
+	runs     map[string]*snapRun
 }
 
-func newTranscript() *transcript { return &transcript{sessions: map[string][]line{}} }
+func newTranscript() *transcript {
+	return &transcript{sessions: map[string][]line{}, runs: map[string]*snapRun{}}
+}
 
 // add records v as wsconn would write it (json.Marshal).
 func (tr *transcript) add(session string, v any) {
@@ -48,21 +66,56 @@ func (tr *transcript) add(session string, v any) {
 	var h struct {
 		T string `json:"t"`
 	}
-	_ = json.Unmarshal(b, &h)
+	if err := json.Unmarshal(b, &h); err != nil {
+		panic(fmt.Sprintf("%s: %T has no string t: %v", session, v, err))
+	}
 	tr.addRaw(session, h.T, b)
 }
 
+// addRaw records one message of type typ; b need not be JSON.
 func (tr *transcript) addRaw(session, typ string, b []byte) {
 	l := line{T: typ, N: len(b)}
-	if typ == "snap" || typ == "welcome" || len(b) > 512 {
+	switch {
+	case typ == "welcome" || len(b) > big:
 		sum := sha256.Sum256(b)
 		l.H = hex.EncodeToString(sum[:8])
-	} else {
-		l.M = slices.Clone(b)
+		l.P = strings.ToValidUTF8(string(b[:min(len(b), 160)]), "")
+	case json.Valid(b):
+		l.M = bytes.Clone(b)
+	default:
+		l.M, _ = json.Marshal(string(b))
 	}
 	tr.mu.Lock()
+	defer tr.mu.Unlock()
+	tr.closeRun(session)
 	tr.sessions[session] = append(tr.sessions[session], l)
-	tr.mu.Unlock()
+}
+
+// addRun adds a message to session's open run: messages that come by the
+// hundred (snapshots) are kept as one hashed line per stretch between
+// other messages.
+func (tr *transcript) addRun(session string, b []byte) {
+	tr.mu.Lock()
+	defer tr.mu.Unlock()
+	r := tr.runs[session]
+	if r == nil {
+		r = &snapRun{h: sha256.New()}
+		tr.runs[session] = r
+	}
+	r.c++
+	r.n += len(b)
+	r.h.Write(b)
+	r.h.Write([]byte{'\n'})
+}
+
+// closeRun ends session's open run with its line; tr.mu is held.
+func (tr *transcript) closeRun(session string) {
+	r := tr.runs[session]
+	if r == nil {
+		return
+	}
+	delete(tr.runs, session)
+	tr.sessions[session] = append(tr.sessions[session], line{T: "run", C: r.c, N: r.n, H: hex.EncodeToString(r.h.Sum(nil)[:8])})
 }
 
 // bytes renders every session (sorted by name) as "## name" then one JSON
@@ -71,6 +124,9 @@ func (tr *transcript) addRaw(session, typ string, b []byte) {
 func (tr *transcript) bytes() []byte {
 	tr.mu.Lock()
 	defer tr.mu.Unlock()
+	for n := range tr.runs {
+		tr.closeRun(n)
+	}
 	names := make([]string, 0, len(tr.sessions))
 	for n := range tr.sessions {
 		names = append(names, n)
@@ -82,12 +138,12 @@ func (tr *transcript) bytes() []byte {
 		var rows []string
 		for _, l := range tr.sessions[n] {
 			j, err := json.Marshal(l)
-			if err != nil { // a small raw message must be JSON, or its line would be lost
+			if err != nil {
 				panic(fmt.Sprintf("%s: %v", n, err))
 			}
 			rows = append(rows, string(j))
 		}
-		if len(n) >= 4 && n[:4] == "sink" {
+		if strings.HasPrefix(n, "sink") {
 			sort.Strings(rows)
 		}
 		for _, r := range rows {
@@ -96,15 +152,6 @@ func (tr *transcript) bytes() []byte {
 	}
 	return b.Bytes()
 }
-
-// rec is a room.Sender that records into a transcript.
-type rec struct {
-	tr   *transcript
-	name string
-}
-
-func (r rec) Send(v any) bool { r.tr.add(r.name, v); return true }
-func (r rec) Close()          { r.tr.addRaw(r.name, "close", []byte(`{"t":"close"}`)) }
 
 // deterministic runs a scenario twice and fails unless both transcripts
 // are equal; a golden file of a non-deterministic scenario guards nothing.
@@ -127,8 +174,8 @@ const (
 )
 
 // compare compares got with <dir>/<name>.<arch>.golden. A file only for
-// another GOARCH is otherArch: float results may differ across
-// architectures (FMA), so there only determinism is checked.
+// another flavour (GOARCH, race build) is otherArch: float results may
+// differ across them (FMA), so there only determinism is checked.
 func compare(dir, name, arch string, got []byte) (verdict, string) {
 	path := filepath.Join(dir, name+"."+arch+".golden")
 	want, err := os.ReadFile(path)
@@ -149,20 +196,39 @@ func compare(dir, name, arch string, got []byte) (verdict, string) {
 	return same, ""
 }
 
-// check compares got with testdata/<name>.<GOARCH>.golden; with -update it
-// writes the file instead.
+// flavour is the file tag of name's golden for this build: GOARCH, or
+// GOARCH+"-race" in a race detector build (see raceBuild) when name has a
+// race file of its own; most scenarios do not need one.
+func flavour(name string) string {
+	race := runtime.GOARCH + "-race"
+	if _, err := os.Stat(filepath.Join("testdata", name+"."+race+".golden")); raceBuild && err == nil {
+		return race
+	}
+	return runtime.GOARCH
+}
+
+// check compares got with testdata/<name>.<flavour>.golden; with -update it
+// writes the file instead. A race build writes a race file only where its
+// output differs from the plain build's file.
 func check(t *testing.T, name string, got []byte) {
 	t.Helper()
 	if *update {
+		tag := runtime.GOARCH
+		if raceBuild {
+			if v, _ := compare("testdata", name, tag, got); v == same {
+				return
+			}
+			tag += "-race"
+		}
 		if err := os.MkdirAll("testdata", 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join("testdata", name+"."+runtime.GOARCH+".golden"), got, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join("testdata", name+"."+tag+".golden"), got, 0o644); err != nil {
 			t.Fatal(err)
 		}
 		return
 	}
-	switch v, msg := compare("testdata", name, runtime.GOARCH, got); v {
+	switch v, msg := compare("testdata", name, flavour(name), got); v {
 	case otherArch:
 		t.Skip(msg)
 	case missing, differs:

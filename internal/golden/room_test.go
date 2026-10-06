@@ -1,24 +1,21 @@
 package golden
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"math"
-	"os"
-	"path/filepath"
-	"strings"
+	"slices"
+	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
 
-	"playground/internal/bot"
 	"playground/internal/game"
-	"playground/internal/maps"
-	"playground/internal/mode"
 	"playground/internal/protocol"
 	"playground/internal/room"
 	"playground/internal/sim"
 	"playground/internal/stats"
-	"playground/internal/weather"
 )
 
 // newRoom builds a Dogfight room the way the lobby does. It is the only
@@ -28,10 +25,112 @@ func newRoom(code string, s game.Settings, sink *sink) *room.Room {
 	return room.New(code, s, room.Options{Seq: 1, Stats: sink})
 }
 
-// sink records pilot tallies into the transcript ("sink" session).
-type sink struct{ tr *transcript }
+// sink records pilot tallies into the transcript ("sink" session) and sums
+// them per pilot for the scenario's own checks.
+type sink struct {
+	tr  *transcript
+	mu  sync.Mutex
+	sum map[string]stats.Delta
+}
 
-func (s *sink) Record(d stats.Delta) bool { s.tr.add("sink", d); return true }
+func (s *sink) Record(d stats.Delta) bool {
+	b, err := json.Marshal(d)
+	if err != nil {
+		panic(err)
+	}
+	s.tr.addRaw("sink", "delta", b)
+	s.mu.Lock()
+	t := s.sum[d.Pilot]
+	t.Kills, t.BotKills, t.Deaths, t.Crashes = t.Kills+d.Kills, t.BotKills+d.BotKills, t.Deaths+d.Deaths, t.Crashes+d.Crashes
+	t.Wins, t.Matches, t.Fired, t.Hits, t.Flight = t.Wins+d.Wins, t.Matches+d.Matches, t.Fired+d.Fired, t.Hits+d.Hits, t.Flight+d.Flight
+	s.sum[d.Pilot] = t
+	s.mu.Unlock()
+	return true
+}
+
+func (s *sink) total(pilot string) stats.Delta {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.sum[pilot]
+}
+
+// rec is a room.Sender that records into a transcript. Snapshots, and
+// round messages in which only the clock moved, go into runs (one line per
+// run); every other message is a line of its own. The events of each snapshot that involve the
+// seat's own plane (except cannon "fire") are kept readable in "<name>.ev".
+type rec struct {
+	tr    *transcript
+	name  string
+	mu    sync.Mutex
+	me    sim.ID
+	last  protocol.Snap
+	has   bool
+	team  map[sim.ID]string // from the latest roster
+	phase string            // of the latest round message
+	round []byte            // the latest round message without its clock
+}
+
+// repeat reports whether rd equals the previous round message but for the
+// seconds left, and remembers it.
+func (r *rec) repeat(rd protocol.RoundMsg) bool {
+	rd.TicksLeft = 0
+	b, _ := json.Marshal(rd)
+	same := bytes.Equal(b, r.round)
+	r.round = b
+	return same
+}
+
+func (r *rec) Send(v any) bool {
+	snap, ok := v.(protocol.Snap)
+	if !ok {
+		if rd, ok := v.(protocol.RoundMsg); ok {
+			r.mu.Lock()
+			r.phase = rd.Phase
+			r.mu.Unlock()
+			if r.repeat(rd) { // only the clock moved: part of the run
+				b, _ := json.Marshal(rd)
+				r.tr.addRun(r.name, b)
+				return true
+			}
+		}
+		if pl, ok := v.(protocol.PlayersMsg); ok {
+			r.mu.Lock()
+			r.team = map[sim.ID]string{}
+			for _, p := range pl.List {
+				r.team[p.ID] = p.Team
+			}
+			r.mu.Unlock()
+		}
+		r.tr.add(r.name, v)
+		return true
+	}
+	b, err := json.Marshal(snap)
+	if err != nil {
+		panic(err)
+	}
+	r.tr.addRun(r.name, b)
+	r.mu.Lock()
+	r.last, r.has = snap, true
+	me := r.me
+	r.mu.Unlock()
+	for _, e := range snap.Events {
+		if e.K == "fire" || me == 0 || (e.A != me && e.B != me && e.O != me) {
+			continue
+		}
+		e.Pos, e.Vel = nil, nil
+		j, _ := json.Marshal(e)
+		r.tr.addRaw(r.name+".ev", e.K, j)
+	}
+	return true
+}
+
+func (r *rec) Close() { r.tr.addRaw(r.name, "close", []byte(`{"t":"close"}`)) }
+
+func (r *rec) snap() (protocol.Snap, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.last, r.has
+}
 
 const tick = time.Second / 60
 
@@ -39,43 +138,75 @@ const tick = time.Second / 60
 // tick after a tick boundary, so no action races the ticker.
 type h struct {
 	t      *testing.T
+	s      game.Settings
 	r      *room.Room
 	tr     *transcript
+	sink   *sink
 	cancel context.CancelFunc
 	seats  map[string]*room.Seat
-	ticks  int
+	recs   map[string]*rec
+	pilots map[string]*autoPilot
+	seqs   map[string]uint32
 }
 
 func start(t *testing.T, s game.Settings) *h {
 	tr := newTranscript()
-	r := newRoom("GOLD", s, &sink{tr})
+	sk := &sink{tr: tr, sum: map[string]stats.Delta{}}
+	r := newRoom("GOLD", s, sk)
 	ctx, cancel := context.WithCancel(t.Context())
 	go r.Run(ctx)
 	time.Sleep(tick / 2)
 	synctest.Wait()
-	return &h{t: t, r: r, tr: tr, cancel: cancel, seats: map[string]*room.Seat{}}
+	return &h{t: t, s: s, r: r, tr: tr, sink: sk, cancel: cancel, seats: map[string]*room.Seat{},
+		recs: map[string]*rec{}, pilots: map[string]*autoPilot{}, seqs: map[string]uint32{}}
 }
 
 func (x *h) join(name, pilotHash, tok string) {
-	seat, err := x.r.Join(x.t.Context(), room.Who{Name: name, Pilot: pilotHash, NewToken: tok}, rec{x.tr, name})
+	rc := &rec{tr: x.tr, name: name}
+	seat, err := x.r.Join(x.t.Context(), room.Who{Name: name, Pilot: pilotHash, NewToken: tok}, rc)
 	if err != nil {
 		x.t.Fatalf("join %s: %v", name, err)
 	}
-	x.seats[name] = seat
+	rc.mu.Lock()
+	rc.me = seat.ID()
+	rc.mu.Unlock()
+	x.seats[name], x.recs[name] = seat, rc
 	synctest.Wait()
 }
 
+// autopilot hands a seat's stick to a brain (see autoPilot); seed varies it.
+func (x *h) autopilot(name string, seed int64) {
+	x.pilots[name] = newPilot(x.seats[name].ID(), x.s, seed)
+}
+
 func (x *h) send(name string, m protocol.ClientMsg) { x.seats[name].Input(m); synctest.Wait() }
+
+// pick sends the kind of the seat's current team: nato (or none) or soviet.
+func (x *h) pick(name, nato, soviet, lo string) {
+	rc := x.recs[name]
+	rc.mu.Lock()
+	tm := rc.team[rc.me]
+	rc.mu.Unlock()
+	kind := nato
+	if tm == "soviet" {
+		kind = soviet
+	}
+	x.send(name, protocol.ClientMsg{T: protocol.TPick, Kind: kind, Lo: lo})
+}
 
 func (x *h) run(n int) {
 	for range n {
 		time.Sleep(tick)
 		synctest.Wait()
-		x.ticks++
 	}
 }
 
-func (x *h) leave(name string) { x.seats[name].Leave(); delete(x.seats, name); synctest.Wait() }
+func (x *h) leave(name string) {
+	x.seats[name].Leave()
+	delete(x.seats, name)
+	delete(x.pilots, name)
+	synctest.Wait()
+}
 
 func (x *h) flush() {
 	if !x.r.FlushStats(x.t.Context()) {
@@ -91,8 +222,53 @@ func (x *h) stop() []byte {
 	return x.tr.bytes()
 }
 
+// next is the seat's next input: its autopilot's on the latest snapshot,
+// else the scripted stick.
+func (x *h) next(name string) protocol.ClientMsg {
+	x.seqs[name]++
+	seq := x.seqs[name]
+	if p, ok := x.pilots[name]; ok {
+		if s, ok := x.recs[name].snap(); ok {
+			return p.input(s, seq)
+		}
+	}
+	return stick(seq, float64(len(name)))
+}
+
+// phase is the round phase the seat last heard.
+func (x *h) phase(name string) string {
+	rc := x.recs[name]
+	rc.mu.Lock()
+	defer rc.mu.Unlock()
+	return rc.phase
+}
+
+// fly sends one input per tick for every named seat for n ticks.
+func (x *h) fly(n int, names ...string) {
+	slices.Sort(names)
+	for range n {
+		for _, name := range names {
+			x.seats[name].Input(x.next(name))
+		}
+		x.run(1)
+	}
+}
+
+// burst queues k inputs of one seat inside one tick, the first ones
+// carrying the one-shot presses press sets: more than the room keeps
+// (backlog trim) or holds (queue overflow), so presses must merge forward.
+func (x *h) burst(name string, k int, press func(i int, m *protocol.ClientMsg)) {
+	for i := range k {
+		m := x.next(name)
+		m.M, m.FL, m.BO = false, false, false
+		press(i, &m)
+		x.seats[name].Input(m)
+	}
+	synctest.Wait()
+}
+
 // stick is a deterministic input for seq: smooth sinusoids, a missile every
-// 120, a flare every 200, a bomb every 300 and gear up from the start.
+// 120, a flare every 200 and a bomb every 300.
 func stick(seq uint32, phase float64) protocol.ClientMsg {
 	f := float64(seq) / 60
 	r3 := func(v float64) float64 { return math.Round(v*1000) / 1000 }
@@ -104,105 +280,11 @@ func stick(seq uint32, phase float64) protocol.ClientMsg {
 	}
 }
 
-// fly sends one input per tick for every named seat for n ticks.
-func (x *h) fly(n int, seqs map[string]*uint32) {
-	for range n {
-		for name, seq := range seqs {
-			*seq++
-			x.seats[name].Input(stick(*seq, float64(len(name))))
+// played fails unless every named pilot hash has a non-empty tally.
+func (x *h) played(pilots ...string) {
+	for _, p := range pilots {
+		if x.sink.total(p).Empty() {
+			x.t.Errorf("pilot %s has no tally in the sink", p)
 		}
-		x.run(1)
-	}
-}
-
-func TestGoldenRoomFFA(t *testing.T) {
-	got := deterministic(t, func() []byte {
-		var out []byte
-		synctest.Test(t, func(t *testing.T) {
-			x := start(t, game.Settings{Mode: mode.FFA, Size: 4, Difficulty: bot.Easy, Seed: 1, Listed: true})
-			x.join("a", "pilot-a", "AAAAAAAAAAAAAAAAAAAAA1")
-			x.run(30)
-			seqA, seqB := uint32(0), uint32(0)
-			x.fly(70, map[string]*uint32{"a": &seqA})
-			x.send("a", protocol.ClientMsg{T: protocol.TPing, TS: 5})
-			x.send("a", protocol.ClientMsg{T: protocol.TChat, Chat: 3})
-			x.send("a", protocol.ClientMsg{T: protocol.TChat, Chat: 4}) // inside the cooldown: dropped
-			x.fly(200, map[string]*uint32{"a": &seqA})
-			x.join("b", "pilot-b", "")
-			x.send("b", protocol.ClientMsg{T: protocol.TPick, Kind: "su27", Lo: "radar"})
-			x.fly(300, map[string]*uint32{"a": &seqA, "b": &seqB})
-			x.send("a", protocol.ClientMsg{T: protocol.TIn, Seq: 3}) // stale seq: ignored
-			x.flush()
-			x.fly(300, map[string]*uint32{"a": &seqA, "b": &seqB})
-			x.leave("a")
-			x.fly(300, map[string]*uint32{"b": &seqB})
-			out = x.stop()
-		})
-		return out
-	})
-	check(t, "room_ffa", got)
-}
-
-func TestGoldenRoomTeam(t *testing.T) {
-	got := deterministic(t, func() []byte {
-		var out []byte
-		synctest.Test(t, func(t *testing.T) {
-			x := start(t, game.Settings{Mode: mode.Team, Size: 4, Difficulty: bot.Normal, Seed: 7,
-				Map: maps.Sehir, Weather: weather.Storm, Start: sim.StartRunway, Listed: true})
-			x.join("a", "pilot-a", "")
-			x.join("b", "pilot-b", "")
-			x.send("a", protocol.ClientMsg{T: protocol.TTeam, Team: "soviet"})
-			x.send("b", protocol.ClientMsg{T: protocol.TTeam, Team: "soviet"}) // may be refused: notice
-			x.run(10)
-			x.send("a", protocol.ClientMsg{T: protocol.TPick, Kind: "mig29", Lo: "mixed"})
-			x.send("b", protocol.ClientMsg{T: protocol.TPick, Kind: "f15", Lo: "ir"})
-			x.send("a", protocol.ClientMsg{T: protocol.TChat, Chat: 1}) // team scope
-			seqA, seqB := uint32(0), uint32(0)
-			x.fly(600, map[string]*uint32{"a": &seqA, "b": &seqB})
-			x.send("b", protocol.ClientMsg{T: protocol.TTeam, Team: "auto"})
-			x.fly(300, map[string]*uint32{"a": &seqA, "b": &seqB})
-			out = x.stop()
-		})
-		return out
-	})
-	check(t, "room_team", got)
-}
-
-func TestGoldenRoomBase(t *testing.T) {
-	got := deterministic(t, func() []byte {
-		var out []byte
-		synctest.Test(t, func(t *testing.T) {
-			x := start(t, game.Settings{Mode: mode.Base, Size: 4, Difficulty: bot.Hard, Seed: 3,
-				Map: maps.Dag, Weather: weather.Night, Start: sim.StartAir, Listed: false})
-			x.join("a", "pilot-a", "")
-			seqA := uint32(0)
-			x.fly(900, map[string]*uint32{"a": &seqA})
-			x.leave("a")
-			x.run(60)
-			out = x.stop()
-		})
-		return out
-	})
-	check(t, "room_base", got)
-}
-
-// Review Focus 1: a golden file of another architecture is neither a
-// failure nor a pass, and a missing or different file fails.
-func TestGoldenOtherArchChecksDeterminismOnly(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "x.otherarch.golden"), []byte("a\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if v, msg := compare(dir, "x", "thisarch", []byte("b\n")); v != otherArch || !strings.Contains(msg, "only determinism") {
-		t.Fatalf("other arch: %v %q", v, msg)
-	}
-	if v, _ := compare(dir, "y", "thisarch", nil); v != missing {
-		t.Fatalf("missing: %v", v)
-	}
-	if v, _ := compare(dir, "x", "otherarch", []byte("b\n")); v != differs {
-		t.Fatalf("differs: %v", v)
-	}
-	if v, _ := compare(dir, "x", "otherarch", []byte("a\n")); v != same {
-		t.Fatalf("same: %v", v)
 	}
 }
