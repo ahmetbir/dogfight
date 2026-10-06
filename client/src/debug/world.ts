@@ -4,7 +4,7 @@
 // frame rate. Debug builds only.
 import * as THREE from "three";
 import type { BaseInfo, Create } from "../net/protocol.ts";
-import { Socket, socketURL } from "../net/socket.ts";
+import { openSocket, socketURL } from "../net/socket.ts";
 import { Effects } from "../render/effects.ts";
 import { PlaneViews, type PlaneRender } from "../render/planes.ts";
 import { Renderer } from "../render/renderer.ts";
@@ -29,7 +29,7 @@ export function debugWorld(canvas: HTMLCanvasElement, params: URLSearchParams): 
   const camAt = new THREE.Vector3(0, 3000, 6000);
   const lookAt = new THREE.Vector3();
   const entry = { t: "create", mode: "team", size: 2, diff: "easy", seed: Number(params.get("seed") ?? 1), ...debugRoomParams(params) };
-  new Socket(socketURL(location), "debug", entry as Create, {
+  openSocket(socketURL(location), "debug", entry as Create, {
     onMsg: (m) => {
       if (m.t !== "welcome" || world) return;
       world = buildWorld(r.scene, m.terrain, m.map, m.weather);

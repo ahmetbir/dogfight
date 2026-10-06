@@ -13,7 +13,7 @@ import { requestTilt, Tilt } from "../input/tilt.ts";
 import { newTouchState } from "../input/touch.ts";
 import type { AircraftKind, Create, Join, Loadout, Quick, ServerMsg } from "../net/protocol.ts";
 import { loadToken, storeToken } from "../net/pilot.ts";
-import { Socket, socketURL } from "../net/socket.ts";
+import { openSocket, socketURL, type Socket } from "../net/socket.ts";
 import { Renderer } from "../render/renderer.ts";
 import { noWebGL, type Banner } from "./banner.ts";
 import { errorCard, unreachableCard } from "./errorcard.ts";
@@ -281,7 +281,7 @@ export function play(o: PlayOpts): void {
     }
   };
 
-  const socket: Socket = new Socket(socketURL(location), o.name, o.entry, {
+  const socket: Socket = openSocket(socketURL(location), o.name, o.entry, {
     onMsg,
     onStatus: (s) => banner.status(s),
     onFatal: (code, raw) => {

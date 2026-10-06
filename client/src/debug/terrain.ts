@@ -1,7 +1,7 @@
 // ?debug=terrain: creates a room (seed 1), draws its island, sea, sky and
 // clouds and orbits the camera around it. Debug builds only.
 import * as THREE from "three";
-import { Socket, socketURL } from "../net/socket.ts";
+import { openSocket, socketURL } from "../net/socket.ts";
 import { Renderer } from "../render/renderer.ts";
 import { buildClouds, buildSky } from "../render/sky.ts";
 import { buildSea, buildTerrain, decodeHeights } from "../render/terrain.ts";
@@ -11,7 +11,7 @@ export function debugTerrain(canvas: HTMLCanvasElement, params: URLSearchParams)
   const sky = buildSky(r.scene);
   r.scene.add(buildSea());
   let built = false;
-  new Socket(socketURL(location), "debug", { t: "create", mode: "team", size: 2, diff: "easy", seed: 1 }, {
+  openSocket(socketURL(location), "debug", { t: "create", mode: "team", size: 2, diff: "easy", seed: 1 }, {
     onMsg: (m) => {
       if (m.t !== "welcome" || built) return;
       built = true;

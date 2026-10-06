@@ -1,8 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { RECOVERABLE, ROOM_GONE } from "./codes.ts";
-import { openSocket, socketURL, PING_MS, FIRST_TRIES, type Conn, type Env, type Status } from "./socket.ts";
-import { VERSION, type ServerMsg } from "./protocol.ts";
+import type { ShaperPolicy } from "./shaper.ts";
+import { Socket, socketURL, PING_MS, FIRST_TRIES, type Conn, type Env, type Status } from "./socket.ts";
+
+const VERSION = 7;
+type M = { t: "in"; seq: number; shot?: boolean } | { t: "pick"; k: string } | { t: "create"; seats?: number; mode?: string };
+type S = { t: string; code?: string; msg?: string };
+const policy: ShaperPolicy<M> = {
+  isInput: (m) => m.t === "in",
+  latch: (held, m) => (m.t === "in" && held.t === "in" ? { ...m, shot: !!(m.shot || held.shot) } : m),
+  gapped: (m) => m.t === "pick",
+  gapMs: 500,
+};
 
 class FakeConn implements Conn {
   readyState = 0;
@@ -46,20 +56,20 @@ function fakeEnv() {
   return { env, conns, advance };
 }
 
-function harness(entry: any = { t: "create", mode: "ffa", size: 4, diff: "normal" }) {
+function harness(entry: any = { t: "create", mode: "ffa", seats: 4 }) {
   const f = fakeEnv();
-  const msgs: ServerMsg[] = [];
+  const msgs: S[] = [];
   const status: Status[] = [];
   const fatal: string[] = [];
   let unreachable = 0;
-  const s = openSocket("ws://x/ws", "Ace", entry, {
+  const s = new Socket<M, S>("ws://x/ws", "Ace", entry, {
     onMsg: (m) => msgs.push(m), onStatus: (st) => status.push(st), onFatal: (code, m) => fatal.push(`${code}|${m}`),
     onUnreachable: () => unreachable++,
-  }, f.env);
+  }, { version: VERSION, policy }, f.env);
   return { ...f, s, msgs, status, fatal, unreachable: () => unreachable };
 }
 
-const welcome = (code: string) => ({ t: "welcome", you: 1, code, mode: "ffa", aircraft: [], terrain: {}, tick: 0 });
+const welcome = (code: string) => ({ t: "welcome", you: 1, code });
 
 test("socketURL picks ws/wss from the page scheme", () => {
   assert.equal(socketURL({ protocol: "http:", host: "localhost:8080" }), "ws://localhost:8080/ws");
@@ -70,8 +80,8 @@ test("handshake sends hello + create, then joins by code on reconnect", () => {
   const h = harness();
   h.conns[0].open();
   assert.deepEqual(h.conns[0].sent, [
-    { t: "hello", v: 2, name: "Ace" },
-    { t: "create", mode: "ffa", size: 4, diff: "normal" },
+    { t: "hello", v: 7, name: "Ace" },
+    { t: "create", mode: "ffa", seats: 4 },
   ]);
   h.conns[0].recv(welcome("ABCD"));
   assert.equal(h.s.code(), "ABCD");
@@ -84,7 +94,7 @@ test("handshake sends hello + create, then joins by code on reconnect", () => {
   h.advance(1);
   assert.equal(h.conns.length, 2);
   h.conns[1].open();
-  assert.deepEqual(h.conns[1].sent, [{ t: "hello", v: 2, name: "Ace" }, { t: "join", code: "ABCD" }]);
+  assert.deepEqual(h.conns[1].sent, [{ t: "hello", v: 7, name: "Ace" }, { t: "join", code: "ABCD" }]);
   assert.deepEqual(h.status, ["connecting", "open", "connecting"]);
 });
 
@@ -101,13 +111,13 @@ test("quick play sends hello + quick, then rejoins its room by code", () => {
 
 test("send drops messages until the welcome arrives", () => {
   const h = harness({ t: "join", code: "WXYZ" });
-  h.s.send({ t: "pick", kind: "f16" });
+  h.s.send({ t: "pick", k: "f16" });
   h.conns[0].open();
-  h.s.send({ t: "pick", kind: "f16" });
+  h.s.send({ t: "pick", k: "f16" });
   assert.equal(h.conns[0].sent.length, 2);
   h.conns[0].recv(welcome("WXYZ"));
-  h.s.send({ t: "pick", kind: "f16" });
-  assert.deepEqual(h.conns[0].sent[2], { t: "pick", kind: "f16" });
+  h.s.send({ t: "pick", k: "f16" });
+  assert.deepEqual(h.conns[0].sent[2], { t: "pick", k: "f16" });
   assert.equal(h.msgs[0].t, "welcome");
 });
 
@@ -162,7 +172,7 @@ test("send reports whether it wrote; nothing is queued while reconnecting", () =
   const h = harness();
   h.conns[0].open();
   h.conns[0].recv(welcome("ABCD"));
-  const inp = { t: "in", seq: 1, p: 0, r: 0, y: 0, th: 1, ab: false, f: false, m: false, fl: false } as const;
+  const inp = { t: "in", seq: 1 } as const;
   assert.equal(h.s.send(inp), true);
   h.conns[0].drop();
   for (let i = 0; i < 100; i++) assert.equal(h.s.send({ ...inp, seq: i + 2 }), false);
@@ -244,12 +254,13 @@ test("in game: picks keep a 500 ms gap, inputs during a stall reach the server a
   h.conns[0].open();
   h.conns[0].recv(welcome("ABCD"));
   const c = h.conns[0];
-  h.s.send({ t: "pick", kind: "f16" });
-  h.s.send({ t: "pick", kind: "su27" });
+  h.s.send({ t: "pick", k: "f16" });
+  h.s.send({ t: "pick", k: "su27" });
   assert.equal(c.sent.filter((m) => m.t === "pick").length, 1);
   h.advance(500);
-  assert.deepEqual(c.sent.filter((m) => m.t === "pick").map((m) => m.kind), ["f16", "su27"]);
-  const inp = { t: "in", p: 0, r: 0, y: 0, th: 1, ab: false, f: false, m: false, fl: false } as const;
+  assert.deepEqual(c.sent.filter((m) => m.t === "pick").map((m) => m.k), ["f16", "su27"]);
+  const inp = { t: "in" } as const;
+  
   const before = c.sent.length;
   for (let seq = 1; seq <= 180; seq++) { h.advance(1000 / 60); h.s.send({ ...inp, seq }); } // 3 s, no snaps
   c.recv({ t: "pong", ts: 0 });

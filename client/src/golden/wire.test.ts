@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { matchFixture } from "./golden.ts";
-import { Socket, type Conn, type Env } from "../net/socket.ts";
+import { openSocket, type Conn, type Env } from "../net/socket.ts";
 
 class RawConn implements Conn {
   readyState = 0;
@@ -42,8 +42,8 @@ test("socket wire transcript", () => {
   };
   const open = (c: RawConn) => { c.readyState = 1; c.onopen?.({} as Event); };
   const recv = (c: RawConn, m: object) => c.onmessage?.({ data: JSON.stringify(m) } as MessageEvent);
-  // The only line later tasks may adapt (the Socket constructor moves into core).
-  const s = new Socket("ws://x/ws", "Ace", { t: "create", mode: "team", size: 4, diff: "normal", seed: 9 }, {
+  // The only line later tasks may adapt (the Socket constructor is now openSocket).
+  const s = openSocket("ws://x/ws", "Ace", { t: "create", mode: "team", size: 4, diff: "normal", seed: 9 }, {
     onMsg: (m) => log.push(`msg ${m.t}`), onStatus: (st) => log.push(`status ${st}`), onFatal: (c, m) => log.push(`fatal ${c} ${m}`),
   }, env);
   s.setToken("AAAAAAAAAAAAAAAAAAAAA1");
