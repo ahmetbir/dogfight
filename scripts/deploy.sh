@@ -408,7 +408,9 @@ preflight_network() {
   if [[ "$route1" == "$route0" ]]; then echo "preflight: ok: $NGINX default route unchanged ($route0)"
   else bad "$NGINX default route changed: '$route0' -> '$route1'"; fi
 
-  remote "docker rm -f '$NETPROBE' >/dev/null 2>&1; docker run -d --name '$NETPROBE' ${PROBE_OPTS/--rm /} --tmpfs /w:size=64k,uid=65532 --network '$EDGE_NETWORK' '$BUSYBOX' sh -c 'echo ok > /w/index.html && exec httpd -f -p 8080 -h /w' >/dev/null" ||
+  # --rm plus a 300 s timeout: the probe removes itself even if this run is
+  # interrupted (or loses its lock) before the explicit removal below.
+  remote "docker rm -f '$NETPROBE' >/dev/null 2>&1; docker run -d --name '$NETPROBE' $PROBE_OPTS --tmpfs /w:size=64k,uid=65532 --network '$EDGE_NETWORK' '$BUSYBOX' sh -c 'echo ok > /w/index.html && exec timeout 300 httpd -f -p 8080 -h /w' >/dev/null" ||
     bad "cannot start $NETPROBE on $EDGE_NETWORK"
   sleep 1
   if reach "$NGINX" "http://$NETPROBE:8080/"; then echo "preflight: ok: $NGINX reaches $NETPROBE over $EDGE_NETWORK"
