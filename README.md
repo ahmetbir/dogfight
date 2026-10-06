@@ -444,7 +444,8 @@ The game runs on the public internet, and the server does not trust the client.
   connection.
 - **Connection limits:** 128 sockets server-wide, 6 per address; at most 16 rooms; 3 room
   creations per address per minute (a failed creation costs no token); 10 failed and 20
-  successful joins per address per minute.
+  successful joins per address per minute. An "address" is one IPv4 address or one IPv6 /48
+  (a single subscriber can hold a whole /48, so a /64 key would be cheap to multiply).
 - **Message limits:** 90 messages/s per connection, burst 120; at most 1 KB per message; pick and
   ping have their own tighter limits. Exceeding a limit closes the connection with a
   policy-violation code.
