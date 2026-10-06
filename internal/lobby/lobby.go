@@ -16,6 +16,7 @@ import (
 	"playground/core/room"
 	"playground/internal/game"
 	"playground/internal/match"
+	"playground/internal/protocol"
 )
 
 // codeAlphabet omits I, O, 0 and 1. Its 32 letters divide 256, so a random
@@ -267,5 +268,5 @@ func (l *Lobby) build(code string, s game.Settings, seq int64) (r *match.Room, e
 			r, err = nil, fmt.Errorf("lobby: building room: %v", v)
 		}
 	}()
-	return l.newRoom(code, s, room.Options{Seq: seq, Metrics: l.m}), nil
+	return l.newRoom(code, s, room.Options{Seq: seq, Metrics: l.m, ChatMax: protocol.ChatMax}), nil
 }

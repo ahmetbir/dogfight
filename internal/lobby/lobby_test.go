@@ -224,3 +224,22 @@ func TestRoomsGauge(t *testing.T) {
 		t.Fatalf("after shutdown: rooms %d bots %d", reg.Rooms.Load(), reg.Bots.Load())
 	}
 }
+
+// The room's chat limit follows the protocol constant.
+func TestRoomOptionsCarryProtocolChatMax(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	l := New(ctx, Options{})
+	var got room.Options
+	build := l.newRoom
+	l.newRoom = func(code string, s game.Settings, o room.Options) *match.Room {
+		got = o
+		return build(code, s, o)
+	}
+	if _, err := l.Create(ffa); err != nil {
+		t.Fatal(err)
+	}
+	if got.ChatMax != protocol.ChatMax {
+		t.Fatalf("ChatMax %d, want %d", got.ChatMax, protocol.ChatMax)
+	}
+}
