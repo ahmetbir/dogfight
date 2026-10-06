@@ -490,7 +490,7 @@ The game runs on the public internet, and the server does not trust the client.
   successful joins per address per minute. An "address" is one IPv4 address or one IPv6 /64;
   on top of that, all /64s of one IPv6 /48 share 24 sockets (`-max-conns-net`), so a cheap /48
   cannot fill the server.
-- **Message limits:** 90 messages/s per connection, burst 120; at most 1 KB per message; pick and
+- **Message limits:** 90 messages/s per connection, burst 120; at most 2 KB per message; pick and
   ping have their own tighter limits. Exceeding a limit closes the connection with a
   policy-violation code.
 - **Timeouts:** 5 s handshake. A connection silent for 30 s is closed; the client pings every
