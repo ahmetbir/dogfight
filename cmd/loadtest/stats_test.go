@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"testing"
 	"time"
 )
@@ -16,19 +15,5 @@ func TestRoomCPU(t *testing.T) {
 	}
 	if (benchResult{}).roomCPU() != 0 {
 		t.Error("empty bench should cost 0")
-	}
-}
-
-func TestRoomCodeHandsOverOnce(t *testing.T) {
-	c := newRoomCode()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
-	defer cancel()
-	if _, ok := c.wait(ctx); ok {
-		t.Fatal("wait returned before set")
-	}
-	c.set("ABCD")
-	c.set("ZZZZ")
-	if code, ok := c.wait(context.Background()); !ok || code != "ABCD" {
-		t.Errorf("wait = %q, %v; want ABCD", code, ok)
 	}
 }

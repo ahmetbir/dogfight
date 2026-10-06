@@ -28,7 +28,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -128,67 +128,9 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	run(ctx, c, create)
-}
-
-// run starts every player on its ramp slot and reports until the run ends.
-func run(ctx context.Context, c config, create protocol.ClientMsg) {
 	fmt.Printf("loadtest: url=%s players=%d rooms=%d mode=%s size=%d map=%s wx=%s start=%s ramp=%s duration=%s\n",
 		c.url, c.players, c.rooms, c.mode, c.size, c.mapName, c.wx, c.start, c.ramp, c.duration)
-	st := loadtest.NewStats()
-	codes := make([]*roomCode, c.rooms)
-	for i := range codes {
-		codes[i] = newRoomCode()
-	}
-	begin := time.Now()
-	rctx, cancel := context.WithDeadline(ctx, begin.Add(c.ramp+c.duration))
-	defer cancel()
-	var wg sync.WaitGroup
-	for i, sl := range loadtest.Assign(c.players, c.rooms) {
-		p := &player{i: i, slot: sl, url: c.url, entry: create, st: st, epoch: begin}
-		if sl.Room >= 0 {
-			p.code = codes[sl.Room]
-		}
-		wg.Go(func() {
-			select {
-			case <-time.After(time.Until(begin.Add(loadtest.StartAt(i, c.players, c.ramp)))):
-				p.run(rctx)
-			case <-rctx.Done():
-			}
-		})
-	}
-	from, end := report(rctx, c, st, begin)
-	wg.Wait()
-	fmt.Println(loadtest.Summary(from, end, st.Handshake.Snapshot(), st.ReasonCounts()))
-}
-
-// report prints a line every c.every until ctx ends; it returns the
-// samples that bound the steady-state window (ramp + settle to the end).
-func report(ctx context.Context, c config, st *loadtest.Stats, begin time.Time) (from, end loadtest.Sample) {
-	t := time.NewTicker(c.every)
-	defer t.Stop()
-	prev := st.Sample(0)
-	steady := false
-	for {
-		select {
-		case <-ctx.Done():
-			// The last periodic sample ends the window: at the deadline
-			// players are already closing, which would skew per-client rates.
-			if !steady {
-				from = loadtest.Sample{} // never steady: the whole run
-			}
-			end = prev
-			if end.At <= from.At {
-				end = st.Sample(time.Since(begin))
-			}
-			return from, end
-		case <-t.C:
-			cur := st.Sample(time.Since(begin))
-			fmt.Println(loadtest.Line(prev, cur))
-			if !steady && cur.At >= c.ramp+c.settle {
-				from, steady = cur, true
-			}
-			prev = cur
-		}
-	}
+	loadtest.Run(ctx, loadtest.Config{URL: c.url, Players: c.players, Rooms: c.rooms,
+		Duration: c.duration, Ramp: c.ramp, Settle: c.settle, Every: c.every},
+		dogfight{create: create, picked: make([]atomic.Bool, c.players)})
 }

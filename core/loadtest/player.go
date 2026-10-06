@@ -1,4 +1,4 @@
-package main
+package loadtest
 
 import (
 	"bytes"
@@ -11,9 +11,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"playground/core/loadtest"
-
-	"playground/internal/protocol"
+	"playground/core/netproto"
 )
 
 const (
@@ -45,7 +43,8 @@ func (c *roomCode) wait(ctx context.Context) (string, bool) {
 }
 
 // inbound is the part of any server message the load test reads; the rest
-// of a snapshot is scanned but not kept.
+// of a snapshot is scanned but not kept, and the rest of any other message
+// is the Script's.
 type inbound struct {
 	T    string  `json:"t"`
 	Tick int     `json:"tick"`
@@ -53,20 +52,16 @@ type inbound struct {
 	You  int     `json:"you"`
 	Msg  string  `json:"msg"`
 	TS   float64 `json:"ts"`
-	List []struct {
-		ID   int    `json:"id"`
-		Team string `json:"team"`
-	} `json:"list"`
 }
 
 // player is one simulated client.
 type player struct {
 	i     int
-	slot  loadtest.Slot
+	slot  Slot
 	url   string
-	entry protocol.ClientMsg // create settings; T is set per slot
-	code  *roomCode          // nil for quick play
-	st    *loadtest.Stats
+	sc    Script
+	code  *roomCode // nil for quick play
+	st    *Stats
 	epoch time.Time    // ping timestamps are ms since it
 	buf   bytes.Buffer // reused read buffer
 }
@@ -77,17 +72,24 @@ func (p *player) run(ctx context.Context) {
 	start := time.Now()
 	hctx, cancel := context.WithTimeout(ctx, dialTimeout)
 	defer cancel()
-	entry := p.entry
+	var entry any
 	switch {
 	case p.slot.Room < 0:
-		entry = protocol.ClientMsg{T: protocol.TQuick}
-	case !p.slot.Creator:
+		entry = struct {
+			T string `json:"t"`
+		}{netproto.TQuick}
+	case p.slot.Creator:
+		entry = p.sc.Create()
+	default:
 		code, ok := p.code.wait(hctx)
 		if !ok {
 			p.end(ctx, errors.New("no room code"), "")
 			return
 		}
-		entry = protocol.ClientMsg{T: protocol.TJoin, Code: code}
+		entry = struct {
+			T    string `json:"t"`
+			Code string `json:"code"`
+		}{netproto.TJoin, code}
 	}
 	conn, resp, err := websocket.Dial(hctx, p.url, nil)
 	if err != nil {
@@ -100,8 +102,7 @@ func (p *player) run(ctx context.Context) {
 	}
 	defer conn.CloseNow()
 	conn.SetReadLimit(readLimit)
-	hello := protocol.ClientMsg{T: protocol.THello, V: protocol.Version, Name: fmt.Sprintf("lt%d", p.i)}
-	if err := p.write(hctx, conn, hello); err != nil {
+	if err := p.write(hctx, conn, p.sc.Hello(p.i)); err != nil {
 		p.end(ctx, err, "")
 		return
 	}
@@ -122,10 +123,10 @@ func (p *player) run(ctx context.Context) {
 	defer p.st.Conns.Add(-1)
 
 	wctx, stop := context.WithCancel(ctx)
-	picks := make(chan string, 1)
+	replies := make(chan any, 1)
 	done := make(chan struct{})
-	go func() { defer close(done); p.send(wctx, conn, picks) }()
-	msg, err := p.read(ctx, conn, w.You, picks)
+	go func() { defer close(done); p.send(wctx, conn, replies) }()
+	msg, err := p.read(ctx, conn, w.You, replies)
 	stop()
 	<-done
 	if ctx.Err() != nil {
@@ -140,49 +141,49 @@ func (p *player) end(ctx context.Context, err error, msg string) {
 	if ctx.Err() != nil && msg == "" {
 		return
 	}
-	p.st.Disconnect(loadtest.Reason(err, msg))
+	p.st.Disconnect(Reason(err, msg))
 }
 
 // welcome reads until the welcome (or an error message).
 func (p *player) welcome(ctx context.Context, conn *websocket.Conn) (inbound, error) {
 	for {
-		m, err := p.recv(ctx, conn)
+		m, _, err := p.recv(ctx, conn)
 		if err != nil || m.T == "welcome" || m.T == "error" {
 			return m, err
 		}
 	}
 }
 
-func (p *player) recv(ctx context.Context, conn *websocket.Conn) (inbound, error) {
+// recv reads one message; raw is valid until the next recv.
+func (p *player) recv(ctx context.Context, conn *websocket.Conn) (m inbound, raw []byte, err error) {
 	_, r, err := conn.Reader(ctx)
 	if err != nil {
-		return inbound{}, err
+		return inbound{}, nil, err
 	}
 	p.buf.Reset()
 	if _, err := p.buf.ReadFrom(r); err != nil {
-		return inbound{}, err
+		return inbound{}, nil, err
 	}
 	b := p.buf.Bytes()
 	p.st.MsgsIn.Add(1)
 	p.st.BytesIn.Add(uint64(len(b)))
-	if tick, ok := loadtest.SnapTick(b); ok {
-		return inbound{T: "snap", Tick: tick}, nil // most traffic: skip the full decode
+	if tick, ok := SnapTick(b); ok {
+		return inbound{T: "snap", Tick: tick}, b, nil // most traffic: skip the full decode
 	}
-	var m inbound
 	if err := json.Unmarshal(b, &m); err != nil {
-		return inbound{}, fmt.Errorf("bad json: %w", err)
+		return inbound{}, nil, fmt.Errorf("bad json: %w", err)
 	}
-	return m, nil
+	return m, b, nil
 }
 
 // read consumes game messages: snapshot arrival intervals and tick gaps,
-// pong round trips, and the roster (to pick an aircraft of our team once).
-// It returns the server's error text, if any, and the read error.
-func (p *player) read(ctx context.Context, conn *websocket.Conn, you int, picks chan<- string) (string, error) {
+// pong round trips; any other message goes to the Script, whose reply (one
+// in flight at most) the sender writes. It returns the server's error text, if any, and the read error.
+func (p *player) read(ctx context.Context, conn *websocket.Conn, you int, replies chan<- any) (string, error) {
 	var last time.Time
-	lastTick, picked := 0, false
+	lastTick := 0
 	for {
-		m, err := p.recv(ctx, conn)
+		m, raw, err := p.recv(ctx, conn)
 		if err != nil {
 			return "", err
 		}
@@ -200,22 +201,22 @@ func (p *player) read(ctx context.Context, conn *websocket.Conn, you int, picks 
 		case "pong":
 			sent := p.epoch.Add(time.Duration(m.TS * float64(time.Millisecond)))
 			p.st.RTT.Observe(now.Sub(sent))
-		case "players":
-			for _, e := range m.List {
-				if e.ID == you && !picked {
-					picked = true
-					picks <- pickKind(e.Team, p.i)
-				}
-			}
 		case "error":
 			return m.Msg, nil
+		default:
+			if reply := p.sc.React(p.i, you, m.T, raw); reply != nil {
+				select {
+				case replies <- reply:
+				default: // one reply in flight at most; the game repeats if it must
+				}
+			}
 		}
 	}
 }
 
-// send writes inputs at 60 Hz, a ping every second and the pick once the
-// reader has it, until ctx ends or a write fails.
-func (p *player) send(ctx context.Context, conn *websocket.Conn, picks <-chan string) {
+// send writes inputs at 60 Hz, a ping every second and the Script's reply
+// once the reader has it, until ctx ends or a write fails.
+func (p *player) send(ctx context.Context, conn *websocket.Conn, replies <-chan any) {
 	t := time.NewTicker(time.Second / 60)
 	defer t.Stop()
 	var seq uint32
@@ -223,18 +224,21 @@ func (p *player) send(ctx context.Context, conn *websocket.Conn, picks <-chan st
 		select {
 		case <-ctx.Done():
 			return
-		case k := <-picks:
-			if p.write(ctx, conn, protocol.ClientMsg{T: protocol.TPick, Kind: k}) != nil {
+		case r := <-replies:
+			if p.write(ctx, conn, r) != nil {
 				return
 			}
 		case <-t.C:
 			seq++
-			if p.write(ctx, conn, stick(p.i, seq)) != nil {
+			if p.write(ctx, conn, p.sc.Input(p.i, seq)) != nil {
 				return
 			}
 			if seq%pingEvery == 0 {
 				ts := float64(time.Since(p.epoch).Microseconds()) / 1000
-				if p.write(ctx, conn, protocol.ClientMsg{T: protocol.TPing, TS: ts}) != nil {
+				if p.write(ctx, conn, struct {
+					T  string  `json:"t"`
+					TS float64 `json:"ts"`
+				}{netproto.TPing, ts}) != nil {
 					return
 				}
 			}
@@ -242,8 +246,8 @@ func (p *player) send(ctx context.Context, conn *websocket.Conn, picks <-chan st
 	}
 }
 
-func (p *player) write(ctx context.Context, conn *websocket.Conn, m protocol.ClientMsg) error {
-	b, err := json.Marshal(m)
+func (p *player) write(ctx context.Context, conn *websocket.Conn, v any) error {
+	b, err := json.Marshal(v)
 	if err != nil {
 		return err
 	}
