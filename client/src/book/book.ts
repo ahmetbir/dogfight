@@ -3,6 +3,7 @@
 // a game it counts as a menu (the plane gets no input), the server is not told.
 import type { AircraftInfo } from "../net/protocol.ts";
 import { lattr, lt } from "../i18n/index.ts";
+import { tabMove, trapIndex } from "../core/ui/modal.ts";
 import { track } from "../i18n/live.ts";
 import { fill, h } from "../ui/dom.ts";
 import { builtinAircraft } from "./aircraft.ts";
@@ -35,27 +36,6 @@ function safeStore(): Storage | null {
   } catch {
     return null;
   }
-}
-
-/** The tab index a key moves to from i among n tabs; null for other keys. */
-export function tabMove(key: string, i: number, n: number): number | null {
-  switch (key) {
-    case "ArrowDown": case "ArrowRight": return (i + 1) % n;
-    case "ArrowUp": case "ArrowLeft": return (i - 1 + n) % n;
-    case "Home": return 0;
-    case "End": return n - 1;
-  }
-  return null;
-}
-
-/**
- * Focus trap step: the index Tab (or Shift+Tab) moves to among n focusable
- * elements from cur (-1 = focus is outside the book: enter at the first, or
- * the last with Shift).
- */
-export function trapIndex(cur: number, n: number, shift: boolean): number {
-  if (cur < 0) return shift ? n - 1 : 0;
-  return shift ? (cur - 1 + n) % n : (cur + 1) % n;
 }
 
 export type BookOpts = {

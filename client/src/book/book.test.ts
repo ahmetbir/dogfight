@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { keyRows } from "../input/bindings.ts";
 import type { AircraftInfo } from "../net/protocol.ts";
 import { builtinAircraft } from "./aircraft.ts";
-import { lastChapter, tabMove, trapIndex } from "./book.ts";
+import { lastChapter } from "./book.ts";
 import { CHAPTERS } from "./chapters.ts";
 import { dist, kmh, num, speed } from "./kit.ts";
 import { RULES } from "./rules.ts";
@@ -59,14 +59,6 @@ test("the built-in aircraft table comes from the Go-checked rules", () => {
   assert.deepEqual(t.map((a) => a.team), ["nato", "nato", "soviet", "soviet"]);
 });
 
-test("focus trap: Tab and Shift+Tab wrap inside the book; outside focus enters at an end", () => {
-  assert.equal(trapIndex(0, 3, false), 1);
-  assert.equal(trapIndex(2, 3, false), 0);
-  assert.equal(trapIndex(0, 3, true), 2);
-  assert.equal(trapIndex(-1, 3, false), 0);
-  assert.equal(trapIndex(-1, 3, true), 2);
-});
-
 test("numbers come from the rules and the aircraft table", () => {
   const ground = textOf("yer", PLANES);
   for (const a of PLANES) assert.ok(ground.includes(speed(a.rotateSpeed)), a.name);
@@ -85,11 +77,7 @@ test("the controls chapter lists every binding of every scheme", () => {
   for (const s of ["mouse", "keyboard", "touch"] as const) for (const [k, what] of keyRows(s)) assert.ok(t.includes(k) && t.includes(what), `${s} ${k}`);
 });
 
-test("tab keys wrap; the last chapter is remembered by id", () => {
-  assert.equal(tabMove("ArrowDown", 8, 9), 0);
-  assert.equal(tabMove("ArrowUp", 0, 9), 8);
-  assert.equal(tabMove("End", 2, 9), 8);
-  assert.equal(tabMove("Enter", 2, 9), null);
+test("the last chapter is remembered by id", () => {
   assert.equal(lastChapter(CHAPTERS, { getItem: () => "hud" }), CHAPTERS.findIndex((c) => c.id === "hud"));
   assert.equal(lastChapter(CHAPTERS, { getItem: () => "nope" }), 0);
   assert.equal(lastChapter(CHAPTERS, { getItem: () => { throw new Error("blocked"); } }), 0);

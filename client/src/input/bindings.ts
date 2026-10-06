@@ -3,10 +3,10 @@
 // lists (settings menu, pilot's manual) render. Change a key here and every
 // list follows.
 import { REPLAY_MS } from "../game/replay.ts";
+import { keyName as coreKeyName, keys as coreKeys, type Codes, type KeyRow } from "../core/ui/keys.ts";
 import { t } from "../i18n/index.ts";
 
-/** KeyboardEvent.code values; mouse buttons are "Mouse0" (left), "Mouse1" (middle), "Mouse2" (right). */
-type Codes = readonly string[];
+export type { KeyRow };
 
 const GEAR: Codes = ["KeyL"];
 const BRAKE: Codes = ["KeyB"];
@@ -48,21 +48,15 @@ export function touchLabels(): Record<TouchControl, string> {
   return Object.fromEntries(all.map((c) => [c, touchLabel(c)])) as Record<TouchControl, string>;
 }
 
-const NAMES: Record<string, string> = { ShiftLeft: "Shift", ShiftRight: "Shift", Escape: "Esc", ArrowLeft: "←", ArrowRight: "→" };
+const mouse = (c: "Mouse0" | "Mouse1" | "Mouse2") => t(`key.${c}`);
 
 /** "KeyW" → "W", "Mouse2" → "Sağ tık" / "Right click", "Escape" → "Esc". */
-export function keyName(code: string): string {
-  if (code === "Mouse0" || code === "Mouse1" || code === "Mouse2") return t(`key.${code}`);
-  return NAMES[code] ?? code.replace(/^(Key|Digit)/, "");
-}
+export const keyName = (code: string): string => coreKeyName(code, mouse);
 
 /** The keys of several bindings, as a list label: "W / S", "Sağ tık / E" (duplicates once). */
-export function keys(...codes: Codes[]): string {
-  return [...new Set(codes.flat().map(keyName))].join(" / ");
-}
+export const keys = (...codes: Codes[]): string => coreKeys(mouse, ...codes);
 
 export type Scheme = "mouse" | "keyboard" | "touch";
-export type KeyRow = [string, string];
 
 const REPLAY_S = Math.round(REPLAY_MS / 1000);
 /*
