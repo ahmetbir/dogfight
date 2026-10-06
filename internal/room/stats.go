@@ -105,7 +105,7 @@ func (r *Room) countPresence() {
 func (s *session) played() bool { return s.roundTicks >= MatchTicks && s.airborne }
 
 // newRound forgets s's presence in the round that just ended.
-func (s *session) newRound() { s.roundTicks, s.airborne = 0, false }
+func (s *session) newRound() { s.roundTicks, s.airborne, s.flushed = 0, false, false }
 
 // roundOver counts a match (and a win) for every counted pilot who played
 // the round, and flushes every counted tally.
@@ -119,7 +119,9 @@ func (r *Room) roundOver(rd game.Round) {
 			continue
 		}
 		if s.played() {
-			s.tally.Matches++
+			if !s.flushed {
+				s.tally.Matches++
+			}
 			if (rd.WinnerTeam != sim.TeamNone && teams[id] == rd.WinnerTeam) || rd.WinnerID == id {
 				s.tally.Wins++
 			}
@@ -132,7 +134,7 @@ func (r *Room) roundOver(rd game.Round) {
 // leaveCount closes a leaving pilot's tally: a round it played counts as a
 // match without a win, so leaving cannot dodge a loss.
 func (r *Room) leaveCount(s *session) {
-	if _, ok := r.counted(s.id); ok && s.played() {
+	if _, ok := r.counted(s.id); ok && s.played() && !s.flushed {
 		s.tally.Matches++
 	}
 	s.newRound()

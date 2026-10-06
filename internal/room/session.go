@@ -26,6 +26,7 @@ type session struct {
 	// this round's play, for the match rule (see played)
 	roundTicks int
 	airborne   bool
+	flushed    bool // a drain flush already counted this round's match
 }
 
 func newSession(id sim.ID, out Sender) *session {

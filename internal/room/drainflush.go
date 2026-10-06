@@ -25,9 +25,15 @@ func (r *Room) FlushStats(ctx context.Context) bool {
 	}
 }
 
-// flushAll is FlushStats inside the actor.
+// flushAll is FlushStats inside the actor: a played round counts as a
+// match now (as a leave would), but the round goes on for the seated
+// player; after an undrain its end credits the win without a second match.
 func (r *Room) flushAll() {
-	for _, s := range r.sessions {
-		r.leaveCount(s)
+	for id, s := range r.sessions {
+		if _, ok := r.counted(id); ok && s.played() && !s.flushed {
+			s.tally.Matches++
+			s.flushed = true
+		}
+		r.flush(s)
 	}
 }
