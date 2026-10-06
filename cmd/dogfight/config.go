@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"playground/internal/server"
+	"playground/core/server"
 	"playground/internal/stats"
 )
 

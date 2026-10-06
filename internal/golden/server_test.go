@@ -16,8 +16,8 @@ import (
 
 	"github.com/coder/websocket"
 
+	"playground/core/server"
 	"playground/internal/match"
-	"playground/internal/server"
 	"playground/internal/stats"
 )
 
