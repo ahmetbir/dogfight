@@ -1,0 +1,12 @@
+.git
+.tools
+.superpowers
+.playwright-mcp
+client/node_modules
+cmd/dogfight/web/*
+!cmd/dogfight/web/.gitkeep
+docs
+deploy
+scripts
+testdata
+**/*_test.go

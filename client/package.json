@@ -1,0 +1,13 @@
+{
+  "name": "dogfight-client",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/clean-web.mjs && esbuild src/main.ts --bundle --minify --target=es2022 --define:DEBUG=false --outfile=../cmd/dogfight/web/app.js && cp -R static/. ../cmd/dogfight/web/ && node scripts/models-manifest.mjs",
+    "watch": "node scripts/models-manifest.mjs && esbuild src/main.ts --bundle --sourcemap --target=es2022 --define:DEBUG=true --outfile=../cmd/dogfight/web/app.js --watch",
+    "check": "tsc --noEmit",
+    "test": "node --experimental-strip-types --no-warnings --test 'src/**/*.test.ts'"
+  },
+  "dependencies": { "three": "^0.186.1" },
+  "devDependencies": { "@types/node": "^22", "@types/three": "^0.186.0", "esbuild": "^0.28.2", "typescript": "^5.8" }
+}

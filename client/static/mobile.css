@@ -1,0 +1,85 @@
+/* ---------- phones: rotate prompt, compact HUD, touch overlay ---------- */
+.rotate-prompt { display: none; position: fixed; inset: 0; z-index: 50; align-items: center; justify-content: center; flex-direction: column; gap: 14px; background: #070c14; color: var(--hud); font-size: 22px; font-weight: 800; letter-spacing: 0.04em; text-align: center; padding: 24px; }
+.rotate-prompt::before { content: ""; width: 46px; height: 76px; border: 3px solid var(--hud); border-radius: 9px; animation: tilt-phone 1.6s ease-in-out infinite; }
+@keyframes tilt-phone { 50% { transform: rotate(-90deg); } }
+@media (orientation: portrait) and (pointer: coarse) { body.in-game .rotate-prompt { display: flex; } }
+
+/* settings: the room link wraps instead of clipping */
+@media (max-width: 520px) {
+  .settings-panel { width: calc(100vw - 24px); max-height: calc(100vh - 24px); padding: 18px 16px; }
+  .room-link { flex-wrap: wrap; }
+  .room-link .input.link { flex: 1 1 100%; width: auto; min-width: 0; order: 3; }
+}
+
+/* compact HUD: narrow windows and landscape phones */
+@media (max-width: 700px), (max-height: 500px) {
+  .hud-panel { bottom: 12px; min-width: 0; padding: 7px 10px; gap: 5px; }
+  .hud-left { left: 12px; } .hud-right { right: 12px; }
+  .g-label { font-size: 9px; width: 30px; }
+  .g-big { font-size: 21px; min-width: 50px; }
+  .g-unit, .g-num { font-size: 11px; }
+  .g-row .bar { min-width: 60px; height: 6px; }
+  .lamp, .ab-light { font-size: 9px; padding: 1px 5px; }
+  .flight-lights { gap: 5px; padding-top: 5px; }
+  .g-label.rearm-label { min-width: 70px; }
+  .radar, .radar-canvas { width: 120px; height: 120px; }
+  .radar { top: 10px; left: 10px; }
+  .killfeed { top: 10px; right: 10px; gap: 4px; }
+  .kf-line { font-size: 11px; padding: 3px 8px; }
+  .kf-name { max-width: 110px; }
+  .killfeed .kf-line:nth-last-child(n+4) { display: none; }
+  .hud-top { top: 8px; gap: 5px; }
+  .hud-score { font-size: 14px; padding: 4px 12px; }
+  .hud-warn { font-size: 16px; padding: 4px 12px; }
+  .obj-side { font-size: 10px; padding: 3px 8px; }
+  .hud-mid { top: 26%; gap: 6px; }
+  .hud-center { font-size: 21px; } .hud-center.alert { font-size: 24px; }
+  .hud-sub, .hud-range, .hud-toast { font-size: 13px; }
+  .hud-coach { font-size: 17px; }
+  .ground-help { bottom: 120px; gap: 6px; }
+  .ground-hint { font-size: 11px; padding: 4px 6px 4px 10px; }
+}
+/* narrow portrait windows: the score line and the radar / kill feed share the top */
+@media (max-width: 520px) {
+  .hud-top { top: 152px; max-width: calc(100vw - 24px); }
+  .hud-score { white-space: normal; text-align: center; }
+  .killfeed { max-width: calc(100vw - 150px); }
+  .hud-panel { max-width: calc(50vw - 18px); }
+  .hud-mid { top: 34%; }
+  .ground-help { bottom: 170px; }
+}
+
+/* ---------- touch overlay ---------- */
+.touchpad { position: fixed; inset: 0; pointer-events: none !important; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.touchpad > *, .chat-menu { pointer-events: auto; touch-action: none; }
+/* the stick zone sits right of the radar and above the HIZ/İRT panel; a drag may leave it (pointer capture) */
+.tp-zone { position: absolute; left: 140px; top: 28%; bottom: 140px; width: calc(50% - 140px); }
+.tp-base { position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 2px solid rgba(124, 255, 178, 0.45); background: rgba(6, 12, 18, 0.25); }
+.tp-knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%; background: rgba(124, 255, 178, 0.55); box-shadow: 0 0 12px rgba(124, 255, 178, 0.5); }
+.tp-throttle { position: absolute; left: 8px; top: 150px; bottom: 14px; width: 48px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.tp-th-track { position: relative; flex: 1; width: 30px; border-radius: 15px; background: rgba(6, 12, 18, 0.5); border: 1px solid rgba(124, 255, 178, 0.4); overflow: hidden; }
+.tp-th-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: rgba(124, 255, 178, 0.6); }
+.tp-th-label { font-size: 10px; font-weight: 800; letter-spacing: 0.1em; color: var(--hud); text-shadow: var(--shadow); }
+.tp-top { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); display: flex; gap: 6px; }
+.tp-small, .tp-btn, .chat-opt { appearance: none; font: inherit; font-weight: 800; color: #fff; background: rgba(6, 12, 18, 0.5); border: 1px solid rgba(255, 255, 255, 0.28); text-shadow: var(--shadow); -webkit-tap-highlight-color: transparent; }
+.tp-small { font-size: 10px; letter-spacing: 0.08em; padding: 6px 9px; border-radius: 7px; }
+.tp-buttons { position: absolute; right: 10px; bottom: 10px; display: grid; gap: 6px; grid-template-columns: repeat(3, 54px) 92px; grid-template-rows: repeat(3, 44px); grid-template-areas: "chat look ab missile" "gear brake flare fire" "bomb . . fire"; }
+.tp-btn { border-radius: 12px; font-size: 11px; letter-spacing: 0.04em; padding: 0; }
+.tp-btn.on { background: rgba(124, 255, 178, 0.35); border-color: var(--hud); }
+.tp-chat { grid-area: chat; } .tp-look { grid-area: look; } .tp-ab { grid-area: ab; } .tp-gear { grid-area: gear; } .tp-brake { grid-area: brake; }
+.tp-flare { grid-area: flare; } .tp-missile { grid-area: missile; } .tp-bomb { grid-area: bomb; }
+.tp-fire { grid-area: fire; border-radius: 50%; font-size: 15px; background: rgba(255, 77, 77, 0.35); border: 2px solid rgba(255, 120, 120, 0.8); }
+.tp-fire.on { background: rgba(255, 77, 77, 0.7); }
+/* above the button grid (3 × 44 + 2 × 6 + 10 = 154 px), clear of MENÜ · UÇAK · SKOR;
+   the right HUD panel there steps aside while the menu is open */
+.chat-menu { position: absolute; right: 10px; bottom: 162px; display: grid; grid-template-columns: repeat(2, auto); gap: 5px; }
+.chat-opt { font-size: 12px; font-weight: 700; padding: 9px 12px; border-radius: 8px; background: rgba(6, 12, 18, 0.85); }
+/* the right HUD panel moves above the buttons; ground help clears both thumbs */
+body.touch .hud-right { right: 10px; bottom: auto; top: 96px; }
+body.touch.chat-open .hud-right { visibility: hidden; }
+body.touch .hud-left { left: 64px; }
+body.touch .ground-help { bottom: auto; top: 22%; width: min(420px, 50vw); }
+body.touch .hud-mid { top: 36%; }
+/* the watching / replay label clears the MENÜ · UÇAK · SKOR · TEKRAR row */
+body.touch .hud-watch { bottom: 52px; font-size: 14px; }
+.tp-replay { color: var(--amber); border-color: rgba(255, 201, 77, 0.7); }

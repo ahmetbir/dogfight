@@ -1,0 +1,120 @@
+/* ---------- in-game HUD (loaded after style.css, before mobile.css) ---------- */
+.hud { position: fixed; inset: 0; pointer-events: none; color: #fff; text-shadow: var(--shadow); font-variant-numeric: tabular-nums; user-select: none; }
+.hud-panel { position: absolute; bottom: 22px; min-width: 250px; padding: 12px 16px; border-radius: 12px; background: rgba(6, 12, 18, 0.42); border: 1px solid rgba(124, 255, 178, 0.18); display: flex; flex-direction: column; gap: 8px; }
+.hud-left { left: 22px; }
+.hud-right { right: 22px; }
+.g-row { display: flex; align-items: center; gap: 10px; }
+.g-label { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: var(--hud); width: 38px; flex: none; }
+.g-big { font-size: 26px; font-weight: 700; min-width: 64px; text-align: right; }
+.g-unit { font-size: 12px; color: #c7d3df; }
+.g-num { font-size: 14px; font-weight: 600; min-width: 32px; text-align: right; }
+.g-row .bar { flex: 1; height: 8px; }
+.g-row.ammo .g-big { min-width: 30px; margin-right: 14px; }
+.g-row.ammo .g-label { width: auto; }
+.bar.throttle .bar-fill { background: var(--hud); }
+.bar.hp .bar-fill { background: var(--hud); }
+.bar.hp .bar-fill.low { background: var(--danger); }
+.bar.heat .bar-fill { background: var(--amber); }
+.bar.heat.over .bar-fill { background: var(--danger); animation: blink 0.4s steps(2, start) infinite; }
+.ab-light { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.2); color: rgba(255, 255, 255, 0.3); text-shadow: none; }
+.ab-light.on { color: #1a0d00; background: #ff9d2e; border-color: #ff9d2e; box-shadow: 0 0 10px rgba(255, 157, 46, 0.7); }
+.ab-light.locked { color: #fff; background: var(--danger); border-color: var(--danger); box-shadow: none; animation: lamp 0.4s steps(2, start) infinite; }
+.g-row .bar.ab-heat { flex: 0 0 38px; height: 6px; }
+.bar.ab-heat .bar-fill { background: #ff9d2e; }
+.bar.ab-heat.warm .bar-fill, .bar.ab-heat.locked .bar-fill { background: var(--danger); }
+.bar.ab-heat.locked { animation: lamp 0.4s steps(2, start) infinite; }
+
+.hud-top { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.hud-score { font-size: 18px; font-weight: 700; padding: 6px 16px; border-radius: 10px; background: rgba(6, 12, 18, 0.42); border: 1px solid rgba(124, 255, 178, 0.18); white-space: pre; }
+.hud-warn { font-size: 20px; font-weight: 900; letter-spacing: 0.14em; color: #fff; background: rgba(220, 30, 30, 0.85); padding: 6px 18px; border-radius: 8px; animation: blink 0.5s steps(2, start) infinite; text-shadow: none; }
+@keyframes blink { to { visibility: hidden; } }
+.objective { display: flex; gap: 14px; }
+.obj-side { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 800; letter-spacing: 0.1em; padding: 4px 10px; border-radius: 8px; background: rgba(6, 12, 18, 0.42); }
+.obj-side.nato { color: var(--nato); } .obj-side.soviet { color: var(--soviet); }
+.obj-side.mine { box-shadow: inset 0 0 0 1px currentColor; }
+.bar.obj-bar { width: clamp(70px, 14vw, 160px); height: 8px; } .bar.obj-bar .bar-fill { background: currentColor; }
+.obj-hp { min-width: 34px; text-align: right; font-size: 12px; color: #e4ecf4; }
+
+.radar { position: absolute; top: 16px; left: 16px; width: 168px; height: 168px; border-radius: 50%; background: rgba(6, 12, 18, 0.5); border: 1px solid rgba(124, 255, 178, 0.3); }
+.radar-canvas { width: 168px; height: 168px; display: block; }
+.radar-n { position: absolute; top: 3px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 700; color: var(--hud); }
+.radar-r { position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #c7d3df; }
+
+.killfeed { position: absolute; top: 16px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; max-width: 46vw; }
+.kf-line { display: flex; gap: 8px; align-items: center; font-size: 14px; font-weight: 600; background: rgba(6, 12, 18, 0.5); padding: 4px 10px; border-radius: 7px; white-space: nowrap; }
+.kf-name { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.kf-name.nato { color: #8cc4ff; }
+.kf-name.soviet { color: #ff8f88; }
+.kf-name.me { color: var(--hud); }
+.kf-line.chat { gap: 0; white-space: pre; color: #e4ecf4; border-left: 2px solid var(--hud-dim); }
+.kf-weapon { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: #c7d3df; text-transform: uppercase; }
+
+.hud-mid { position: absolute; left: 50%; top: 30%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; width: min(720px, 90vw); }
+.hud-center { font-size: 26px; font-weight: 800; letter-spacing: 0.04em; }
+.hud-center.alert { color: var(--danger); font-size: 30px; animation: blink 0.6s steps(2, start) infinite; }
+.hud-sub { font-size: 16px; color: #e4ecf4; }
+.hud-tag { font-size: 13px; font-weight: 800; letter-spacing: 0.25em; color: var(--hud); border: 1px solid var(--hud-dim); background: rgba(124, 255, 178, 0.10); padding: 3px 10px; border-radius: 6px; }
+.hud-range { font-size: 18px; font-weight: 800; letter-spacing: 0.12em; color: var(--amber); }
+.g-row.lock-range .g-label { width: auto; }
+.g-num.range { min-width: 0; color: #e4ecf4; }
+.hud-watch { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); font-size: 17px; font-weight: 800; letter-spacing: 0.05em; color: #e4ecf4; background: rgba(6, 14, 22, 0.6); border-radius: 8px; padding: 4px 14px; white-space: nowrap; }
+.hud-watch.replay { color: var(--amber); letter-spacing: 0.12em; }
+.hud-toast { font-size: 20px; font-weight: 800; color: var(--amber); }
+
+.hud-flash { position: absolute; inset: 0; opacity: 0; box-shadow: inset 0 0 140px 50px rgba(255, 30, 30, 0.75); }
+.hud-flash.on { animation: flash 0.45s ease-out; }
+@keyframes flash { from { opacity: 1; } to { opacity: 0; } }
+.hud-hit { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; opacity: 0; background: linear-gradient(45deg, transparent 46%, #fff 46%, #fff 54%, transparent 54%), linear-gradient(-45deg, transparent 46%, #fff 46%, #fff 54%, transparent 54%); }
+.hud-hit.on { animation: flash 0.25s ease-out; }
+
+/* projected marks */
+.reticle { position: absolute; inset: 0; overflow: hidden; }
+.rt-anchor { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.rt-aim, .rt-nose, .rt-box, .rt-lead { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); }
+.rt-aim { width: 30px; height: 30px; border: 2px solid rgba(255, 255, 255, 0.9); border-radius: 50%; box-shadow: 0 0 3px rgba(0, 0, 0, 0.6); }
+.rt-nose { width: 22px; height: 22px; background: linear-gradient(var(--hud), var(--hud)) center / 2px 100% no-repeat, linear-gradient(var(--hud), var(--hud)) center / 100% 2px no-repeat; filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.9)); }
+.rt-box { border: 2px solid var(--amber); transition: width 0.1s linear, height 0.1s linear; }
+.rt-box.locked { border-color: var(--danger); box-shadow: 0 0 10px rgba(255, 77, 77, 0.6); }
+.rt-box-label { display: none; position: absolute; top: -22px; left: 50%; transform: translateX(-50%); font-size: 13px; font-weight: 900; letter-spacing: 0.12em; color: var(--danger); }
+.rt-box.locked .rt-box-label { display: block; }
+.rt-lead { width: 18px; height: 18px; border: 2px dashed rgba(255, 201, 77, 0.95); border-radius: 50%; }
+.rt-lock-info { position: absolute; left: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 12px; font-weight: 700; color: var(--amber); white-space: nowrap; }
+.bar.rt-range { width: 60px; height: 4px; }
+.bar.rt-range .bar-fill { background: var(--hud); }
+.bar.rt-range .bar-fill.far { background: var(--danger); }
+.rt-anchor.lock-radar .rt-box { border-style: dashed; } /* radar lock: dashed box, blue readout */
+.rt-anchor.lock-radar .rt-lock-info { color: #9cc6ff; }
+.rt-dist { position: absolute; left: 14px; top: 8px; font-size: 12px; font-weight: 700; color: var(--amber); white-space: nowrap; }
+.hud.waiting .hud-panel, .hud.waiting .radar, .hud.waiting .reticle, .hud.waiting .hud-tag { display: none; }
+
+/* flight lights (TEKER / FREN / BOMBA / İKMAL) */
+.flight-lights { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid rgba(124, 255, 178, 0.14); }
+.g-row.lamps { gap: 6px; }
+.lamp { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; padding: 2px 7px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.2); color: rgba(255, 255, 255, 0.3); text-shadow: none; }
+.lamp.gear.on { color: #062615; background: var(--hud); border-color: var(--hud); box-shadow: 0 0 10px rgba(124, 255, 178, 0.6); }
+.lamp.gear.blink { color: #1a1200; background: var(--amber); border-color: var(--amber); animation: lamp 0.5s steps(2, start) infinite; }
+.lamp.brake.on { color: #fff; background: var(--danger); border-color: var(--danger); box-shadow: 0 0 10px rgba(255, 77, 77, 0.6); }
+.lamp.bombs { margin-left: auto; color: #c7d3df; }
+.lamp.bombs.on { color: var(--amber); border-color: rgba(255, 201, 77, 0.6); }
+@keyframes lamp { to { opacity: 0.25; } }
+.g-label.rearm-label { width: auto; min-width: 88px; color: var(--amber); }
+.bar.rearm-bar .bar-fill { background: var(--amber); }
+.ground-help { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; width: min(720px, 92vw); text-align: center; }
+.hud-coach { font-size: 22px; font-weight: 800; color: var(--amber); letter-spacing: 0.04em; }
+.ground-hint { pointer-events: auto; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #e4ecf4; background: rgba(6, 14, 22, 0.72); border: 1px solid var(--hud-dim); border-radius: 8px; padding: 6px 8px 6px 14px; }
+.hint-close { font: inherit; font-size: 18px; line-height: 1; color: #e4ecf4; background: none; border: 0; padding: 2px 6px; cursor: pointer; border-radius: 4px; }
+.hint-close:hover, .hint-close:focus-visible { background: rgba(255, 255, 255, 0.12); outline: none; }
+.hud.waiting .ground-help { display: none; }
+.g-fx, .g-fx > div { position: absolute; inset: 0; pointer-events: none; }
+.g-black { opacity: 0; background: radial-gradient(ellipse at center, transparent 15%, rgba(0, 0, 0, 0.85) 50%, #000 78%); }
+.g-red { opacity: 0; background: radial-gradient(ellipse at center, rgba(190, 0, 0, 0.35) 30%, rgba(150, 0, 0, 0.9) 95%); }
+
+/* Flares: blinking FLARE! cue under FÜZE UYARISI (key cap; touch lights its FLARE button) and the decoy note. */
+.hud-flarecue { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 900; letter-spacing: 0.16em; color: #1a1200; background: #ffcc33; padding: 5px 16px; border-radius: 8px; animation: blink 0.4s steps(2, start) infinite; text-shadow: none; }
+.hud-flarecue.beam { color: #001a33; background: #6fb6ff; } /* DİK UÇ! against a radar missile */
+.hud-key { font-size: 13px; letter-spacing: 0.08em; padding: 2px 8px; border: 2px solid #1a1200; border-radius: 5px; background: #fff3c4; }
+.flare-cue .tp-flare { background: rgba(255, 204, 51, 0.85); border-color: #fff; color: #1a1200; animation: blink 0.4s steps(2, start) infinite; }
+.hud-decoy { font-size: 18px; font-weight: 800; letter-spacing: 0.06em; color: #ff8a8a; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
+.hud-decoy.good { font-size: 30px; font-weight: 900; letter-spacing: 0.12em; color: #57ff8f; }
+.hud-decoy.on { animation: decoy-pop 0.25s ease-out; }
+@keyframes decoy-pop { from { transform: scale(1.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
