@@ -1,0 +1,90 @@
+## bundle_bare
+{"t":"status","n":3,"m":200}
+{"t":"header","n":23,"m":"Cache-Control: no-cache"}
+{"t":"header","n":225,"m":"Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}
+{"t":"header","n":44,"m":"Content-Type: text/javascript; charset=utf-8"}
+{"t":"header","n":39,"m":"Cross-Origin-Opener-Policy: same-origin"}
+{"t":"header","n":100,"m":"Permissions-Policy: camera=(), microphone=(), geolocation=(), accelerometer=(self), gyroscope=(self)"}
+{"t":"header","n":28,"m":"Referrer-Policy: no-referrer"}
+{"t":"header","n":31,"m":"X-Content-Type-Options: nosniff"}
+{"t":"body","n":14,"m":"console.log(1)"}
+## bundle_versioned
+{"t":"status","n":3,"m":200}
+{"t":"header","n":50,"m":"Cache-Control: public, max-age=31536000, immutable"}
+{"t":"header","n":225,"m":"Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}
+{"t":"header","n":44,"m":"Content-Type: text/javascript; charset=utf-8"}
+{"t":"header","n":39,"m":"Cross-Origin-Opener-Policy: same-origin"}
+{"t":"header","n":100,"m":"Permissions-Policy: camera=(), microphone=(), geolocation=(), accelerometer=(self), gyroscope=(self)"}
+{"t":"header","n":28,"m":"Referrer-Policy: no-referrer"}
+{"t":"header","n":31,"m":"X-Content-Type-Options: nosniff"}
+{"t":"body","n":14,"m":"console.log(1)"}
+## dir
+{"t":"status","n":3,"m":404}
+{"t":"header","n":15,"m":"Cache-Control: "}
+{"t":"header","n":225,"m":"Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}
+{"t":"header","n":39,"m":"Content-Type: text/plain; charset=utf-8"}
+{"t":"header","n":39,"m":"Cross-Origin-Opener-Policy: same-origin"}
+{"t":"header","n":100,"m":"Permissions-Policy: camera=(), microphone=(), geolocation=(), accelerometer=(self), gyroscope=(self)"}
+{"t":"header","n":28,"m":"Referrer-Policy: no-referrer"}
+{"t":"header","n":31,"m":"X-Content-Type-Options: nosniff"}
+{"t":"body","n":19,"m":"404 page not found\n"}
+## healthz
+{"t":"status","n":3,"m":200}
+{"t":"header","n":23,"m":"Cache-Control: no-store"}
+{"t":"header","n":225,"m":"Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}
+{"t":"header","n":39,"m":"Content-Type: text/plain; charset=utf-8"}
+{"t":"header","n":39,"m":"Cross-Origin-Opener-Policy: same-origin"}
+{"t":"header","n":100,"m":"Permissions-Policy: camera=(), microphone=(), geolocation=(), accelerometer=(self), gyroscope=(self)"}
+{"t":"header","n":28,"m":"Referrer-Policy: no-referrer"}
+{"t":"header","n":31,"m":"X-Content-Type-Options: nosniff"}
+{"t":"body","n":2,"m":"ok"}
+## index
+{"t":"status","n":3,"m":200}
+{"t":"header","n":23,"m":"Cache-Control: no-cache"}
+{"t":"header","n":225,"m":"Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}
+{"t":"header","n":38,"m":"Content-Type: text/html; charset=utf-8"}
+{"t":"header","n":39,"m":"Cross-Origin-Opener-Policy: same-origin"}
+{"t":"header","n":100,"m":"Permissions-Policy: camera=(), microphone=(), geolocation=(), accelerometer=(self), gyroscope=(self)"}
+{"t":"header","n":28,"m":"Referrer-Policy: no-referrer"}
+{"t":"header","n":31,"m":"X-Content-Type-Options: nosniff"}
+{"t":"body","n":69,"m":"\u003c!doctype html\u003e\u003cscript src=\"/app.js?v=0a286891c11c\"\u003e\u003c/script\u003edogfight"}
+## missing
+{"t":"status","n":3,"m":404}
+{"t":"header","n":15,"m":"Cache-Control: "}
+{"t":"header","n":225,"m":"Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}
+{"t":"header","n":39,"m":"Content-Type: text/plain; charset=utf-8"}
+{"t":"header","n":39,"m":"Cross-Origin-Opener-Policy: same-origin"}
+{"t":"header","n":100,"m":"Permissions-Policy: camera=(), microphone=(), geolocation=(), accelerometer=(self), gyroscope=(self)"}
+{"t":"header","n":28,"m":"Referrer-Policy: no-referrer"}
+{"t":"header","n":31,"m":"X-Content-Type-Options: nosniff"}
+{"t":"body","n":19,"m":"404 page not found\n"}
+## model
+{"t":"status","n":3,"m":200}
+{"t":"header","n":36,"m":"Cache-Control: public, max-age=86400"}
+{"t":"header","n":225,"m":"Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}
+{"t":"header","n":39,"m":"Content-Type: text/plain; charset=utf-8"}
+{"t":"header","n":39,"m":"Cross-Origin-Opener-Policy: same-origin"}
+{"t":"header","n":100,"m":"Permissions-Policy: camera=(), microphone=(), geolocation=(), accelerometer=(self), gyroscope=(self)"}
+{"t":"header","n":28,"m":"Referrer-Policy: no-referrer"}
+{"t":"header","n":31,"m":"X-Content-Type-Options: nosniff"}
+{"t":"body","n":3,"m":"glb"}
+## model_manifest
+{"t":"status","n":3,"m":200}
+{"t":"header","n":23,"m":"Cache-Control: no-cache"}
+{"t":"header","n":225,"m":"Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}
+{"t":"header","n":30,"m":"Content-Type: application/json"}
+{"t":"header","n":39,"m":"Cross-Origin-Opener-Policy: same-origin"}
+{"t":"header","n":100,"m":"Permissions-Policy: camera=(), microphone=(), geolocation=(), accelerometer=(self), gyroscope=(self)"}
+{"t":"header","n":28,"m":"Referrer-Policy: no-referrer"}
+{"t":"header","n":31,"m":"X-Content-Type-Options: nosniff"}
+{"t":"body","n":17,"m":{"f16":"f16.glb"}}
+## room_link
+{"t":"status","n":3,"m":200}
+{"t":"header","n":23,"m":"Cache-Control: no-cache"}
+{"t":"header","n":225,"m":"Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"}
+{"t":"header","n":38,"m":"Content-Type: text/html; charset=utf-8"}
+{"t":"header","n":39,"m":"Cross-Origin-Opener-Policy: same-origin"}
+{"t":"header","n":100,"m":"Permissions-Policy: camera=(), microphone=(), geolocation=(), accelerometer=(self), gyroscope=(self)"}
+{"t":"header","n":28,"m":"Referrer-Policy: no-referrer"}
+{"t":"header","n":31,"m":"X-Content-Type-Options: nosniff"}
+{"t":"body","n":69,"m":"\u003c!doctype html\u003e\u003cscript src=\"/app.js?v=0a286891c11c\"\u003e\u003c/script\u003edogfight"}

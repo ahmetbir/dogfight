@@ -8,6 +8,8 @@
 ## bad_room
 {"t":"error","n":60,"m":{"t":"error","msg":"geçersiz oda ayarı","code":"bad_room"}}
 {"t":"close","n":27,"m":{"status":1008,"reason":""}}
+## binary_first
+{"t":"close","n":27,"m":{"status":1003,"reason":""}}
 ## busy
 {"t":"error","n":47,"m":{"t":"error","msg":"sunucu dolu","code":"busy"}}
 {"t":"close","n":27,"m":{"status":1008,"reason":""}}
@@ -22,6 +24,10 @@
 ## timeout
 {"t":"error","n":53,"m":{"t":"error","msg":"zaman aşımı","code":"timeout"}}
 {"t":"close","n":27,"m":{"status":1008,"reason":""}}
+## too_big_first
+{"t":"close","n":53,"m":{"status":1009,"reason":"read limited at 2049 bytes"}}
+## undrained
+{"t":"welcome","n":46827,"h":"35ef04c5bc535ff2","p":"{\"t\":\"welcome\",\"you\":9,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
 ## updating
 {"t":"close","n":65,"m":{"status":1012,"reason":"sunucu güncelleniyor, yeniden bağlan"}}
 ## version

@@ -1,2 +1,61 @@
 ## metrics
-{"t":"text","n":2447,"h":"b259c031c9f3a237","p":"# HELP dogfight_rooms Open rooms.\n# TYPE dogfight_rooms gauge\ndogfight_rooms 2\n# HELP dogfight_humans Human players in rooms.\n# TYPE dogfight_humans gauge\ndogfi"}
+{"t":"row","n":33,"m":"# HELP dogfight_rooms Open rooms."}
+{"t":"row","n":27,"m":"# TYPE dogfight_rooms gauge"}
+{"t":"row","n":16,"m":"dogfight_rooms 2"}
+{"t":"row","n":46,"m":"# HELP dogfight_humans Human players in rooms."}
+{"t":"row","n":28,"m":"# TYPE dogfight_humans gauge"}
+{"t":"row","n":17,"m":"dogfight_humans 3"}
+{"t":"row","n":35,"m":"# HELP dogfight_bots Bots in rooms."}
+{"t":"row","n":26,"m":"# TYPE dogfight_bots gauge"}
+{"t":"row","n":15,"m":"dogfight_bots 5"}
+{"t":"row","n":49,"m":"# HELP dogfight_conns Open WebSocket connections."}
+{"t":"row","n":27,"m":"# TYPE dogfight_conns gauge"}
+{"t":"row","n":16,"m":"dogfight_conns 4"}
+{"t":"row","n":59,"m":"# HELP dogfight_tick_seconds Room tick duration in seconds."}
+{"t":"row","n":38,"m":"# TYPE dogfight_tick_seconds histogram"}
+{"t":"row","n":42,"m":"dogfight_tick_seconds_bucket{le=\"0.001\"} 0"}
+{"t":"row","n":42,"m":"dogfight_tick_seconds_bucket{le=\"0.002\"} 0"}
+{"t":"row","n":42,"m":"dogfight_tick_seconds_bucket{le=\"0.004\"} 1"}
+{"t":"row","n":42,"m":"dogfight_tick_seconds_bucket{le=\"0.008\"} 1"}
+{"t":"row","n":42,"m":"dogfight_tick_seconds_bucket{le=\"0.012\"} 1"}
+{"t":"row","n":43,"m":"dogfight_tick_seconds_bucket{le=\"0.0167\"} 1"}
+{"t":"row","n":42,"m":"dogfight_tick_seconds_bucket{le=\"0.025\"} 2"}
+{"t":"row","n":41,"m":"dogfight_tick_seconds_bucket{le=\"0.05\"} 2"}
+{"t":"row","n":41,"m":"dogfight_tick_seconds_bucket{le=\"+Inf\"} 2"}
+{"t":"row","n":31,"m":"dogfight_tick_seconds_sum 0.023"}
+{"t":"row","n":29,"m":"dogfight_tick_seconds_count 2"}
+{"t":"row","n":62,"m":"# HELP dogfight_tick_overruns_total Ticks longer than 16.7 ms."}
+{"t":"row","n":43,"m":"# TYPE dogfight_tick_overruns_total counter"}
+{"t":"row","n":30,"m":"dogfight_tick_overruns_total 1"}
+{"t":"row","n":55,"m":"# HELP dogfight_msgs_in_total Client messages received."}
+{"t":"row","n":37,"m":"# TYPE dogfight_msgs_in_total counter"}
+{"t":"row","n":25,"m":"dogfight_msgs_in_total 10"}
+{"t":"row","n":52,"m":"# HELP dogfight_msgs_out_total Server messages sent."}
+{"t":"row","n":38,"m":"# TYPE dogfight_msgs_out_total counter"}
+{"t":"row","n":26,"m":"dogfight_msgs_out_total 20"}
+{"t":"row","n":71,"m":"# HELP dogfight_snap_drops_total Snapshots dropped on full send queues."}
+{"t":"row","n":40,"m":"# TYPE dogfight_snap_drops_total counter"}
+{"t":"row","n":27,"m":"dogfight_snap_drops_total 1"}
+{"t":"row","n":62,"m":"# HELP dogfight_stats_dropped_total Pilot stat deltas dropped."}
+{"t":"row","n":43,"m":"# TYPE dogfight_stats_dropped_total counter"}
+{"t":"row","n":30,"m":"dogfight_stats_dropped_total 7"}
+{"t":"row","n":74,"m":"# HELP dogfight_rejects_total Rejected connections and requests by reason."}
+{"t":"row","n":37,"m":"# TYPE dogfight_rejects_total counter"}
+{"t":"row","n":47,"m":"dogfight_rejects_total{reason=\"conns-per-ip\"} 0"}
+{"t":"row","n":48,"m":"dogfight_rejects_total{reason=\"conns-per-net\"} 0"}
+{"t":"row","n":46,"m":"dogfight_rejects_total{reason=\"conns-total\"} 0"}
+{"t":"row","n":46,"m":"dogfight_rejects_total{reason=\"create-rate\"} 0"}
+{"t":"row","n":44,"m":"dogfight_rejects_total{reason=\"join-rate\"} 0"}
+{"t":"row","n":49,"m":"dogfight_rejects_total{reason=\"join-fail-rate\"} 0"}
+{"t":"row","n":47,"m":"dogfight_rejects_total{reason=\"limiter-full\"} 0"}
+{"t":"row","n":44,"m":"dogfight_rejects_total{reason=\"max-rooms\"} 0"}
+{"t":"row","n":40,"m":"dogfight_rejects_total{reason=\"flood\"} 1"}
+{"t":"row","n":43,"m":"dogfight_rejects_total{reason=\"api-rate\"} 0"}
+{"t":"row","n":40,"m":"dogfight_rejects_total{reason=\"other\"} 1"}
+{"t":"row","n":56,"m":"# HELP dogfight_api_requests_total API requests by path."}
+{"t":"row","n":42,"m":"# TYPE dogfight_api_requests_total counter"}
+{"t":"row","n":43,"m":"dogfight_api_requests_total{path=\"rooms\"} 1"}
+{"t":"row","n":49,"m":"dogfight_api_requests_total{path=\"leaderboard\"} 0"}
+{"t":"row","n":40,"m":"dogfight_api_requests_total{path=\"me\"} 0"}
+{"t":"row","n":43,"m":"dogfight_api_requests_total{path=\"other\"} 0"}
+{"t":"row","n":0,"m":""}
