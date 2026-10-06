@@ -456,7 +456,12 @@ fully consistent copy); restore into a stopped setup and `chown -R 65532:65532 /
   and `set_real_ip_from`; update both together, or adapt them to your proxy);
 - resolves the upstream through docker DNS (`resolver 127.0.0.11`), so nginx starts even while the
   container is down;
-- proxies `/ws` with upgrade, a 120 s timeout and `proxy_buffering off`.
+- proxies `/ws` with upgrade, a 120 s timeout and `proxy_buffering off`;
+- ships Cloudflare Authenticated Origin Pulls commented out. To enable it, upload a client
+  certificate for your hostname in Cloudflare (SSL/TLS → Origin Server → Authenticated Origin
+  Pulls, per-hostname), place its public certificate at the `ssl_client_certificate` path,
+  uncomment `ssl_client_certificate` and `ssl_verify_client optional`, confirm requests through
+  Cloudflare verify, then uncomment the `if` that answers 403 to everyone else.
 
 Always run `nginx -t` before reloading: if the `http{}` context is shared with other vhosts, a
 broken include takes them all down. Certificates and keys never enter the repository
