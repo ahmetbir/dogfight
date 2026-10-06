@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"playground/core/limit"
+	"playground/core/lobby"
 	"playground/core/netproto"
 	"playground/core/pilot"
 	"playground/core/room"
 	"playground/internal/bot"
 	"playground/internal/game"
-	"playground/internal/lobby"
 	"playground/internal/maps"
 	"playground/internal/match"
 	"playground/internal/mode"

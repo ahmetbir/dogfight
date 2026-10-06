@@ -12,7 +12,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"playground/internal/lobby"
+	"playground/internal/match"
 	"playground/internal/protocol"
 )
 
@@ -194,7 +194,7 @@ func TestJoinFailsPerIP(t *testing.T) {
 func TestDrainOnShutdown(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	l := lobby.New(ctx, lobby.Options{})
+	l := match.NewLobby(ctx, 0, nil, nil)
 	s := New(l, Options{Web: web})
 	srv := httptest.NewServer(s)
 	defer srv.Close()

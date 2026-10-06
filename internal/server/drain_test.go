@@ -11,16 +11,16 @@ import (
 
 	"github.com/coder/websocket"
 
-	"playground/internal/lobby"
+	"playground/internal/match"
 	"playground/internal/protocol"
 )
 
 // drainServer is a test server whose *Server (Drain, Conns) and lobby
 // context are reachable.
-func drainServer(t *testing.T) (*httptest.Server, *Server, *lobby.Lobby, context.CancelFunc) {
+func drainServer(t *testing.T) (*httptest.Server, *Server, *match.Lobby, context.CancelFunc) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	lb := lobby.New(ctx, lobby.Options{})
+	lb := match.NewLobby(ctx, 0, nil, nil)
 	s := New(lb, Options{Web: web, Limits: Limits{MaxConnsIP: 1000, CreatePerMinIP: 1000, JoinFailPerMinIP: 1000, JoinPerMinIP: 1000}})
 	srv := httptest.NewServer(s)
 	t.Cleanup(func() { cancel(); srv.Close() })

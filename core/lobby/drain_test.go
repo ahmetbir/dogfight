@@ -1,10 +1,15 @@
-package lobby
+package lobby_test
 
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
+
+	"playground/core/internal/fakegame"
+	"playground/core/lobby"
+	"playground/core/room"
 )
 
 // A draining lobby (blue/green deploy) starts no room and quick-picks none;
@@ -12,15 +17,13 @@ import (
 func TestDrainRefusesNewRoomsAndQuick(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	l := New(ctx, Options{})
-	listed := ffa
-	listed.Listed = true
-	r, err := l.Create(listed)
+	l := newLobby(ctx, 0, nil)
+	r, err := l.Create(fakegame.Settings{Listed: true, Seats: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
 	l.Drain(true)
-	if _, err := l.Create(ffa); !errors.Is(err, ErrDraining) {
+	if _, err := l.Create(plain); !errors.Is(err, lobby.ErrDraining) {
 		t.Fatalf("create while draining: %v, want ErrDraining", err)
 	}
 	if _, ok := l.Quick(); ok {
@@ -33,7 +36,7 @@ func TestDrainRefusesNewRoomsAndQuick(t *testing.T) {
 	if _, ok := l.Quick(); !ok {
 		t.Fatal("quick play after undrain")
 	}
-	if _, err := l.Create(ffa); err != nil {
+	if _, err := l.Create(plain); err != nil {
 		t.Fatalf("create after undrain: %v", err)
 	}
 }
@@ -41,9 +44,19 @@ func TestDrainRefusesNewRoomsAndQuick(t *testing.T) {
 func TestFlushStatsReachesEveryRoom(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	l := New(ctx, Options{})
+	var mu sync.Mutex
+	var recs []*fakegame.Recorder
+	l := lobby.New(ctx, lobby.Options[fakegame.Settings, fakegame.Msg, fakegame.Input, fakegame.Info]{
+		New: func(s fakegame.Settings) (room.Game[fakegame.Msg, fakegame.Input, fakegame.Info], error) {
+			rec := &fakegame.Recorder{}
+			mu.Lock()
+			recs = append(recs, rec)
+			mu.Unlock()
+			return fakegame.New(s, rec), nil
+		},
+	})
 	for range 3 {
-		if _, err := l.Create(ffa); err != nil {
+		if _, err := l.Create(plain); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -51,5 +64,17 @@ func TestFlushStatsReachesEveryRoom(t *testing.T) {
 	defer fcancel()
 	if !l.FlushStats(fctx) {
 		t.Fatal("rooms did not acknowledge the flush")
+	}
+	cancel()
+	l.Wait()
+	mu.Lock()
+	defer mu.Unlock()
+	if len(recs) != 3 {
+		t.Fatalf("%d games built", len(recs))
+	}
+	for i, rec := range recs {
+		if rec.Flushes != 1 {
+			t.Errorf("room %d flushed %d times", i, rec.Flushes)
+		}
 	}
 }

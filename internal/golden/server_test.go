@@ -16,7 +16,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"playground/internal/lobby"
+	"playground/internal/match"
 	"playground/internal/server"
 	"playground/internal/stats"
 )
@@ -48,7 +48,7 @@ func newServer(t *testing.T, so srvOpts) (*httptest.Server, *server.Server, cont
 	if so.stats != nil {
 		o.Stats = so.stats
 	}
-	s := server.New(lobby.New(ctx, lobby.Options{MaxRooms: so.maxRooms}), o)
+	s := server.New(match.NewLobby(ctx, so.maxRooms, nil, nil), o)
 	srv := httptest.NewServer(s)
 	t.Cleanup(func() { cancel(); srv.Close() })
 	return srv, s, cancel

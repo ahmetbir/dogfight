@@ -19,7 +19,6 @@ import (
 
 	"playground/core/metrics"
 	"playground/core/pilot"
-	"playground/internal/lobby"
 	"playground/internal/match"
 	"playground/internal/server"
 	"playground/internal/stats"
@@ -95,7 +94,7 @@ func run(cfg config) error {
 	if err != nil {
 		return err
 	}
-	lb := lobby.New(ctx, lobby.Options{MaxRooms: cfg.maxRooms, Stats: sink, Metrics: reg})
+	lb := match.NewLobby(ctx, cfg.maxRooms, reg, sink)
 	o := cfg.server(sub, st)
 	o.Metrics = reg
 	h := server.New(lb, o)

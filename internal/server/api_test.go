@@ -14,7 +14,6 @@ import (
 	"playground/core/room"
 	"playground/internal/bot"
 	"playground/internal/game"
-	"playground/internal/lobby"
 	"playground/internal/match"
 	"playground/internal/mode"
 	"playground/internal/protocol"
@@ -127,10 +126,10 @@ func (nopSender) Close()        {}
 
 // quickServer is a server whose quick play picks with pick instead of
 // the lobby's own Quick, so a test can race the picked room.
-func quickServer(t *testing.T, lim Limits, pick func(l *lobby.Lobby) (*match.Room, bool)) (*httptest.Server, *lobby.Lobby) {
+func quickServer(t *testing.T, lim Limits, pick func(l *match.Lobby) (*match.Room, bool)) (*httptest.Server, *match.Lobby) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	l := lobby.New(ctx, lobby.Options{})
+	l := match.NewLobby(ctx, 0, nil, nil)
 	s := New(l, Options{Limits: lim})
 	s.quickPick = func() (*match.Room, bool) { return pick(l) }
 	srv := httptest.NewServer(s)
@@ -155,7 +154,7 @@ func quickCode(t *testing.T, srv *httptest.Server) string {
 // refunded.
 func TestQuickFallsBackWhenPickedRoomFills(t *testing.T) {
 	var picked *match.Room
-	srv, l := quickServer(t, tight(func(l *Limits) { l.JoinPerMinIP = 1 }), func(l *lobby.Lobby) (*match.Room, bool) {
+	srv, l := quickServer(t, tight(func(l *Limits) { l.JoinPerMinIP = 1 }), func(l *match.Lobby) (*match.Room, bool) {
 		r, ok := l.Quick()
 		if !ok {
 			t.Error("the listed room with free seats was not picked")
@@ -194,7 +193,7 @@ func TestQuickFallsBackWhenPickedRoomCloses(t *testing.T) {
 	go gone.Run(ctx)
 	cancel()
 	<-gone.Done()
-	srv, _ := quickServer(t, tight(func(*Limits) {}), func(*lobby.Lobby) (*match.Room, bool) { return gone, true })
+	srv, _ := quickServer(t, tight(func(*Limits) {}), func(*match.Lobby) (*match.Room, bool) { return gone, true })
 	if code := quickCode(t, srv); code == "" || code == "GONE" {
 		t.Fatalf("quick must create a new room, got %q", code)
 	}

@@ -14,9 +14,6 @@ import (
 
 	"playground/core/metrics"
 	"playground/core/room"
-	"playground/internal/game"
-	"playground/internal/match"
-	"playground/internal/protocol"
 )
 
 // codeAlphabet omits I, O, 0 and 1. Its 32 letters divide 256, so a random
@@ -36,21 +33,22 @@ var (
 )
 
 // Options configure a lobby.
-type Options struct {
+type Options[S any, M room.Msg[In], In room.Input[In], X any] struct {
 	MaxRooms int               // rooms running at once; 0 = no limit
-	Stats    match.StatsSink   // pilot tallies of every room; nil = not counted
 	Metrics  *metrics.Registry // nil = not measured
+	Room     room.Options      // template; Seq and Metrics are set per room
+	New      func(s S) (room.Game[M, In, X], error)
 }
 
-type Lobby struct {
+type Lobby[S any, M room.Msg[In], In room.Input[In], X any] struct {
 	ctx      context.Context
 	maxRooms int
-	stats    match.StatsSink
 	m        *metrics.Registry
-	newRoom  func(code string, s game.Settings, o room.Options) *match.Room // a Dogfight room; swapped in tests
+	ro       room.Options
+	newGame  func(S) (room.Game[M, In, X], error)
 	running  sync.WaitGroup
 	mu       sync.Mutex
-	rooms    map[string]*match.Room
+	rooms    map[string]*room.Room[M, In, X]
 	seq      int64 // rooms created so far; a room's Seq is its rank
 	closed   bool  // Wait has begun: no room may start (running.Add would race Wait)
 	draining bool  // Drain(true): no room starts, quick play picks none
@@ -58,24 +56,21 @@ type Lobby struct {
 
 // Drain(true) refuses new rooms (ErrDraining) and quick-play picks while
 // running rooms go on; Drain(false) undoes it.
-func (l *Lobby) Drain(on bool) {
+func (l *Lobby[S, M, In, X]) Drain(on bool) {
 	l.mu.Lock()
 	l.draining = on
 	l.mu.Unlock()
 }
 
 // New returns a lobby whose rooms stop when ctx is cancelled.
-func New(ctx context.Context, o Options) *Lobby {
-	l := &Lobby{ctx: ctx, maxRooms: o.MaxRooms, stats: o.Stats, m: o.Metrics, rooms: map[string]*match.Room{}}
-	l.newRoom = func(code string, s game.Settings, o room.Options) *match.Room {
-		return room.New(code, match.New(s, l.stats), o)
-	}
-	return l
+func New[S any, M room.Msg[In], In room.Input[In], X any](ctx context.Context, o Options[S, M, In, X]) *Lobby[S, M, In, X] {
+	return &Lobby[S, M, In, X]{ctx: ctx, maxRooms: o.MaxRooms, m: o.Metrics, ro: o.Room, newGame: o.New,
+		rooms: map[string]*room.Room[M, In, X]{}}
 }
 
 // Create starts a room under a fresh code. It removes itself when done.
 // Past maxRooms, or once the lobby is shutting down, it fails with ErrBusy.
-func (l *Lobby) Create(s game.Settings) (*match.Room, error) {
+func (l *Lobby[S, M, In, X]) Create(s S) (*room.Room[M, In, X], error) {
 	l.mu.Lock()
 	if l.draining {
 		l.mu.Unlock()
@@ -121,7 +116,7 @@ func (l *Lobby) Create(s game.Settings) (*match.Room, error) {
 	return r, nil
 }
 
-func (l *Lobby) roomsGauge(d int64) {
+func (l *Lobby[S, M, In, X]) roomsGauge(d int64) {
 	if l.m != nil {
 		l.m.Rooms.Add(d)
 	}
@@ -130,7 +125,7 @@ func (l *Lobby) roomsGauge(d int64) {
 // FlushStats asks every running room to hand its open tallies to the stats
 // sink (room.FlushStats), all at once, and waits for them until ctx ends.
 // It reports whether every room acknowledged.
-func (l *Lobby) FlushStats(ctx context.Context) bool {
+func (l *Lobby[S, M, In, X]) FlushStats(ctx context.Context) bool {
 	rooms := l.live()
 	acks := make(chan bool, len(rooms))
 	for _, r := range rooms {
@@ -145,7 +140,7 @@ func (l *Lobby) FlushStats(ctx context.Context) bool {
 
 // Wait blocks until every room has stopped (after ctx is cancelled). No room
 // starts once it has begun.
-func (l *Lobby) Wait() {
+func (l *Lobby[S, M, In, X]) Wait() {
 	l.mu.Lock()
 	l.closed = true
 	l.mu.Unlock()
@@ -153,7 +148,7 @@ func (l *Lobby) Wait() {
 }
 
 // freeCode needs l.mu held.
-func (l *Lobby) freeCode() (string, error) {
+func (l *Lobby[S, M, In, X]) freeCode() (string, error) {
 	for range codeTries {
 		var b [codeLen]byte
 		rand.Read(b[:]) // never fails (crypto/rand panics instead)
@@ -168,7 +163,7 @@ func (l *Lobby) freeCode() (string, error) {
 }
 
 // Get finds a room by code, case-insensitively; malformed codes never match.
-func (l *Lobby) Get(code string) (*match.Room, bool) {
+func (l *Lobby[S, M, In, X]) Get(code string) (*room.Room[M, In, X], bool) {
 	code, ok := NormalizeCode(code)
 	if !ok {
 		return nil, false
@@ -180,10 +175,10 @@ func (l *Lobby) Get(code string) (*match.Room, bool) {
 }
 
 // live is every built room (reserved codes skipped).
-func (l *Lobby) live() []*match.Room {
+func (l *Lobby[S, M, In, X]) live() []*room.Room[M, In, X] {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	out := make([]*match.Room, 0, len(l.rooms))
+	out := make([]*room.Room[M, In, X], 0, len(l.rooms))
 	for _, r := range l.rooms {
 		if r != nil {
 			out = append(out, r)
@@ -194,14 +189,14 @@ func (l *Lobby) live() []*match.Room {
 
 // List is the listed rooms' summaries, most humans first, then newest.
 // Private rooms never appear.
-func (l *Lobby) List() []match.Summary {
-	var out []match.Summary
+func (l *Lobby[S, M, In, X]) List() []room.Summary[X] {
+	var out []room.Summary[X]
 	for _, r := range l.live() {
 		if s := r.Summary(); s.Listed {
 			out = append(out, s)
 		}
 	}
-	slices.SortFunc(out, func(a, b match.Summary) int {
+	slices.SortFunc(out, func(a, b room.Summary[X]) int {
 		if c := cmp.Compare(b.Humans, a.Humans); c != 0 {
 			return c
 		}
@@ -212,7 +207,7 @@ func (l *Lobby) List() []match.Summary {
 
 // Quick picks the first listed room in List order with a free seat. The
 // room may fill or close before the caller joins; the caller falls back.
-func (l *Lobby) Quick() (*match.Room, bool) {
+func (l *Lobby[S, M, In, X]) Quick() (*room.Room[M, In, X], bool) {
 	l.mu.Lock()
 	draining := l.draining
 	l.mu.Unlock()
@@ -256,17 +251,27 @@ func inAlphabet(c byte) bool {
 	return false
 }
 
-// build runs newRoom for a reserved code. A panic is an error: the
-// reservation is released so the code (and a room slot) is not burned.
-func (l *Lobby) build(code string, s game.Settings, seq int64) (r *match.Room, err error) {
+// build makes the game and its room for a reserved code. A factory error or
+// panic is an error, and the reservation is released so the code (and a
+// room slot) is not burned.
+func (l *Lobby[S, M, In, X]) build(code string, s S, seq int64) (r *room.Room[M, In, X], err error) {
 	defer func() {
 		if v := recover(); v != nil {
+			slog.Error("room build panic", "code", code, "panic", v)
+			err = fmt.Errorf("lobby: building room: %v", v)
+		}
+		if err != nil {
 			l.mu.Lock()
 			delete(l.rooms, code)
 			l.mu.Unlock()
-			slog.Error("room build panic", "code", code, "panic", v)
-			r, err = nil, fmt.Errorf("lobby: building room: %v", v)
+			r = nil
 		}
 	}()
-	return l.newRoom(code, s, room.Options{Seq: seq, Metrics: l.m, ChatMax: protocol.ChatMax}), nil
+	g, err := l.newGame(s)
+	if err != nil {
+		return nil, fmt.Errorf("lobby: building room: %w", err)
+	}
+	o := l.ro
+	o.Seq, o.Metrics = seq, l.m
+	return room.New(code, g, o), nil
 }

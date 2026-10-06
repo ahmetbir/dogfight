@@ -12,7 +12,6 @@ import (
 	"playground/core/limit"
 	"playground/core/metrics"
 	"playground/core/wsconn"
-	"playground/internal/lobby"
 	"playground/internal/match"
 	"playground/internal/protocol"
 	"playground/internal/stats"
@@ -95,7 +94,7 @@ var _ wsconn.Carrier = protocol.Snap{}
 // under /, /healthz, the JSON API under /api/ (rooms, leaderboard, me), and
 // the game socket at /ws.
 type Server struct {
-	lobby     *lobby.Lobby
+	lobby     *match.Lobby
 	o         Options
 	h         http.Handler
 	page      []byte // index.html with content-hashed bundle URLs; nil if not built
@@ -114,7 +113,7 @@ type Server struct {
 	drain     drain
 }
 
-func New(l *lobby.Lobby, o Options) *Server {
+func New(l *match.Lobby, o Options) *Server {
 	if o.Web == nil {
 		o.Web = emptyFS{}
 	}

@@ -14,7 +14,7 @@ import (
 	"github.com/coder/websocket"
 
 	"playground/core/pilot"
-	"playground/internal/lobby"
+	"playground/internal/match"
 	"playground/internal/protocol"
 )
 
@@ -29,7 +29,7 @@ func newServerRooms(t *testing.T, o Options, maxRooms int) *httptest.Server {
 		o.Limits = Limits{MaxConnsIP: 1000, CreatePerMinIP: 1000, JoinFailPerMinIP: 1000, JoinPerMinIP: 1000}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	srv := httptest.NewServer(New(lobby.New(ctx, lobby.Options{MaxRooms: maxRooms}), o))
+	srv := httptest.NewServer(New(match.NewLobby(ctx, maxRooms, nil, nil), o))
 	t.Cleanup(func() { cancel(); srv.Close() })
 	return srv
 }
