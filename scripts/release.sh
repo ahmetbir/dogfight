@@ -19,6 +19,14 @@ if ! node --version | grep -q '^v22\.'; then
   exit 1
 fi
 
+# go.mod's toolchain line pins the patched Go; GOTOOLCHAIN=local (or an older
+# go that cannot switch) would silently build with something else.
+want="$(sed -n 's/^toolchain //p' go.mod)"
+if [[ -n "$want" && "$(go env GOVERSION)" != "$want" ]]; then
+  echo "release: go.mod wants $want, go here is $(go env GOVERSION) (unset GOTOOLCHAIN=local)" >&2
+  exit 1
+fi
+
 echo "release: client"
 (cd client && npm ci --no-audit --no-fund && npm run build)
 
