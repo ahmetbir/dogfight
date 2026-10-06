@@ -3,75 +3,10 @@ package main
 import (
 	"encoding/json"
 	"testing"
-	"time"
 
+	"playground/core/loadtest"
 	"playground/internal/protocol"
 )
-
-func TestAssignRoundRobinWithOneCreatorPerRoom(t *testing.T) {
-	got := assign(7, 3)
-	want := []slot{{0, true}, {1, true}, {2, true}, {0, false}, {1, false}, {2, false}, {0, false}}
-	if len(got) != len(want) {
-		t.Fatalf("len = %d, want %d", len(got), len(want))
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("slot %d = %+v, want %+v", i, got[i], want[i])
-		}
-	}
-	if n := humansPerRoom(7, 3); n != 3 {
-		t.Errorf("humansPerRoom(7,3) = %d, want 3", n)
-	}
-}
-
-func TestAssignQuickPlay(t *testing.T) {
-	for i, s := range assign(4, 0) {
-		if s.room != -1 || s.creator {
-			t.Errorf("slot %d = %+v, want quick play", i, s)
-		}
-	}
-	if n := humansPerRoom(4, 0); n != 0 {
-		t.Errorf("humansPerRoom(4,0) = %d, want 0", n)
-	}
-}
-
-func TestStartAtSpreadsOverRamp(t *testing.T) {
-	ramp := 10 * time.Second
-	if d := startAt(0, 4, ramp); d != 0 {
-		t.Errorf("first = %v, want 0", d)
-	}
-	if d := startAt(2, 4, ramp); d != 5*time.Second {
-		t.Errorf("middle = %v, want 5s", d)
-	}
-	if d := startAt(3, 4, 0); d != 0 {
-		t.Errorf("no ramp = %v, want 0", d)
-	}
-	for i := range 4 {
-		if d := startAt(i, 4, ramp); d >= ramp {
-			t.Errorf("player %d starts at %v, not before the ramp ends", i, d)
-		}
-	}
-}
-
-func TestWsURL(t *testing.T) {
-	ok := map[string]string{
-		"ws://127.0.0.1:8080":    "ws://127.0.0.1:8080/ws",
-		"ws://dogfight-lt:8080/": "ws://dogfight-lt:8080/ws",
-		"wss://example.test/ws":  "wss://example.test/ws",
-		"ws://h:1/other?x=1":     "ws://h:1/other?x=1",
-	}
-	for in, want := range ok {
-		got, err := wsURL(in)
-		if err != nil || got != want {
-			t.Errorf("wsURL(%q) = %q, %v; want %q", in, got, err, want)
-		}
-	}
-	for _, bad := range []string{"http://h:8080", "ws://", "h:8080", "::"} {
-		if _, err := wsURL(bad); err == nil {
-			t.Errorf("wsURL(%q) accepted", bad)
-		}
-	}
-}
 
 func TestStickStaysInRangeAndValid(t *testing.T) {
 	for i := range 5 {
@@ -168,12 +103,12 @@ func TestSnapTickMatchesServerEncoding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tick, ok := snapTick(b); !ok || tick != 7302 {
-		t.Fatalf("snapTick(%s) = %d, %v; want 7302", b, tick, ok)
+	if tick, ok := loadtest.SnapTick(b); !ok || tick != 7302 {
+		t.Fatalf("loadtest.SnapTick(%s) = %d, %v; want 7302", b, tick, ok)
 	}
 	for _, s := range []string{`{"t":"round","tick":5}`, `{"t":"snap","tick":}`, `{"t":"snap"`, `{"t":"snap","tick":12345678901234567890}`} {
-		if _, ok := snapTick([]byte(s)); ok {
-			t.Errorf("snapTick(%s) accepted", s)
+		if _, ok := loadtest.SnapTick([]byte(s)); ok {
+			t.Errorf("loadtest.SnapTick(%s) accepted", s)
 		}
 	}
 }

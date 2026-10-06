@@ -11,6 +11,8 @@ import (
 
 	"github.com/coder/websocket"
 
+	"playground/core/loadtest"
+
 	"playground/internal/protocol"
 )
 
@@ -60,11 +62,11 @@ type inbound struct {
 // player is one simulated client.
 type player struct {
 	i     int
-	slot  slot
+	slot  loadtest.Slot
 	url   string
 	entry protocol.ClientMsg // create settings; T is set per slot
 	code  *roomCode          // nil for quick play
-	st    *stats
+	st    *loadtest.Stats
 	epoch time.Time    // ping timestamps are ms since it
 	buf   bytes.Buffer // reused read buffer
 }
@@ -77,9 +79,9 @@ func (p *player) run(ctx context.Context) {
 	defer cancel()
 	entry := p.entry
 	switch {
-	case p.slot.room < 0:
+	case p.slot.Room < 0:
 		entry = protocol.ClientMsg{T: protocol.TQuick}
-	case !p.slot.creator:
+	case !p.slot.Creator:
 		code, ok := p.code.wait(hctx)
 		if !ok {
 			p.end(ctx, errors.New("no room code"), "")
@@ -90,7 +92,7 @@ func (p *player) run(ctx context.Context) {
 	conn, resp, err := websocket.Dial(hctx, p.url, nil)
 	if err != nil {
 		if resp != nil {
-			p.st.disconnect(fmt.Sprintf("dial:%d", resp.StatusCode))
+			p.st.Disconnect(fmt.Sprintf("dial:%d", resp.StatusCode))
 			return
 		}
 		p.end(ctx, err, "")
@@ -112,12 +114,12 @@ func (p *player) run(ctx context.Context) {
 		p.end(ctx, err, w.Msg)
 		return
 	}
-	p.st.handshake.Observe(time.Since(start))
-	if p.slot.creator {
+	p.st.Handshake.Observe(time.Since(start))
+	if p.slot.Creator {
 		p.code.set(w.Code)
 	}
-	p.st.conns.Add(1)
-	defer p.st.conns.Add(-1)
+	p.st.Conns.Add(1)
+	defer p.st.Conns.Add(-1)
 
 	wctx, stop := context.WithCancel(ctx)
 	picks := make(chan string, 1)
@@ -138,7 +140,7 @@ func (p *player) end(ctx context.Context, err error, msg string) {
 	if ctx.Err() != nil && msg == "" {
 		return
 	}
-	p.st.disconnect(reason(err, msg))
+	p.st.Disconnect(loadtest.Reason(err, msg))
 }
 
 // welcome reads until the welcome (or an error message).
@@ -161,9 +163,9 @@ func (p *player) recv(ctx context.Context, conn *websocket.Conn) (inbound, error
 		return inbound{}, err
 	}
 	b := p.buf.Bytes()
-	p.st.msgsIn.Add(1)
-	p.st.bytesIn.Add(uint64(len(b)))
-	if tick, ok := snapTick(b); ok {
+	p.st.MsgsIn.Add(1)
+	p.st.BytesIn.Add(uint64(len(b)))
+	if tick, ok := loadtest.SnapTick(b); ok {
 		return inbound{T: "snap", Tick: tick}, nil // most traffic: skip the full decode
 	}
 	var m inbound
@@ -187,17 +189,17 @@ func (p *player) read(ctx context.Context, conn *websocket.Conn, you int, picks 
 		now := time.Now()
 		switch m.T {
 		case "snap":
-			p.st.snaps.Add(1)
+			p.st.Snaps.Add(1)
 			if !last.IsZero() {
-				p.st.snapIv.Observe(now.Sub(last))
+				p.st.SnapIv.Observe(now.Sub(last))
 			}
 			if lastTick > 0 && m.Tick-lastTick > 2 {
-				p.st.gaps.Add(uint64((m.Tick-lastTick)/2 - 1))
+				p.st.Gaps.Add(uint64((m.Tick-lastTick)/2 - 1))
 			}
 			last, lastTick = now, m.Tick
 		case "pong":
 			sent := p.epoch.Add(time.Duration(m.TS * float64(time.Millisecond)))
-			p.st.rtt.Observe(now.Sub(sent))
+			p.st.RTT.Observe(now.Sub(sent))
 		case "players":
 			for _, e := range m.List {
 				if e.ID == you && !picked {
@@ -248,7 +250,7 @@ func (p *player) write(ctx context.Context, conn *websocket.Conn, m protocol.Cli
 	if err := conn.Write(ctx, websocket.MessageText, b); err != nil {
 		return err
 	}
-	p.st.msgsOut.Add(1)
-	p.st.bytesOut.Add(uint64(len(b)))
+	p.st.MsgsOut.Add(1)
+	p.st.BytesOut.Add(uint64(len(b)))
 	return nil
 }

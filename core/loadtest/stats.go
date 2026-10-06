@@ -1,4 +1,4 @@
-package main
+package loadtest
 
 import (
 	"context"
@@ -18,61 +18,61 @@ import (
 // snapPeriod is the server's snapshot interval (60 Hz tick, every 2nd).
 const snapPeriod = 33 * time.Millisecond
 
-// stats is the run's shared tally. Players write it lock-free (atomics and
-// hists); only disconnect reasons, rare, take the lock.
-type stats struct {
-	conns                    atomic.Int64 // players past the handshake, still connected
-	msgsIn, msgsOut, bytesIn atomic.Uint64
-	bytesOut, snaps, gaps    atomic.Uint64
-	snapIv, rtt, handshake   hist
+// Stats is the run's shared tally. Players write it lock-free (atomics and
+// hists); only Disconnect reasons, rare, take the lock.
+type Stats struct {
+	Conns                    atomic.Int64 // players past the handshake, still connected
+	MsgsIn, MsgsOut, BytesIn atomic.Uint64
+	BytesOut, Snaps, Gaps    atomic.Uint64
+	SnapIv, RTT, Handshake   Hist
 	mu                       sync.Mutex
 	reasons                  map[string]int
 }
 
-func newStats() *stats { return &stats{reasons: map[string]int{}} }
+func NewStats() *Stats { return &Stats{reasons: map[string]int{}} }
 
-func (s *stats) disconnect(reason string) {
+func (s *Stats) Disconnect(reason string) {
 	s.mu.Lock()
 	s.reasons[reason]++
 	s.mu.Unlock()
 }
 
-func (s *stats) reasonCounts() map[string]int {
+func (s *Stats) ReasonCounts() map[string]int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return maps.Clone(s.reasons)
 }
 
-// sample is a point-in-time copy of the cumulative tally.
-type sample struct {
-	at                       time.Duration
+// Sample is a point-in-time copy of the cumulative tally.
+type Sample struct {
+	At                       time.Duration
 	conns                    int64
 	msgsIn, msgsOut, bytesIn uint64
 	bytesOut, snaps, gaps    uint64
-	snapIv, rtt              counts
+	snapIv, rtt              Counts
 	disc                     int
 }
 
-func (s *stats) sample(at time.Duration) sample {
+func (s *Stats) Sample(at time.Duration) Sample {
 	s.mu.Lock()
 	disc := 0
 	for _, n := range s.reasons {
 		disc += n
 	}
 	s.mu.Unlock()
-	return sample{
-		at: at, conns: s.conns.Load(),
-		msgsIn: s.msgsIn.Load(), msgsOut: s.msgsOut.Load(), bytesIn: s.bytesIn.Load(),
-		bytesOut: s.bytesOut.Load(), snaps: s.snaps.Load(), gaps: s.gaps.Load(),
-		snapIv: s.snapIv.Snapshot(), rtt: s.rtt.Snapshot(), disc: disc,
+	return Sample{
+		At: at, conns: s.Conns.Load(),
+		msgsIn: s.MsgsIn.Load(), msgsOut: s.MsgsOut.Load(), bytesIn: s.BytesIn.Load(),
+		bytesOut: s.BytesOut.Load(), snaps: s.Snaps.Load(), gaps: s.Gaps.Load(),
+		snapIv: s.SnapIv.Snapshot(), rtt: s.RTT.Snapshot(), disc: disc,
 	}
 }
 
 // line is the per-interval report between two samples. "in" is what the
 // players received (the server's outbound), "out" what they sent;
 // rx/client is the server's outbound bandwidth per connected player.
-func line(prev, cur sample) string {
-	dt := (cur.at - prev.at).Seconds()
+func Line(prev, cur Sample) string {
+	dt := (cur.At - prev.At).Seconds()
 	if dt <= 0 {
 		dt = 1
 	}
@@ -83,7 +83,7 @@ func line(prev, cur sample) string {
 	}
 	iv, rtt := cur.snapIv.Sub(prev.snapIv), cur.rtt.Sub(prev.rtt)
 	return fmt.Sprintf("t=%4.0fs conns=%3d in=%6.0f/s out=%6.0f/s rx=%7.1fKB/s rx/client=%5.1fKB/s snap/s=%5.0f iv_p50=%dms iv_p99=%dms iv>50ms=%d gaps=%d rtt_p50=%dms rtt_p99=%dms disc=%d",
-		cur.at.Seconds(), cur.conns, rate(cur.msgsIn, prev.msgsIn), rate(cur.msgsOut, prev.msgsOut),
+		cur.At.Seconds(), cur.conns, rate(cur.msgsIn, prev.msgsIn), rate(cur.msgsOut, prev.msgsOut),
 		rate(cur.bytesIn, prev.bytesIn)/1024, perClient, rate(cur.snaps, prev.snaps),
 		iv.Quantile(0.5), iv.Quantile(0.99), iv.Above(50), cur.gaps-prev.gaps,
 		rtt.Quantile(0.5), rtt.Quantile(0.99), cur.disc)
@@ -91,9 +91,9 @@ func line(prev, cur sample) string {
 
 // summary is the whole run between the steady-state window's samples
 // (from: ramp done, to: end) plus the handshakes and disconnect reasons.
-func summary(from, to sample, hs counts, reasons map[string]int) string {
+func Summary(from, to Sample, hs Counts, reasons map[string]int) string {
 	var b strings.Builder
-	dt := (to.at - from.at).Seconds()
+	dt := (to.At - from.At).Seconds()
 	if dt <= 0 {
 		dt = 1
 	}
@@ -101,7 +101,7 @@ func summary(from, to sample, hs counts, reasons map[string]int) string {
 	rtt := to.rtt.Sub(from.rtt)
 	in := float64(to.bytesIn-from.bytesIn) / dt
 	fmt.Fprintf(&b, "steady window %.0fs: conns=%d rx=%.1fKB/s (%.2f Mbit/s) rx/client=%.1fKB/s tx=%.1fKB/s msgs_in=%.0f/s msgs_out=%.0f/s\n",
-		dt, to.conns, in/1024, in*8/1e6, perClientKB(in, to.conns), float64(to.bytesOut-from.bytesOut)/dt/1024,
+		dt, to.conns, in/1024, in*8/1e6, PerClientKB(in, to.conns), float64(to.bytesOut-from.bytesOut)/dt/1024,
 		float64(to.msgsIn-from.msgsIn)/dt, float64(to.msgsOut-from.msgsOut)/dt)
 	fmt.Fprintf(&b, "snap interval: n=%d p50=%dms p90=%dms p99=%dms p99.9=%dms max<=%dms >50ms=%d >100ms=%d gaps=%d\n",
 		iv.Total(), iv.Quantile(0.5), iv.Quantile(0.9), iv.Quantile(0.99), iv.Quantile(0.999), iv.Quantile(1),
@@ -118,7 +118,7 @@ func summary(from, to sample, hs counts, reasons map[string]int) string {
 	return b.String()
 }
 
-func perClientKB(bytesPerSec float64, conns int64) float64 {
+func PerClientKB(bytesPerSec float64, conns int64) float64 {
 	if conns <= 0 {
 		return 0
 	}
@@ -127,7 +127,7 @@ func perClientKB(bytesPerSec float64, conns int64) float64 {
 
 // reason names why a player's socket ended: the server's error message if
 // it sent one, else the close status or the kind of read error.
-func reason(err error, serverMsg string) string {
+func Reason(err error, serverMsg string) string {
 	switch {
 	case serverMsg != "":
 		return "server:" + serverMsg

@@ -32,6 +32,7 @@ import (
 	"syscall"
 	"time"
 
+	"playground/core/loadtest"
 	"playground/internal/bot"
 	"playground/internal/game"
 	"playground/internal/maps"
@@ -76,7 +77,7 @@ func parseFlags(args []string) (config, error) {
 		return c, fmt.Errorf("need -players >= 1, -rooms >= 0, -duration > 0, -ramp >= 0, -every > 0")
 	}
 	if !c.bench {
-		u, err := wsURL(c.url)
+		u, err := loadtest.WSURL(c.url)
 		if err != nil {
 			return c, fmt.Errorf("-url: %v", err)
 		}
@@ -95,8 +96,8 @@ func (c config) settings() (protocol.ClientMsg, game.Settings, error) {
 	if !ok1 || !ok2 || !ok3 || !ok4 || (c.start != "hava" && c.start != "pist") {
 		return protocol.ClientMsg{}, game.Settings{}, fmt.Errorf("bad room settings: mode=%q diff=%q map=%q wx=%q start=%q", c.mode, c.diff, c.mapName, c.wx, c.start)
 	}
-	if slots := mode.NewRules(k, c.size).Slots(); !c.bench && humansPerRoom(c.players, c.rooms) > slots {
-		return protocol.ClientMsg{}, game.Settings{}, fmt.Errorf("%d players per room exceed the room's %d seats", humansPerRoom(c.players, c.rooms), slots)
+	if slots := mode.NewRules(k, c.size).Slots(); !c.bench && loadtest.HumansPerRoom(c.players, c.rooms) > slots {
+		return protocol.ClientMsg{}, game.Settings{}, fmt.Errorf("%d players per room exceed the room's %d seats", loadtest.HumansPerRoom(c.players, c.rooms), slots)
 	}
 	start := sim.StartAir
 	if c.start == "pist" {
@@ -134,7 +135,7 @@ func main() {
 func run(ctx context.Context, c config, create protocol.ClientMsg) {
 	fmt.Printf("loadtest: url=%s players=%d rooms=%d mode=%s size=%d map=%s wx=%s start=%s ramp=%s duration=%s\n",
 		c.url, c.players, c.rooms, c.mode, c.size, c.mapName, c.wx, c.start, c.ramp, c.duration)
-	st := newStats()
+	st := loadtest.NewStats()
 	codes := make([]*roomCode, c.rooms)
 	for i := range codes {
 		codes[i] = newRoomCode()
@@ -143,14 +144,14 @@ func run(ctx context.Context, c config, create protocol.ClientMsg) {
 	rctx, cancel := context.WithDeadline(ctx, begin.Add(c.ramp+c.duration))
 	defer cancel()
 	var wg sync.WaitGroup
-	for i, sl := range assign(c.players, c.rooms) {
+	for i, sl := range loadtest.Assign(c.players, c.rooms) {
 		p := &player{i: i, slot: sl, url: c.url, entry: create, st: st, epoch: begin}
-		if sl.room >= 0 {
-			p.code = codes[sl.room]
+		if sl.Room >= 0 {
+			p.code = codes[sl.Room]
 		}
 		wg.Go(func() {
 			select {
-			case <-time.After(time.Until(begin.Add(startAt(i, c.players, c.ramp)))):
+			case <-time.After(time.Until(begin.Add(loadtest.StartAt(i, c.players, c.ramp)))):
 				p.run(rctx)
 			case <-rctx.Done():
 			}
@@ -158,15 +159,15 @@ func run(ctx context.Context, c config, create protocol.ClientMsg) {
 	}
 	from, end := report(rctx, c, st, begin)
 	wg.Wait()
-	fmt.Println(summary(from, end, st.handshake.Snapshot(), st.reasonCounts()))
+	fmt.Println(loadtest.Summary(from, end, st.Handshake.Snapshot(), st.ReasonCounts()))
 }
 
 // report prints a line every c.every until ctx ends; it returns the
 // samples that bound the steady-state window (ramp + settle to the end).
-func report(ctx context.Context, c config, st *stats, begin time.Time) (from, end sample) {
+func report(ctx context.Context, c config, st *loadtest.Stats, begin time.Time) (from, end loadtest.Sample) {
 	t := time.NewTicker(c.every)
 	defer t.Stop()
-	prev := st.sample(0)
+	prev := st.Sample(0)
 	steady := false
 	for {
 		select {
@@ -174,17 +175,17 @@ func report(ctx context.Context, c config, st *stats, begin time.Time) (from, en
 			// The last periodic sample ends the window: at the deadline
 			// players are already closing, which would skew per-client rates.
 			if !steady {
-				from = sample{} // never steady: the whole run
+				from = loadtest.Sample{} // never steady: the whole run
 			}
 			end = prev
-			if end.at <= from.at {
-				end = st.sample(time.Since(begin))
+			if end.At <= from.At {
+				end = st.Sample(time.Since(begin))
 			}
 			return from, end
 		case <-t.C:
-			cur := st.sample(time.Since(begin))
-			fmt.Println(line(prev, cur))
-			if !steady && cur.at >= c.ramp+c.settle {
+			cur := st.Sample(time.Since(begin))
+			fmt.Println(loadtest.Line(prev, cur))
+			if !steady && cur.At >= c.ramp+c.settle {
 				from, steady = cur, true
 			}
 			prev = cur
