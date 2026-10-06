@@ -3,7 +3,7 @@
 Tarih: 2026-10-07 · Durum: uygulandı (feat/v2) · Önceki sürüm: `2026-10-06-dogfight-design.md` (v1, uygulandı)
 
 Bu doküman v1 spec'inin üzerine yazılır: burada anılmayan her kural v1'deki gibi kalır.
-Girdi: `.superpowers/sdd/v2/decisions.md` (sahip isteği + kontrolör kararları, bağlayıcı).
+Girdi: sahip isteği + kontrolör kararları (bağlayıcı; yayımlanmamış yerel çalışma notu).
 Belirsiz kalan her nokta burada karara bağlandı ve §17 **Kararlar** listesinde numarayla durur
 (metin içinde `[K12]` gibi atıf).
 
@@ -912,7 +912,7 @@ Kontrolör kararlarının açık bıraktığı noktalar için verilen kararlar:
 
 ### 17.1 Uygulama sırasında verilen kontrolör kararları (spec davranışını değiştirenler)
 
-Kayıt: `.superpowers/sdd/2026-10-07-dogfight-v2/progress.md` (`Ruling:` satırları). Gövdedeki ilgili
+Kayıt: uygulama sırasında tutulan kontrolör kararları (yayımlanmamış yerel çalışma notu). Gövdedeki ilgili
 bölümler bu kararlara göre güncellendi.
 
 41. **Pist spawn UX:** park freni ilk gaza kadar (0.5 sn tolerans), taksi yüzeyinde itki valisi, takip
