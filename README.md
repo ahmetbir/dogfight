@@ -248,6 +248,9 @@ Team color, afterburner flame and name tag are drawn on both. Browsers cache mod
 
 ## Development
 
+Notes for contributors and coding agents (layout, headless testing, invariants) are in
+[AGENTS.md](AGENTS.md); `scripts/smoke.sh` runs a headless end-to-end check against a real server.
+
 Use two terminals:
 
 ```sh
