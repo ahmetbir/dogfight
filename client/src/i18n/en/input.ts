@@ -4,7 +4,7 @@ import type { Area } from "../types.ts";
 
 export const input: Area<typeof tr> = {
   "key.Mouse0": "Left click",
-  "key.Mouse1": "middle click",
+  "key.Mouse1": "Middle click",
   "key.Mouse2": "Right click",
   "touch.stick": "Left stick",
   "touch.throttle": "THR",

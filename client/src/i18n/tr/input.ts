@@ -2,7 +2,7 @@
 // (settings menu, pilot's manual) built from input/bindings.ts.
 export const input = {
   "key.Mouse0": "Sol tık",
-  "key.Mouse1": "orta tık",
+  "key.Mouse1": "Orta tık",
   "key.Mouse2": "Sağ tık",
   "touch.stick": "Sol çubuk",
   "touch.throttle": "GAZ",
