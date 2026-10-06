@@ -1,0 +1,84 @@
+// Package netproto is the part of the wire protocol every game shares: the
+// message envelope, the core message types (handshake, ping, chat, errors,
+// notices) and the error-code registry. A game's own messages are flat JSON
+// objects with the same "t" field; its snapshot starts {"t":"snap","tick":N.
+package netproto
+
+import (
+	"errors"
+	"math"
+)
+
+// PlayerID is a seated player's id on the wire.
+type PlayerID uint32
+
+// Header is what the core reads of a client message.
+type Header struct {
+	T    string  // message type
+	V    int     // hello: protocol version
+	Name string  // hello
+	Tok  string  // hello: pilot token
+	Code string  // join: room code
+	Seq  uint32  // in: input sequence, from 1
+	TS   float64 // ping: client timestamp, echoed in the pong
+	Chat int     // chat: preset id, 1..chatMax
+}
+
+// Core client message types.
+const (
+	THello  = "hello"
+	TCreate = "create"
+	TJoin   = "join"
+	TQuick  = "quick"
+	TIn     = "in"
+	TPing   = "ping"
+	TChat   = "chat"
+)
+
+type Pong struct {
+	T  string  `json:"t"` // "pong"
+	TS float64 `json:"ts"`
+}
+
+// ErrorMsg ends the connection; Code names the failure, Msg is its (Turkish) text.
+type ErrorMsg struct {
+	T    string `json:"t"` // "error"
+	Msg  string `json:"msg"`
+	Code string `json:"code,omitempty"`
+}
+
+// NoticeMsg is a short, non-fatal message for the player.
+type NoticeMsg struct {
+	T    string `json:"t"` // "notice"
+	Msg  string `json:"msg"`
+	Code string `json:"code,omitempty"`
+}
+
+// ChatMsg relays quick chat preset ID from player From.
+type ChatMsg struct {
+	T    string   `json:"t"` // "chat"
+	From PlayerID `json:"from"`
+	ID   int      `json:"id"`
+}
+
+func NewPong(ts float64) Pong               { return Pong{T: "pong", TS: ts} }
+func NewError(code, msg string) ErrorMsg    { return ErrorMsg{T: "error", Msg: msg, Code: code} }
+func NewNotice(code, msg string) NoticeMsg  { return NoticeMsg{T: "notice", Msg: msg, Code: code} }
+func NewChat(from PlayerID, id int) ChatMsg { return ChatMsg{T: "chat", From: from, ID: id} }
+
+var (
+	ErrNotFinite = errors.New("protocol: non-finite number")
+	ErrBadChat   = errors.New("protocol: chat id out of range")
+)
+
+// CheckHeader applies the checks every game's decoder needs: a finite ping
+// timestamp and a chat preset in 1..chatMax.
+func CheckHeader(h Header, chatMax int) error {
+	if h.T == TChat && (h.Chat < 1 || h.Chat > chatMax) {
+		return ErrBadChat
+	}
+	if math.IsNaN(h.TS) || math.IsInf(h.TS, 0) {
+		return ErrNotFinite
+	}
+	return nil
+}
