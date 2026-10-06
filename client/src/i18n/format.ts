@@ -1,18 +1,9 @@
 // Numbers and units in the current language: Turkish writes a decimal comma
 // and "%55", English a decimal point and "55%"; seconds are "sn" / "s".
+import { makeFormat } from "../core/i18n/format.ts";
 import { lang, t } from "./index.ts";
 
-const sep = (s: string) => (lang() === "tr" ? s.replace(".", ",") : s);
-
-/** Rounded with at most `digits` decimals: 0.55 → "0,55" (tr) / "0.55" (en). */
-export function num(v: number, digits = 1): string {
-  return sep(String(Math.round(v * 10 ** digits) / 10 ** digits));
-}
-
-/** Exactly `digits` decimals: 1.25 → "1,3" / "1.3". */
-export function fixed(v: number, digits: number): string {
-  return sep(v.toFixed(digits));
-}
+export const { num, fixed } = makeFormat(lang);
 
 /** m/s → "101 km/h". */
 export const kmh = (ms: number) => `${Math.round(ms * 3.6)} km/h`;
