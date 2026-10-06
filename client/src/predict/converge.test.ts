@@ -23,7 +23,7 @@ type Opts = { ticks: number; uplink(t: number): number; stalled?(t: number): boo
 function run(o: Opts): { sentAt: number[]; err: number[] } {
   const s0: FlightState = { pos: v3(0, 2.5, 0), rot: yawPitch(0, 0), vel: v3(0, 0, -SPEED), th: INP.th, gear: true, ground: true };
   const pr = new Predictor(F16);
-  const q = new SessionModel();
+  const q = new SessionModel<StickInput>();
   let server = s0;
   pr.reset(s0, 0, 0);
   let seq = 0, lastArrival = 0;

@@ -24,7 +24,7 @@ function taxi(burst: number, inp: StickInput): Run {
   const s0: FlightState = { pos: v3(0, 2.5, 0), rot: yawPitch(0, 0), vel: v3(0, 0, -25), th: inp.th, gear: true, ground: true };
   const pr = new Predictor(F16);
   pr.reset(s0);
-  const q = new SessionModel();
+  const q = new SessionModel<StickInput>();
   let server = s0;
   const inFlight: { at: number; seq: number }[] = [];
   const snaps: { at: number; fs: FlightState; ack: number; tick: number }[] = [];
