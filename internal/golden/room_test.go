@@ -11,9 +11,9 @@ import (
 	"testing/synctest"
 	"time"
 
+	"playground/core/room"
 	"playground/internal/game"
 	"playground/internal/protocol"
-	"playground/internal/room"
 	"playground/internal/sim"
 	"playground/internal/stats"
 )

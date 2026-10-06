@@ -13,8 +13,8 @@ import (
 	"sync"
 
 	"playground/core/metrics"
+	"playground/core/room"
 	"playground/internal/game"
-	"playground/internal/room"
 )
 
 // codeAlphabet omits I, O, 0 and 1. Its 32 letters divide 256, so a random

@@ -11,8 +11,8 @@ import (
 
 	"playground/core/metrics"
 	"playground/core/pilot"
+	"playground/core/room"
 	"playground/internal/protocol"
-	"playground/internal/room"
 )
 
 func TestFetchPrintsBody(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 
 // minFlight is the airborne time (ticks at 60 Hz) a session needs to create
 // a pilot record without any kill or death: 60 s. MinFlightTicks exports it
-// (the pilot's manual quotes it; internal/room checks the quote).
+// (the pilot's manual quotes it; core/room checks the quote).
 const minFlight = 60 * 60
 
 const MinFlightTicks = minFlight

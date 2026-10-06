@@ -1,5 +1,5 @@
 // Gameplay numbers the pilot's manual quotes, mirrored from the Go server.
-// internal/room/book_rules_test.go parses this block and compares every
+// core/room/book_rules_test.go parses this block and compares every
 // entry with the Go value (and the key set both ways), so a change on either
 // side fails `go test` until both agree. Plain number literals only: one
 // `name: value,` per line. In a game the book prefers the welcome's aircraft

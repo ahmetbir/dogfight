@@ -19,8 +19,8 @@ import (
 
 	"playground/core/metrics"
 	"playground/core/pilot"
+	"playground/core/room"
 	"playground/internal/lobby"
-	"playground/internal/room"
 	"playground/internal/server"
 	"playground/internal/stats"
 )

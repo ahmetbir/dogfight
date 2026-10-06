@@ -18,7 +18,13 @@ const module = "playground"
 // coreAllow lists, per core package directory, the Dogfight packages it may
 // still import while it is being made generic. It only ever shrinks; the
 // extraction is done when it is empty.
-var coreAllow = map[string][]string{}
+var coreAllow = map[string][]string{
+	"core/room": { // until Task 12
+		"playground/internal/bot", "playground/internal/game", "playground/internal/maps",
+		"playground/internal/mode", "playground/internal/protocol", "playground/internal/sim",
+		"playground/internal/stats", "playground/internal/terrain", "playground/internal/weather",
+	},
+}
 
 // TestCoreImportsNothingFromDogfight: core/** (tests included) imports only
 // the standard library, coder/websocket and core/**.
