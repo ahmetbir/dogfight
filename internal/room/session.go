@@ -68,8 +68,7 @@ func (s *session) next() (sim.Input, bool) {
 	s.seqs = append(s.seqs[:0], s.seqs[1:]...)
 	// Kept for repeats while starved: held controls carry over, one-shot
 	// presses (missile, flare, bomb) do not.
-	s.last = in
-	s.last.Missile, s.last.Flare, s.last.Bomb = false, false, false
+	s.last = in.Held()
 	return in, true
 }
 
@@ -77,11 +76,8 @@ func (s *session) next() (sim.Input, bool) {
 // flare, bomb) carry over to the oldest kept input so a backlog never eats
 // them.
 func (s *session) drop(n int) {
-	kept := &s.queue[n]
 	for _, in := range s.queue[:n] {
-		kept.Missile = kept.Missile || in.Missile
-		kept.Flare = kept.Flare || in.Flare
-		kept.Bomb = kept.Bomb || in.Bomb
+		s.queue[n] = s.queue[n].Latch(in)
 	}
 	s.queue = append(s.queue[:0], s.queue[n:]...)
 	s.seqs = append(s.seqs[:0], s.seqs[n:]...)

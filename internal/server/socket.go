@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"playground/core/limit"
+	"playground/core/netproto"
 	"playground/core/wsconn"
 	"playground/internal/protocol"
 	"playground/internal/room"
@@ -46,8 +47,8 @@ type peer struct {
 	ip    string // for logs
 	key   string // for per-address limits
 	guard *msgGuard
-	latch presses // one-shot presses of dropped inputs
-	drops dropLog // inputs dropped over their rate
+	held  protocol.ClientMsg // one-shot presses of dropped inputs
+	drops dropLog            // inputs dropped over their rate
 }
 
 func (s *Server) socket(w http.ResponseWriter, r *http.Request) {
@@ -94,7 +95,7 @@ func (s *Server) socket(w http.ResponseWriter, r *http.Request) {
 
 // fail sends a final error message (with its code) and closes with StatusPolicyViolation.
 func fail(conn *wsconn.Conn, msg string) {
-	conn.Fail(protocol.NewError(errCode(msg), msg))
+	conn.Fail(netproto.NewError(errCode(msg), msg))
 	<-conn.Done()
 }
 
@@ -126,14 +127,15 @@ func (s *Server) admit(p *peer, b []byte) (m protocol.ClientMsg, ok bool, err er
 	m, err = s.next(p, b)
 	switch {
 	case errors.Is(err, errDropped):
-		p.latch.keep(m)
+		p.held = p.held.Latch(m)
 		p.drops.note(p.guard.now(), p.ip)
 		return m, false, nil
 	case err != nil:
 		return m, false, err
 	}
 	if m.T == protocol.TIn {
-		p.latch.into(&m)
+		m = m.Latch(p.held)
+		p.held = protocol.ClientMsg{}
 	}
 	return m, true, nil
 }

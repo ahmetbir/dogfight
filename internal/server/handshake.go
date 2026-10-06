@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"playground/core/limit"
+	"playground/core/netproto"
 	"playground/core/pilot"
 	"playground/internal/bot"
 	"playground/internal/game"
@@ -33,7 +34,7 @@ func (s *Server) handshake(ctx context.Context, p *peer) (*room.Seat, string) {
 	if m.V != protocol.Version {
 		return nil, msgVersion
 	}
-	who := identify(protocol.CleanName(m.Name), m.Tok)
+	who := identify(netproto.CleanName(m.Name), m.Tok)
 
 	m, err = s.recv(ctx, p)
 	if err != nil {
@@ -223,7 +224,7 @@ func (s *Server) recv(ctx context.Context, p *peer) (protocol.ClientMsg, error) 
 				return m, err
 			}
 			if m.T == protocol.TPing {
-				p.conn.Send(protocol.NewPong(m.TS))
+				p.conn.Send(netproto.NewPong(m.TS))
 				continue
 			}
 			return m, nil

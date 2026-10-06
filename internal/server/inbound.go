@@ -3,8 +3,6 @@ package server
 import (
 	"log/slog"
 	"time"
-
-	"playground/internal/protocol"
 )
 
 // Hard ceiling on one connection's inbound traffic, far above any stall
@@ -36,19 +34,6 @@ func (c *ceiling) add(now time.Time, n int) string {
 		return "ceiling-bytes"
 	}
 	return ""
-}
-
-// presses latches the one-shot presses (missile, flare, bomb) of dropped
-// inputs into the next admitted one, as the room's backlog trim does.
-type presses struct{ m, fl, bo bool }
-
-func (l *presses) keep(m protocol.ClientMsg) {
-	l.m, l.fl, l.bo = l.m || m.M, l.fl || m.FL, l.bo || m.BO
-}
-
-func (l *presses) into(m *protocol.ClientMsg) {
-	m.M, m.FL, m.BO = m.M || l.m, m.FL || l.fl, m.BO || l.bo
-	*l = presses{}
 }
 
 // dropLog counts one connection's dropped inputs and logs them at most once

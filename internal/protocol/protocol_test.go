@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"playground/core/netproto"
 	"playground/internal/bot"
 	"playground/internal/game"
 	"playground/internal/maps"
@@ -42,24 +43,6 @@ func TestDecodeRejects(t *testing.T) {
 	} {
 		if _, err := DecodeClient([]byte(b)); err == nil {
 			t.Errorf("%s: accepted", name)
-		}
-	}
-}
-
-func TestCleanName(t *testing.T) {
-	for in, want := range map[string]string{
-		"  Ace  ":                     "Ace",
-		"":                            "Pilot",
-		"\u202e\u200b\t":              "Pilot",
-		"a\u202eb\u2066c\u200fd\x00e": "abcde",
-		"ÇğüşİöÇğüşİöÇğüşİöXYZ": "ÇğüşİöÇğüşİöÇğüş",
-		"\xff\xfeok":                             "ok",
-		"\u3164\u115f\u1160\uffa0\u2800":         "Pilot", // blank-looking fillers
-		"a\u3164b":                               "ab",
-		"a\u0301\u0301\u0301\u0301\u0301b\u0300": "a\u0301\u0301b\u0300", // at most 2 marks per letter
-	} {
-		if got := CleanName(in); got != want {
-			t.Errorf("CleanName(%q)=%q want %q", in, got, want)
 		}
 	}
 }
@@ -341,5 +324,20 @@ func TestWelcomeStart(t *testing.T) {
 		if err := json.Unmarshal(b, &w); err != nil || w.Start != want {
 			t.Fatalf("start %d: %q %v", st, w.Start, err)
 		}
+	}
+}
+
+func TestHeadLatchAndWithAck(t *testing.T) {
+	m := ClientMsg{T: TIn, Seq: 4, TS: 2, Name: "n", Tok: "t", Code: "c", V: 2, Chat: 1, P: 0.3}
+	if h := m.Head(); h != (netproto.Header{T: TIn, V: 2, Name: "n", Tok: "t", Code: "c", Seq: 4, TS: 2, Chat: 1}) {
+		t.Fatalf("head %+v", h)
+	}
+	l := m.Latch(ClientMsg{M: true, BO: true, P: 9})
+	if !l.M || !l.BO || l.FL || l.P != 0.3 || l.Seq != 4 {
+		t.Fatalf("latch %+v", l)
+	}
+	s := Snap{T: "snap", Tick: 2}
+	if a, ok := s.WithAck(7).(Snap); !ok || a.Ack != 7 || s.Ack != 0 {
+		t.Fatalf("withAck %+v", a)
 	}
 }

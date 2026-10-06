@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"slices"
 	"testing"
+
+	"playground/core/netproto"
 )
 
 // The client lists the same error and notice codes (client/src/net/codes.ts)
@@ -31,11 +33,17 @@ func TestCodesMatchClient(t *testing.T) {
 }
 
 func TestErrorWire(t *testing.T) {
-	b, err := json.Marshal(NewError(CodeFull, "oda dolu"))
+	b, err := json.Marshal(netproto.NewError(CodeFull, "oda dolu"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(b) != `{"t":"error","msg":"oda dolu","code":"full"}` {
 		t.Fatal(string(b))
+	}
+}
+
+func TestNoticeCodesRegister(t *testing.T) {
+	if _, err := netproto.NewCodes(NoticeCodes()...); err != nil {
+		t.Fatal(err)
 	}
 }

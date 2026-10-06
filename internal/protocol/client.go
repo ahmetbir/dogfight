@@ -6,10 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strings"
-	"unicode"
-	"unicode/utf8"
 
+	"playground/core/netproto"
 	"playground/internal/sim"
 )
 
@@ -20,16 +18,16 @@ const Version = 2
 // MaxClientMsg is the largest client message DecodeClient accepts.
 const MaxClientMsg = 1024
 
-// Client message types.
+// Client message types: the core's, plus Dogfight's pick and team.
 const (
-	THello  = "hello"
-	TCreate = "create"
-	TJoin   = "join"
+	THello  = netproto.THello
+	TCreate = netproto.TCreate
+	TJoin   = netproto.TJoin
+	TQuick  = netproto.TQuick
+	TIn     = netproto.TIn
+	TPing   = netproto.TPing
+	TChat   = netproto.TChat
 	TPick   = "pick"
-	TIn     = "in"
-	TPing   = "ping"
-	TQuick  = "quick"
-	TChat   = "chat"
 	TTeam   = "team"
 )
 
@@ -73,8 +71,8 @@ type ClientMsg struct {
 var (
 	ErrTooBig      = errors.New("protocol: message too big")
 	ErrUnknownType = errors.New("protocol: unknown message type")
-	ErrNotFinite   = errors.New("protocol: non-finite number")
-	ErrBadChat     = errors.New("protocol: chat id out of range")
+	ErrNotFinite   = netproto.ErrNotFinite
+	ErrBadChat     = netproto.ErrBadChat
 	ErrBadTeam     = errors.New("protocol: unknown team")
 	ErrBadLoadout  = errors.New("protocol: unknown loadout")
 )
@@ -102,10 +100,10 @@ func DecodeClient(b []byte) (ClientMsg, error) {
 	if _, ok := sim.ParseLoadout(m.Lo); m.T == TPick && m.Lo != "" && !ok {
 		return ClientMsg{}, ErrBadLoadout
 	}
-	if m.T == TChat && (m.Chat < 1 || m.Chat > ChatMax) {
-		return ClientMsg{}, ErrBadChat
+	if err := netproto.CheckHeader(m.Head(), ChatMax); err != nil {
+		return ClientMsg{}, err
 	}
-	for _, v := range [...]float64{m.P, m.R, m.Y, m.Th, m.TS} {
+	for _, v := range [...]float64{m.P, m.R, m.Y, m.Th} {
 		if math.IsNaN(v) || math.IsInf(v, 0) {
 			return ClientMsg{}, ErrNotFinite
 		}
@@ -136,48 +134,14 @@ func (m ClientMsg) Input() sim.Input {
 	}.Clamp()
 }
 
-const (
-	maxNameRunes = 16
-	defaultName  = "Pilot"
-)
-
-// CleanName trims a player name, drops invisible, control, zero-width,
-// bidi-override and blank filler runes, keeps at most 2 combining marks per
-// letter (no "zalgo" towers over the name tags), and caps it at 16 runes;
-// empty becomes "Pilot".
-func CleanName(s string) string {
-	var b strings.Builder
-	n, marks := 0, 0
-	for _, r := range strings.TrimSpace(s) {
-		if n == maxNameRunes {
-			break
-		}
-		if r == utf8.RuneError || !unicode.IsGraphic(r) || hiddenRune(r) {
-			continue
-		}
-		if unicode.In(r, unicode.Mn, unicode.Me) {
-			if marks == maxMarks {
-				continue
-			}
-			marks++
-		} else {
-			marks = 0
-		}
-		b.WriteRune(r)
-		n++
-	}
-	if out := strings.TrimSpace(b.String()); out != "" {
-		return out
-	}
-	return defaultName
+// Head is the part of m the core reads.
+func (m ClientMsg) Head() netproto.Header {
+	return netproto.Header{T: m.T, V: m.V, Name: m.Name, Tok: m.Tok, Code: m.Code, Seq: m.Seq, TS: m.TS, Chat: m.Chat}
 }
 
-const maxMarks = 2
-
-func hiddenRune(r rune) bool {
-	switch r {
-	case 0x115F, 0x1160, 0x3164, 0xFFA0, 0x2800: // Hangul fillers, Braille blank
-		return true
-	}
-	return (r >= 0x200B && r <= 0x200F) || (r >= 0x202A && r <= 0x202E) || (r >= 0x2066 && r <= 0x2069)
+// Latch returns m with the one-shot presses (missile, flare, bomb) of an
+// input dropped over its rate.
+func (m ClientMsg) Latch(dropped ClientMsg) ClientMsg {
+	m.M, m.FL, m.BO = m.M || dropped.M, m.FL || dropped.FL, m.BO || dropped.BO
+	return m
 }

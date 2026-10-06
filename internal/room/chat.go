@@ -1,6 +1,7 @@
 package room
 
 import (
+	"playground/core/netproto"
 	"playground/internal/mode"
 	"playground/internal/protocol"
 	"playground/internal/sim"
@@ -20,7 +21,7 @@ func (r *Room) chat(from sim.ID, id int) {
 	s.chatAt = max(1, tick)
 	teams := r.teams()
 	team, ffa := teams[from], r.game.Settings().Mode == mode.FFA
-	msg := protocol.NewChat(from, id)
+	msg := netproto.NewChat(netproto.PlayerID(from), id)
 	for sid, o := range r.sessions {
 		// scope by the room's mode, not the sender's team: a sender missing
 		// from the seat list (TeamNone) must not reach both teams

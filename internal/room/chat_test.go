@@ -6,6 +6,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"playground/core/netproto"
 	"playground/internal/bot"
 	"playground/internal/game"
 	"playground/internal/mode"
@@ -55,7 +56,7 @@ func TestChatReachesEveryoneInFFA(t *testing.T) {
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		for _, m := range b.msgs {
-			if c, ok := m.(protocol.ChatMsg); ok && (c.From != sa.ID() || c.ID != 1) {
+			if c, ok := m.(protocol.ChatMsg); ok && (c.From != netproto.PlayerID(sa.ID()) || c.ID != 1) {
 				t.Fatalf("chat %+v", c)
 			}
 		}

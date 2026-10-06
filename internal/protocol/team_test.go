@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"playground/core/netproto"
 	"playground/internal/sim"
 )
 
@@ -29,7 +30,7 @@ func TestDecodeTeamWhitelist(t *testing.T) {
 }
 
 func TestNoticeWire(t *testing.T) {
-	b, _ := json.Marshal(NewNotice(CodeTeamFull, "x"))
+	b, _ := json.Marshal(netproto.NewNotice(CodeTeamFull, "x"))
 	if string(b) != `{"t":"notice","msg":"x","code":"team_full"}` {
 		t.Fatal(string(b))
 	}

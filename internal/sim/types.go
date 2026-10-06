@@ -154,3 +154,18 @@ type Snapshot struct {
 	Bombs      []Bomb
 	Flares     []Flare // burning flares, drop order
 }
+
+// Latch returns in with the one-shot presses (missile, flare, bomb) of an
+// older input that was dropped, so a dropped press still fires.
+func (in Input) Latch(dropped Input) Input {
+	in.Missile = in.Missile || dropped.Missile
+	in.Flare = in.Flare || dropped.Flare
+	in.Bomb = in.Bomb || dropped.Bomb
+	return in
+}
+
+// Held is in without its one-shot presses: what repeats while inputs starve.
+func (in Input) Held() Input {
+	in.Missile, in.Flare, in.Bomb = false, false, false
+	return in
+}

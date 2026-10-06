@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"playground/core/netproto"
 	"playground/internal/game"
 	"playground/internal/protocol"
 	"playground/internal/sim"
@@ -34,7 +35,7 @@ func (r *Room) team(id sim.ID, choice string) {
 	}
 	if err := r.game.ChooseTeam(id, want); err != nil {
 		if code, msg := teamMsg(err); msg != "" {
-			s.out.Send(protocol.NewNotice(code, msg))
+			s.out.Send(netproto.NewNotice(code, msg))
 		}
 		return
 	}

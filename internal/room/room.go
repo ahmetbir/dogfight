@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"playground/core/metrics"
+	"playground/core/netproto"
 	"playground/internal/game"
 	"playground/internal/protocol"
 	"playground/internal/sim"
@@ -184,7 +185,7 @@ func (r *Room) input(id sim.ID, m protocol.ClientMsg) {
 			_ = r.game.Pick(id, k) // a kind the team may not fly is ignored
 		}
 	case protocol.TPing:
-		s.out.Send(protocol.NewPong(m.TS))
+		s.out.Send(netproto.NewPong(m.TS))
 	case protocol.TChat:
 		r.chat(id, m.Chat)
 	case protocol.TTeam:

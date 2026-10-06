@@ -101,3 +101,26 @@ func TestBacklogKeepsBomb(t *testing.T) {
 		t.Fatal("starved repeats drop one-shot presses")
 	}
 }
+
+// A missile press in an input the connection's rate bucket dropped rides on
+// the next admitted input (the server's latch is ClientMsg.Latch), then
+// survives the room's backlog trim (session.drop uses Input.Latch).
+func TestDroppedPressSurvivesBothLatches(t *testing.T) {
+	dropped := protocol.ClientMsg{T: protocol.TIn, Seq: 2, M: true}
+	admitted := protocol.ClientMsg{T: protocol.TIn, Seq: 3}.Latch(dropped)
+	s := newSession(1, nil)
+	s.push(1, protocol.ClientMsg{T: protocol.TIn, Seq: 1}.Input())
+	s.push(admitted.Seq, admitted.Input())
+	for seq := uint32(4); seq <= 9; seq++ { // backlog: the trim drops seq 1 and 3
+		s.push(seq, protocol.ClientMsg{T: protocol.TIn, Seq: seq}.Input())
+	}
+	fired := 0
+	for range 8 {
+		if in, ok := s.next(); ok && in.Missile {
+			fired++
+		}
+	}
+	if fired != 1 {
+		t.Fatalf("missile fired %d times, want 1", fired)
+	}
+}
