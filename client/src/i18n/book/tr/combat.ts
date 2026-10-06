@@ -2,7 +2,7 @@
 import { baseArt, landArt, rotateTable } from "../../../book/ch-ground.ts";
 import { fleet, targetsArt, targetTable } from "../../../book/ch-modes.ts";
 import { ammoTable, bind, flareArt, lockArt } from "../../../book/ch-weapons.ts";
-import { b, dist, figure, kbd, kmh, list, note, p, pct, sec, speed, steps, sub } from "../../../book/kit.ts";
+import { b, dist, figure, kbd, kmh, list, note, num, p, pct, sec, speed, steps, sub } from "../../../book/kit.ts";
 import { RULES as R } from "../../../book/rules.ts";
 import { KEYBOARD_KEYS as K, keys, MOUSE_KEYS as M, touchLabel as T } from "../../../input/bindings.ts";
 import { modeName } from "../../../ui/create.ts";
@@ -80,7 +80,7 @@ export const combat: Combat = {
     p("Her doğuşta uçak seçim ekranında (", b("P"), ") seçilir; uçakla aynı kurala uyar: koruma süresindeysen hemen, değilse bir sonraki doğuşta geçerli."),
     list(
       [b("IR (kısa menzil)"), ": uçağın tüm füzeleri ısı güdümlü. Ateşle-unut: attıktan sonra dönebilirsin. Flare'e kanabilir."],
-      [b("Radar (orta menzil)"), ": kilit menzili ×", String(R.radarRangeMul), ", kilit ", sec(R.radarLockS), ", sayı yarıya iner (en az 1). ",
+      [b("Radar (orta menzil)"), ": kilit menzili ×", num(R.radarRangeMul), ", kilit ", sec(R.radarLockS), ", sayı yarıya iner (en az 1). ",
         "Yarı aktif: füze vurana dek hedefi burnunun ", `${R.radarLeashDeg}°`, " içinde tut, yoksa füze güdümsüz kalır. Flare işlemez; hedef ",
         "füzeye dik uçarsa (füze yönündeki hızı ", speed(R.radarBeamSpeed), " altında) ", sec(R.radarBeamS), " sonra iz kopar."],
       [b("Karışık"), ": IR füzelerin yarısı + 1 radar. Füze tuşu kilitli hedef IR menzilinin dışındaysa radar, içindeyse IR atar ",

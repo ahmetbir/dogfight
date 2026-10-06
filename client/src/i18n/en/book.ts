@@ -21,6 +21,7 @@ export const book: Area<typeof tr> = {
   "art.aim": "Mouse aim: the aim circle leads, the nose cross follows it",
   "art.aimMark": "aim (mouse)",
   "art.nose": "nose",
+  "art.stall": "stall {v}",
   "art.ab": "Afterburner heat: fills while burning, locks out, opens again once cooled",
   "art.abBurning": "AB burning",
   "art.abLocked": "LOCKED",

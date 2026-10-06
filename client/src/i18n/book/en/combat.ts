@@ -2,7 +2,7 @@
 import { baseArt, landArt, rotateTable } from "../../../book/ch-ground.ts";
 import { fleet, targetsArt, targetTable } from "../../../book/ch-modes.ts";
 import { ammoTable, bind, flareArt, lockArt } from "../../../book/ch-weapons.ts";
-import { b, dist, figure, kbd, kmh, list, note, p, pct, sec, speed, steps, sub } from "../../../book/kit.ts";
+import { b, dist, figure, kbd, kmh, list, note, num, p, pct, sec, speed, steps, sub } from "../../../book/kit.ts";
 import { RULES as R } from "../../../book/rules.ts";
 import { KEYBOARD_KEYS as K, keys, MOUSE_KEYS as M, touchLabel as T } from "../../../input/bindings.ts";
 import { modeName } from "../../../ui/create.ts";
@@ -80,7 +80,7 @@ export const combat: Combat = {
     p("Picked on the aircraft screen (", b("P"), ") for every spawn; it follows the aircraft's rule: right away while protected, otherwise on your next spawn."),
     list(
       [b("IR (short range)"), ": all the aircraft's missiles are heat-seeking. Fire-and-forget: you can turn away after the shot. Can be fooled by flares."],
-      [b("Radar (medium range)"), ": lock range ×", String(R.radarRangeMul), ", lock time ", sec(R.radarLockS), ", half the missiles (at least 1). ",
+      [b("Radar (medium range)"), ": lock range ×", num(R.radarRangeMul), ", lock time ", sec(R.radarLockS), ", half the missiles (at least 1). ",
         "Semi-active: keep the target within ", `${R.radarLeashDeg}°`, " of your nose until the missile hits, or the missile flies blind. Flares don't work; ",
         "if the target flies across the missile (closing speed below ", speed(R.radarBeamSpeed), "), the track breaks after ", sec(R.radarBeamS), "."],
       [b("Mixed"), ": half the IR missiles + 1 radar. The missile key fires radar when the locked target is beyond IR range, IR inside it ",
@@ -96,7 +96,7 @@ export const combat: Combat = {
       ["Timing is everything: when a missile comes within ", b(dist(R.flareWarn)), ", ", b("FLARE!"),
         " blinks on the HUD. A flare dropped too early burns out before the missile arrives."],
       ["Flares regenerate, +1 every ", sec(R.flareRegenS), " (up to your load)."],
-      ["Flares don't fool radar missiles: the HUD says ", b("BEAM IT!"), ". Fly across the missile and hold it for ", sec(R.radarBeamS), "; or shoot down ",
+      ["Flares don't fool radar missiles: the HUD says ", b("BEAM IT!"), ". Keep the missile at your 3 or 9 o'clock for ", sec(R.radarBeamS), " to break its track; or shoot down ",
         "the launcher, or get outside its ", `${R.radarLeashDeg}°`, " nose cone."]),
     sub("Bombs (Base Attack)"),
     p("Key: ", b(bind(M.bomb, K.bomb, "bomb", kb)), ". ", b(String(R.bombs)), " bombs per aircraft; only rearming refills them. A bomb leaves with the plane's ",

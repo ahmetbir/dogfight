@@ -2,7 +2,7 @@
 // uses (counts, ranges, the kind of a lock or an incoming missile).
 import { RULES } from "../book/rules.ts";
 import { lattr, lt, t } from "../i18n/index.ts";
-import { sec } from "../i18n/format.ts";
+import { num, sec } from "../i18n/format.ts";
 import { LOADOUTS, type Loadout, type MissileJSON } from "../net/protocol.ts";
 import { dist, v3, type V3 } from "../sim/vec.ts";
 import { h, text } from "./dom.ts";
@@ -17,7 +17,7 @@ export const loadoutLabel = (lo: Loadout) => t(LABEL_KEY[lo]);
 
 /** The pick screen's hint under the loadout buttons. */
 export function loadoutHint(lo: Loadout): string {
-  if (lo === "radar") return t("lo.hintRadar", { mul: R.radarRangeMul, lock: sec(R.radarLockS), leash: R.radarLeashDeg, beam: sec(R.radarBeamS) });
+  if (lo === "radar") return t("lo.hintRadar", { mul: num(R.radarRangeMul), lock: sec(R.radarLockS), leash: R.radarLeashDeg, beam: sec(R.radarBeamS) });
   return t(lo === "mixed" ? "lo.hintMixed" : "lo.hintIr");
 }
 

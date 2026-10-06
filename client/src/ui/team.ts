@@ -22,8 +22,8 @@ export const HURT_S = RULES.hurtS;
 /** Debounce of selector clicks: team messages share the server's pick bucket (a burst over it kicks). */
 export const CHOOSE_GAP_MS = 400;
 
-/** "NATO" / "SOVYET" ("SOVIET"). */
-export const teamName = (s: Side) => t(`team.${s}`);
+/** A team's name in a sentence: "NATO" / "Sovyet" ("Soviet"); the upper-case "SOVYET" is for labels. */
+export const teamName = (s: Side) => t(s === "nato" ? "team.nato" : "team.sovietName");
 /** Why a team is closed by the balance rule. */
 export const uneven = () => t("notice.team_uneven");
 

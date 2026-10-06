@@ -19,7 +19,7 @@ export const game = {
   "lo.radar": "Radar (orta menzil)",
   "lo.mixed": "Karışık",
   "lo.hintIr": "Isı güdümlü, ateşle-unut. Flare'e kanabilir.",
-  "lo.hintRadar": "Kilit menzili ×{mul}, kilit {lock}; sayı yarıya iner. Füze vurana dek hedefi burnunun {leash}° içinde tut. Flare işlemez; hedef füzeye dik uçarsa ({beam}) iz kopar.",
+  "lo.hintRadar": "Kilit menzili ×{mul}, kilit {lock}; sayı yarıya iner. Füze vurana dek hedefi burnunun {leash}° içinde tut. Flare işlemez; füzeyi {beam} boyunca saat 3 ya da 9 yönünde tutarsan iz kopar.",
   "lo.hintMixed": "Yarısı IR + 1 radar. Füze tuşu: kilitli hedef IR menzilinin dışındaysa radar, içindeyse IR atar.",
   "lo.noLock": "KİLİT YOK — hedefi nişangâhta {s} tut",
   "lo.noLockMixed": "KİLİT YOK — hedefi nişangâhta {s} tut (uzakta radar: {r})",

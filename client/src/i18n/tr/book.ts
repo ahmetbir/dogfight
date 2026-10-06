@@ -19,6 +19,7 @@ export const book = {
   "art.aim": "Fare ile nişan: nişan halkası önde, burun artısı onu izler",
   "art.aimMark": "nişan (fare)",
   "art.nose": "burun",
+  "art.stall": "stall {v}",
   "art.ab": "Art yakıcı ısısı: yanarken dolar, kilitlenir, soğuyunca açılır",
   "art.abBurning": "AB yanıyor",
   "art.abLocked": "KİLİTLİ",

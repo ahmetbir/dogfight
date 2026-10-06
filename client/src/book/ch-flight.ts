@@ -38,7 +38,7 @@ export function authArt(list: AircraftInfo[]): SVGSVGElement {
   return art(W, 160, t("art.auth"),
     s("line", { x1: x0, y1: y0, x2: W - 10, y2: y0, class: "axis" }), s("line", { x1: x0, y1: y0, x2: x0, y2: y0 - hgt, class: "axis" }),
     s("line", { x1: X(R.stallSpeed), y1: y0, x2: X(R.stallSpeed), y2: y0 - hgt, class: "guide" }),
-    label(X(R.stallSpeed), y0 + 14, `stall ${kmh(R.stallSpeed)}`, "mid small warn"),
+    label(X(R.stallSpeed), y0 + 14, t("art.stall", { v: kmh(R.stallSpeed) }), "mid small warn"),
     ...curves, label(x0 - 4, Y(1) + 4, pct(1), "end small"), label(W - 10, y0 + 14, kmh(top), "end small"),
     ...list.map((a, i) => label(x0 + 8, 24 + i * 13, a.name, `small c${i}`)));
 }

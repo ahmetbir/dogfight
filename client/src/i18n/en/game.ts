@@ -21,7 +21,7 @@ export const game: Area<typeof tr> = {
   "lo.radar": "Radar (medium range)",
   "lo.mixed": "Mixed",
   "lo.hintIr": "Heat-seeking, fire-and-forget. Can be fooled by flares.",
-  "lo.hintRadar": "Lock range ×{mul}, lock time {lock}; half the missiles. Keep the target within {leash}° of your nose until the missile hits. Flares don't work; a target flying across the missile ({beam}) breaks its track.",
+  "lo.hintRadar": "Lock range ×{mul}, lock time {lock}; half the missiles. Keep the target within {leash}° of your nose until the missile hits. Flares don't work; keep the missile at your 3 or 9 o'clock for {beam} to break its track.",
   "lo.hintMixed": "Half IR + 1 radar. The missile key fires radar when the locked target is beyond IR range, IR inside it.",
   "lo.noLock": "NO LOCK — keep the target in your sights for {s}",
   "lo.noLockMixed": "NO LOCK — keep the target in your sights for {s} (radar at range: {r})",
