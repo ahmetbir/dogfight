@@ -1,6 +1,6 @@
 // Package netproto is the part of the wire protocol every game shares: the
 // message envelope, the core message types (handshake, ping, chat, errors,
-// notices), the welcome envelope and the error-code registry. A game's own
+// notices), the welcome envelope and the core error codes. A game's own
 // messages are flat JSON objects with the same "t" field; its snapshot
 // starts {"t":"snap","tick":N; its welcome carries the Welcome fields.
 package netproto

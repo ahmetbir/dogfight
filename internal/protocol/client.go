@@ -71,8 +71,6 @@ type ClientMsg struct {
 var (
 	ErrTooBig      = errors.New("protocol: message too big")
 	ErrUnknownType = errors.New("protocol: unknown message type")
-	ErrNotFinite   = netproto.ErrNotFinite
-	ErrBadChat     = netproto.ErrBadChat
 	ErrBadTeam     = errors.New("protocol: unknown team")
 	ErrBadLoadout  = errors.New("protocol: unknown loadout")
 )
@@ -105,7 +103,7 @@ func DecodeClient(b []byte) (ClientMsg, error) {
 	}
 	for _, v := range [...]float64{m.P, m.R, m.Y, m.Th} {
 		if math.IsNaN(v) || math.IsInf(v, 0) {
-			return ClientMsg{}, ErrNotFinite
+			return ClientMsg{}, netproto.ErrNotFinite
 		}
 	}
 	return m, nil

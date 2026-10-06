@@ -9,6 +9,7 @@ import (
 
 	"github.com/coder/websocket"
 
+	"playground/core/netproto"
 	"playground/core/server"
 	"playground/internal/protocol"
 	"playground/internal/stats"
@@ -37,7 +38,7 @@ func TestDecodeErrorsKeepTheirCode(t *testing.T) {
 	for _, raw := range bad {
 		h := dial(t, srv)
 		h.writeRaw(raw)
-		if got := code(h); got != protocol.CodeBad {
+		if got := code(h); got != netproto.CodeBad {
 			t.Errorf("handshake %.40s: code %q", raw, got)
 		}
 		r := dial(t, srv)
@@ -47,7 +48,7 @@ func TestDecodeErrorsKeepTheirCode(t *testing.T) {
 		if err := r.ws.Write(t.Context(), websocket.MessageText, []byte(raw)); err != nil {
 			t.Fatal(err)
 		}
-		if got := code(r); got != protocol.CodeBad {
+		if got := code(r); got != netproto.CodeBad {
 			t.Errorf("in room %.40s: code %q", raw, got)
 		}
 	}

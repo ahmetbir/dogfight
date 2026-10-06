@@ -42,18 +42,6 @@ func TestCheckHeader(t *testing.T) {
 	}
 }
 
-func TestNewCodesRefusesCollisions(t *testing.T) {
-	c, err := NewCodes("team_full", "team_late")
-	if err != nil || len(c.Notices) != 2 || len(c.Errors) != len(ErrorCodes()) || len(c.API) != 4 {
-		t.Fatalf("%+v %v", c, err)
-	}
-	for _, bad := range [][]string{{"full"}, {"rate"}, {"x", "x"}, {""}} {
-		if _, err := NewCodes(bad...); err == nil {
-			t.Errorf("%v accepted", bad)
-		}
-	}
-}
-
 func TestCleanName(t *testing.T) {
 	for in, want := range map[string]string{
 		"  Ace  ":                     "Ace",

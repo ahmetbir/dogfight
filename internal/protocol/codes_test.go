@@ -33,7 +33,7 @@ func TestNoticeCodesMatchClient(t *testing.T) {
 }
 
 func TestErrorWire(t *testing.T) {
-	b, err := json.Marshal(netproto.NewError(CodeFull, "oda dolu"))
+	b, err := json.Marshal(netproto.NewError(netproto.CodeFull, "oda dolu"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,8 +42,17 @@ func TestErrorWire(t *testing.T) {
 	}
 }
 
-func TestNoticeCodesRegister(t *testing.T) {
-	if _, err := netproto.NewCodes(NoticeCodes()...); err != nil {
-		t.Fatal(err)
+// Notice codes are non-empty, distinct and never a core error or API code:
+// the client looks a code up in one table per message kind.
+func TestNoticeCodesDistinct(t *testing.T) {
+	seen := map[string]bool{}
+	for _, c := range append(netproto.ErrorCodes(), netproto.APICodes()...) {
+		seen[c] = true
+	}
+	for _, c := range NoticeCodes() {
+		if c == "" || seen[c] {
+			t.Errorf("notice code %q is empty or taken", c)
+		}
+		seen[c] = true
 	}
 }
