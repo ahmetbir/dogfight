@@ -19,19 +19,28 @@ import (
 type Script interface {
 	Hello(i int) any                            // player i's hello
 	Create() any                                // a creator's create message
-	Input(i int, seq uint32) any                // player i's input number seq (60 Hz)
+	Input(i int, seq uint32) any                // player i's input number seq (Config.InputHz)
 	React(i, you int, t string, raw []byte) any // a reply to a server message other than snap/pong/error, or nil; raw is valid until return
 }
 
-// Config is one run: the target, the crowd and the timing.
+// Config is one run: the target, the crowd, the game's cadence and the timing.
 type Config struct {
 	URL                           string
 	Players, Rooms                int
+	InputHz                       int // inputs a player sends per second (pings follow every InputHz inputs: 1 s)
+	SnapEvery                     int // server ticks between two snapshots: a larger tick step is a gap
 	Duration, Ramp, Settle, Every time.Duration
 }
 
+// pace is a player's share of the game's cadence.
+type pace struct{ inputHz, snapEvery int }
+
 // Run starts every player on its ramp slot and reports until the run ends.
-func Run(ctx context.Context, c Config, sc Script) {
+// The game's cadence has no default: a wrong SnapEvery miscounts gaps silently.
+func Run(ctx context.Context, c Config, sc Script) error {
+	if c.InputHz <= 0 || c.SnapEvery <= 0 {
+		return fmt.Errorf("loadtest: InputHz (%d) and SnapEvery (%d) must be > 0", c.InputHz, c.SnapEvery)
+	}
 	st := NewStats()
 	codes := make([]*roomCode, c.Rooms)
 	for i := range codes {
@@ -42,7 +51,7 @@ func Run(ctx context.Context, c Config, sc Script) {
 	defer cancel()
 	var wg sync.WaitGroup
 	for i, sl := range Assign(c.Players, c.Rooms) {
-		p := &player{i: i, slot: sl, url: c.URL, sc: sc, st: st, epoch: begin}
+		p := &player{i: i, slot: sl, url: c.URL, sc: sc, pace: pace{c.InputHz, c.SnapEvery}, st: st, epoch: begin}
 		if sl.Room >= 0 {
 			p.code = codes[sl.Room]
 		}
@@ -57,6 +66,7 @@ func Run(ctx context.Context, c Config, sc Script) {
 	from, end := report(rctx, c, st, begin)
 	wg.Wait()
 	fmt.Println(Summary(from, end, st.Handshake.Snapshot(), st.ReasonCounts()))
+	return nil
 }
 
 // report prints a line every c.Every until ctx ends; it returns the

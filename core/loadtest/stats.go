@@ -15,9 +15,6 @@ import (
 	"github.com/coder/websocket"
 )
 
-// snapPeriod is the server's snapshot interval (60 Hz tick, every 2nd).
-const snapPeriod = 33 * time.Millisecond
-
 // Stats is the run's shared tally. Players write it lock-free (atomics and
 // hists); only Disconnect reasons, rare, take the lock.
 type Stats struct {

@@ -36,6 +36,7 @@ import (
 	"playground/internal/bot"
 	"playground/internal/game"
 	"playground/internal/maps"
+	"playground/internal/match"
 	"playground/internal/mode"
 	"playground/internal/protocol"
 	"playground/internal/sim"
@@ -130,7 +131,12 @@ func main() {
 	defer stop()
 	fmt.Printf("loadtest: url=%s players=%d rooms=%d mode=%s size=%d map=%s wx=%s start=%s ramp=%s duration=%s\n",
 		c.url, c.players, c.rooms, c.mode, c.size, c.mapName, c.wx, c.start, c.ramp, c.duration)
-	loadtest.Run(ctx, loadtest.Config{URL: c.url, Players: c.players, Rooms: c.rooms,
+	err = loadtest.Run(ctx, loadtest.Config{URL: c.url, Players: c.players, Rooms: c.rooms,
+		InputHz: inputHz, SnapEvery: match.SnapEvery,
 		Duration: c.duration, Ramp: c.ramp, Settle: c.settle, Every: c.every},
 		dogfight{create: create, picked: make([]atomic.Bool, c.players)})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
 }

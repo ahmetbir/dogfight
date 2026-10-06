@@ -103,10 +103,33 @@ func TestRunDrivesAScript(t *testing.T) {
 	sc := &script{}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	Run(ctx, Config{URL: "ws" + strings.TrimPrefix(srv.URL, "http"), Players: 2, Rooms: 1,
-		Duration: 1500 * time.Millisecond, Ramp: 100 * time.Millisecond, Every: 500 * time.Millisecond}, sc)
+	if err := Run(ctx, Config{URL: "ws" + strings.TrimPrefix(srv.URL, "http"), Players: 2, Rooms: 1, InputHz: 60, SnapEvery: 2,
+		Duration: 1500 * time.Millisecond, Ramp: 100 * time.Millisecond, Every: 500 * time.Millisecond}, sc); err != nil {
+		t.Fatal(err)
+	}
 	if sc.reacted.Load() != 2 || colors.Load() != 2 {
 		t.Fatalf("reacted=%d colors=%d", sc.reacted.Load(), colors.Load())
+	}
+}
+
+// The game's cadence has no default.
+func TestRunNeedsTheCadence(t *testing.T) {
+	for _, c := range []Config{{SnapEvery: 2}, {InputHz: 60}} {
+		if err := Run(t.Context(), c, &script{}); err == nil {
+			t.Fatalf("%+v: no error", c)
+		}
+	}
+}
+
+// A gap is a snapshot lost: ticks further apart than the game's snapshot step.
+func TestGapsFollowSnapEvery(t *testing.T) {
+	for _, c := range []struct {
+		d, every int
+		want     uint64
+	}{{2, 2, 0}, {4, 2, 1}, {5, 2, 1}, {6, 2, 2}, {1, 1, 0}, {2, 1, 1}, {4, 1, 3}, {0, 2, 0}, {-3, 1, 0}} {
+		if got := gaps(c.d, c.every); got != c.want {
+			t.Errorf("gaps(%d, %d) = %d, want %d", c.d, c.every, got, c.want)
+		}
 	}
 }
 
@@ -136,7 +159,7 @@ func TestEntryAndPingJSON(t *testing.T) {
 		defer srv.Close()
 		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 		defer cancel()
-		Run(ctx, Config{URL: "ws" + strings.TrimPrefix(srv.URL, "http"), Players: players, Rooms: rooms,
+		Run(ctx, Config{URL: "ws" + strings.TrimPrefix(srv.URL, "http"), Players: players, Rooms: rooms, InputHz: 60, SnapEvery: 2,
 			Duration: 1500 * time.Millisecond, Ramp: 100 * time.Millisecond, Every: time.Second}, &script{})
 		w.mu.Lock()
 		defer w.mu.Unlock()

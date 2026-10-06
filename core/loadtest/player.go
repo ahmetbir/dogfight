@@ -17,7 +17,6 @@ import (
 const (
 	dialTimeout = 10 * time.Second // dial + hello + create/join + welcome
 	readLimit   = 8 << 20          // a welcome may carry large static data
-	pingEvery   = 60               // input ticks between pings (1 s)
 )
 
 // roomCode hands the creator's room code to the room's joiners.
@@ -60,6 +59,7 @@ type player struct {
 	slot  Slot
 	url   string
 	sc    Script
+	pace  pace
 	code  *roomCode // nil for quick play
 	st    *Stats
 	epoch time.Time    // ping timestamps are ms since it
@@ -194,8 +194,8 @@ func (p *player) read(ctx context.Context, conn *websocket.Conn, you int, replie
 			if !last.IsZero() {
 				p.st.SnapIv.Observe(now.Sub(last))
 			}
-			if lastTick > 0 && m.Tick-lastTick > 2 {
-				p.st.Gaps.Add(uint64((m.Tick-lastTick)/2 - 1))
+			if lastTick > 0 {
+				p.st.Gaps.Add(gaps(m.Tick-lastTick, p.pace.snapEvery))
 			}
 			last, lastTick = now, m.Tick
 		case "pong":
@@ -214,10 +214,19 @@ func (p *player) read(ctx context.Context, conn *websocket.Conn, you int, replie
 	}
 }
 
-// send writes inputs at 60 Hz, a ping every second and the Script's reply
-// once the reader has it, until ctx ends or a write fails.
+// gaps is the number of snapshots lost between two that arrived d ticks
+// apart, when the server snapshots every snapEvery ticks.
+func gaps(d, snapEvery int) uint64 {
+	if d <= snapEvery {
+		return 0
+	}
+	return uint64(d/snapEvery - 1)
+}
+
+// send writes inputs at the input rate, a ping every second and the
+// Script's reply once the reader has it, until ctx ends or a write fails.
 func (p *player) send(ctx context.Context, conn *websocket.Conn, replies <-chan any) {
-	t := time.NewTicker(time.Second / 60)
+	t := time.NewTicker(time.Second / time.Duration(p.pace.inputHz))
 	defer t.Stop()
 	var seq uint32
 	for {
@@ -233,7 +242,7 @@ func (p *player) send(ctx context.Context, conn *websocket.Conn, replies <-chan 
 			if p.write(ctx, conn, p.sc.Input(p.i, seq)) != nil {
 				return
 			}
-			if seq%pingEvery == 0 {
+			if seq%uint32(p.pace.inputHz) == 0 { // 1 s
 				ts := float64(time.Since(p.epoch).Microseconds()) / 1000
 				if p.write(ctx, conn, struct {
 					T  string  `json:"t"`

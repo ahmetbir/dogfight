@@ -8,6 +8,7 @@ import (
 
 // Input pacing at the 60 Hz send rate.
 const (
+	inputHz      = 60  // the client's input rate (and the room's tick rate)
 	fireCycle    = 300 // 5 s: cannon held for the first fireHeld ticks
 	fireHeld     = 72  // 1.2 s bursts
 	missileCycle = 480 // one missile every 8 s
