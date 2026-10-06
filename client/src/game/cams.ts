@@ -2,6 +2,7 @@
 // chase camera, killcam, orbit around my wreck, spectator, overview, replay),
 // runs the missile cam inset and reports the camera pose (audio listener).
 import * as THREE from "three";
+import { t } from "../i18n/index.ts";
 import type { Settings } from "../input/schemes.ts";
 import { ChaseCam, type Solid } from "../render/camera.ts";
 import { MissileCam } from "../render/missilecam.ts";
@@ -18,8 +19,6 @@ const ORBIT_R = 120;    // m
 const ORBIT_UP = 40;    // m above it
 const ORBIT_CLEAR = 15; // m the orbit stays above the ground
 const FOV = 70;
-const REPLAY_LABEL = "TEKRAR · R/Esc: geç";
-const REPLAY_LABEL_TOUCH = "TEKRAR · GEÇ ile atla";
 
 export type CamsCtx = {
   renderer: Renderer; state: GameState; settings: Settings; solids: readonly Solid[];
@@ -116,7 +115,7 @@ export class Cams {
     if (rs) {
       this.switchTo({ kind: "replay" });
       if (rs.me) this.chase.update(dtS, rs.me.pos, rs.me.rot, len(rs.me.vel), false, null);
-      const label = this.c.settings.scheme === "touch" ? REPLAY_LABEL_TOUCH : REPLAY_LABEL;
+      const label = this.c.settings.scheme === "touch" ? t("replay.labelTouch", { skip: t("touch.skip") }) : t("replay.label");
       return this.view(rs.me?.vel ?? ZERO, label, rs.heard, true);
     }
     const s = this.c.state;
@@ -146,7 +145,7 @@ export class Cams {
       cam.up.set(0, 1, 0);
       cam.lookAt(mode.at.x, mode.at.y, mode.at.z);
       setFov(cam, FOV);
-      label = watchingLabel("düştüğün yer");
+      label = watchingLabel(t("watch.wreck"));
     } else {
       overview(cam, s.terrain?.size ?? 8000);
       setFov(cam, FOV);

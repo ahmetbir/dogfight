@@ -1,5 +1,6 @@
 // The client game loop: fixed-step input + prediction, interpolated remote
 // planes, effects and the chase camera, once per animation frame.
+import { t } from "../i18n/index.ts";
 import { InputState } from "../input/input.ts";
 import { makeScheme, planeView, type Frame, type Settings } from "../input/schemes.ts";
 import type { TouchState } from "../input/touch.ts";
@@ -134,7 +135,7 @@ export function startGame(ctx: GameCtx): Game {
     if (ctl.missile && fs) {
       // The server fires only with a lock and ammo; say why nothing happened.
       const me = state.planes.get(state.you);
-      if (me && me.ms + (me.rm ?? 0) <= 0) hooks.notice?.("FÜZE YOK");
+      if (me && me.ms + (me.rm ?? 0) <= 0) hooks.notice?.(t("lo.none"));
       else if (me && !me.ld) hooks.notice?.(noLockNotice(loadoutOf(me.lo)));
     }
     const shot = own.tick(ctl, socket);

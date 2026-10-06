@@ -22,6 +22,7 @@ const (
 	msgStatsOff  = "istatistik kapalı"
 	msgBadPeriod = "geçersiz dönem"
 	msgNoAPI     = "bulunamadı"
+	msgRequests  = "çok fazla istek"
 )
 
 // apiCache holds one JSON body for ttl.
@@ -48,8 +49,9 @@ func writeJSON(w http.ResponseWriter, status int, body []byte) {
 	w.Write(body)
 }
 
+// errorJSON is an API error body: the Turkish text and its stable code.
 func errorJSON(msg string) []byte {
-	b, _ := json.Marshal(map[string]string{"error": msg})
+	b, _ := json.Marshal(map[string]string{"error": msg, "code": errCode(msg)})
 	return b
 }
 
@@ -68,7 +70,7 @@ func (s *Server) apiAllow(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	s.rejects.note(s.keyedReason(s.apis, key, "api-rate"), ip.String())
-	writeJSON(w, http.StatusTooManyRequests, errorJSON("çok fazla istek"))
+	writeJSON(w, http.StatusTooManyRequests, errorJSON(msgRequests))
 	return false
 }
 

@@ -1,6 +1,8 @@
-// HUD lights under the left panel: TEKER (gear), FREN (wheel or parking brake),
-// BOMBA n (base attack) and the İKMAL (rearm) progress bar.
+// HUD lights under the left panel: gear, brake (wheel or parking brake),
+// bombs n (base attack) and the rearm progress bar.
 import type { HudView } from "../game/events.ts";
+import { lt, t } from "../i18n/index.ts";
+import { pct } from "../i18n/format.ts";
 import { h, text } from "./dom.ts";
 
 /** Gear light: on when down as wanted, off when up as wanted, blink while they differ. */
@@ -9,9 +11,9 @@ export function gearLight(gear: boolean, wanted: boolean): "on" | "off" | "blink
   return gear ? "on" : "off";
 }
 
-/** "" when not rearming, else "İKMAL %NN". */
+/** "" when not rearming, else "İKMAL %NN" / "REARM NN%". */
 export function rearmText(rr: number): string {
-  return rr > 0 ? `İKMAL %${Math.round(Math.min(1, rr) * 100)}` : "";
+  return rr > 0 ? t("lamp.rearm", { p: pct(Math.min(1, rr)) }) : "";
 }
 
 /**
@@ -41,8 +43,8 @@ export class ParkBrake {
 
 export class FlightLights {
   readonly el: HTMLElement;
-  private readonly gear = h("span", { class: "lamp gear" }, "TEKER");
-  private readonly brake = h("span", { class: "lamp brake" }, "FREN");
+  private readonly gear = h("span", { class: "lamp gear" }, lt("lamp.gear"));
+  private readonly brake = h("span", { class: "lamp brake" }, lt("lamp.brake"));
   private readonly bombs = h("span", { class: "lamp bombs", hidden: true });
   private readonly rearmFill = h("div", { class: "bar-fill" });
   private readonly rearmLabel = h("span", { class: "g-label rearm-label" });
@@ -60,7 +62,7 @@ export class FlightLights {
     this.brake.classList.toggle("on", v.brake || this.park.update(v.alive, v.onGround, v.th, v.ab));
     this.bombs.hidden = !v.baseMode;
     if (v.baseMode) {
-      text(this.bombs, `BOMBA ${v.bombs}`);
+      text(this.bombs, t("lamp.bombs", { n: v.bombs }));
       this.bombs.classList.toggle("on", v.bombs > 0);
     }
     const rr = v.alive ? v.rearm : 0;

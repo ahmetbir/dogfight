@@ -1,6 +1,7 @@
 import { AudioEngine } from "./audio/audio.ts";
 import { audioHooks } from "./audio/wire.ts";
 import { runDebug } from "./debug/index.ts";
+import { initialLang, lt, setLang } from "./i18n/index.ts";
 import { play } from "./ui/app.ts";
 import { Banner, noWebGL } from "./ui/banner.ts";
 import { showHome, showJoin, type Start } from "./ui/home.ts";
@@ -8,6 +9,10 @@ import { showHome, showJoin, type Start } from "./ui/home.ts";
 const ui = document.getElementById("ui");
 const canvas = document.getElementById("game") as HTMLCanvasElement | null;
 const bannerEl = document.getElementById("banner");
+
+// The stored language, else the browser's (tr* → Turkish, anything else English); stored from now on.
+setLang(initialLang(navigator.languages ?? [navigator.language]));
+document.getElementById("rotate")?.replaceChildren(lt("app.rotate"));
 
 // Debug scenes are compiled out of production builds (esbuild --define:DEBUG=false).
 if (!(DEBUG && canvas && runDebug(canvas, new URLSearchParams(location.search))) && canvas && ui && bannerEl) {

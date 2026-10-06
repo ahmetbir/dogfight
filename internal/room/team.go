@@ -28,30 +28,31 @@ func (r *Room) team(id sim.ID, choice string) {
 		return
 	}
 	if err := r.game.ChooseTeam(id, want); err != nil {
-		if msg := teamMsg(err); msg != "" {
-			s.out.Send(protocol.NewNotice(msg))
+		if code, msg := teamMsg(err); msg != "" {
+			s.out.Send(protocol.NewNotice(code, msg))
 		}
 		return
 	}
 	r.publish() // the lobby lists humans per team
 }
 
-func teamMsg(err error) string {
+// teamMsg is the notice code and Turkish text of a refused team choice ("" when err is none of them).
+func teamMsg(err error) (code, msg string) {
 	switch {
 	case errors.Is(err, game.ErrUneven):
-		return msgTeamUneven
+		return protocol.CodeTeamUneven, msgTeamUneven
 	case errors.Is(err, game.ErrTeamFull):
-		return msgTeamFull
+		return protocol.CodeTeamFull, msgTeamFull
 	case errors.Is(err, game.ErrCooldown):
-		return msgTeamCooldown
+		return protocol.CodeTeamCooldown, msgTeamCooldown
 	case errors.Is(err, game.ErrLate):
-		return msgTeamLate
+		return protocol.CodeTeamLate, msgTeamLate
 	case errors.Is(err, game.ErrLocked):
-		return msgTeamLocked
+		return protocol.CodeTeamLocked, msgTeamLocked
 	case errors.Is(err, game.ErrHurt):
-		return msgTeamHurt
+		return protocol.CodeTeamHurt, msgTeamHurt
 	case errors.Is(err, game.ErrNoTeams):
-		return msgTeamNone
+		return protocol.CodeTeamNone, msgTeamNone
 	}
-	return ""
+	return "", ""
 }

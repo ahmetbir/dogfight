@@ -3,6 +3,7 @@
 // lists (settings menu, pilot's manual) render. Change a key here and every
 // list follows.
 import { REPLAY_MS } from "../game/replay.ts";
+import { t } from "../i18n/index.ts";
 
 /** KeyboardEvent.code values; mouse buttons are "Mouse0" (left), "Mouse1" (middle), "Mouse2" (right). */
 type Codes = readonly string[];
@@ -11,7 +12,7 @@ const GEAR: Codes = ["KeyL"];
 const BRAKE: Codes = ["KeyB"];
 const LOOK: Codes = ["KeyC"];
 
-/** Gear key in every scheme (the touch scheme takes it too, next to TEKER). */
+/** Gear key in every scheme (the touch scheme takes it too, next to its gear button). */
 export const GEAR_KEYS = GEAR;
 
 /** Mouse aim: the mouse aims, these keys do the rest. Mouse0 also counts while the left button is held. */
@@ -33,19 +34,25 @@ export const GAME_KEYS = {
   board: "Tab", menu: "Escape", pick: "KeyP", replay: "KeyR", spectatePrev: "ArrowLeft", spectateNext: "ArrowRight",
 } as const;
 
-/** Touch overlay labels (ui/touchpad.ts). */
-export const TOUCH_LABEL = {
-  stick: "Sol çubuk", throttle: "GAZ", fire: "ATEŞ", missile: "FÜZE", flare: "FLARE", bomb: "BOMBA", ab: "AB", gear: "TEKER",
-  brake: "FREN", chat: "SOHBET", look: "GERİ", menu: "MENÜ", pick: "UÇAK", board: "SKOR", replay: "TEKRAR", skip: "GEÇ",
-} as const;
+/** Touch overlay controls (ui/touchpad.ts); their labels are touchLabel(). */
+export type TouchControl = "stick" | "throttle" | "fire" | "missile" | "flare" | "bomb" | "ab" | "gear" | "brake" | "chat" | "look"
+  | "menu" | "pick" | "board" | "replay" | "skip";
 
-const NAMES: Record<string, string> = {
-  Mouse0: "Sol tık", Mouse1: "orta tık", Mouse2: "Sağ tık", ShiftLeft: "Shift", ShiftRight: "Shift", Escape: "Esc",
-  ArrowLeft: "←", ArrowRight: "→",
-};
+/** A touch control's label in the current language: "TEKER" / "GEAR". */
+export const touchLabel = (c: TouchControl) => t(`touch.${c}`);
 
-/** "KeyW" → "W", "Mouse2" → "Sağ tık", "Escape" → "Esc". */
+/** Every touch label at once (the key lists, the manual). */
+export function touchLabels(): Record<TouchControl, string> {
+  const all: TouchControl[] = ["stick", "throttle", "fire", "missile", "flare", "bomb", "ab", "gear", "brake", "chat", "look", "menu",
+    "pick", "board", "replay", "skip"];
+  return Object.fromEntries(all.map((c) => [c, touchLabel(c)])) as Record<TouchControl, string>;
+}
+
+const NAMES: Record<string, string> = { ShiftLeft: "Shift", ShiftRight: "Shift", Escape: "Esc", ArrowLeft: "←", ArrowRight: "→" };
+
+/** "KeyW" → "W", "Mouse2" → "Sağ tık" / "Right click", "Escape" → "Esc". */
 export function keyName(code: string): string {
+  if (code === "Mouse0" || code === "Mouse1" || code === "Mouse2") return t(`key.${code}`);
   return NAMES[code] ?? code.replace(/^(Key|Digit)/, "");
 }
 
@@ -58,12 +65,11 @@ export type Scheme = "mouse" | "keyboard" | "touch";
 export type KeyRow = [string, string];
 
 const REPLAY_S = Math.round(REPLAY_MS / 1000);
-/**
+/*
  * One missile key for every loadout (no kind toggle): it fires what the lock
- * is for. Karışık locks radar beyond the IR range, IR inside it (radar too
+ * is for. Mixed locks radar beyond the IR range, IR inside it (radar too
  * when the IR missiles are gone): sim lockKind.
  */
-const MISSILE = "Füze (kilit gerekir; Karışık: uzakta radar, yakında IR)";
 const flat = (m: Record<string, Codes>) => Object.values(m).flat();
 
 /** Rows every keyboard scheme shares (chat, board, pick, menu, replay, spectate); R notes a throttle clash. */
@@ -71,39 +77,39 @@ function commonRows(scheme: Record<string, Codes>): KeyRow[] {
   const g = GAME_KEYS;
   const clash = flat(scheme).includes(g.replay);
   return [
-    ["1–6", "Hızlı sohbet"], [keys(scheme.lookBack ?? LOOK), "Geri bak"], [keys([g.board]), "Skor tablosu (basılı)"],
-    [keys([g.pick]), "Uçak seçimi"], [keys([g.menu]), "Menü"],
-    [keys([g.replay]), `Ölünce: son ${REPLAY_S} sn tekrar${clash ? " (uçarken: gaz artır)" : ""}`],
-    [keys([g.spectatePrev, g.spectateNext]), "Beklerken: izlenen uçağı değiştir"],
+    ["1–6", t("row.chat")], [keys(scheme.lookBack ?? LOOK), t("row.look")], [keys([g.board]), t("row.board")],
+    [keys([g.pick]), t("row.pick")], [keys([g.menu]), t("row.menu")],
+    [keys([g.replay]), t(clash ? "row.replayClash" : "row.replay", { n: REPLAY_S })],
+    [keys([g.spectatePrev, g.spectateNext]), t("row.spectate")],
   ];
 }
 
-/** The key list of a scheme (settings menu and the pilot's manual). */
+/** The key list of a scheme in the current language (settings menu and the pilot's manual). */
 export function keyRows(scheme: Scheme): KeyRow[] {
   if (scheme === "touch") {
-    const t = TOUCH_LABEL;
+    const l = touchLabels();
     return [
-      [t.stick, "Burun/yatış (bırakınca düzler)"], [`Sol kenar (${t.throttle})`, "Gaz"], [t.fire, "Top (basılı)"],
-      [`${t.missile} / ${t.flare} / ${t.bomb}`, "Tek basış"], [t.ab, "Afterburner aç/kapa"], [`${t.gear} / ${t.brake}`, "İniş takımı / fren"],
-      [t.chat, "Hızlı mesaj"], [t.look, "Geri bak (basılı)"], [`${t.menu} / ${t.pick} / ${t.board}`, "Menü / uçak seçimi / skor (basılı)"],
-      ["Eğim", "Eğimle nişan açıksa çubuk boştayken"], [`${t.replay} / ${t.skip}`, `Ölünce: son ${REPLAY_S} sn tekrar / atla`],
-      ["Ekrana dokun", "Beklerken: izlenen uçağı değiştir"],
+      [l.stick, t("row.stick")], [t("row.leftEdge", { k: l.throttle }), t("row.throttle")], [l.fire, t("row.gunHeld")],
+      [`${l.missile} / ${l.flare} / ${l.bomb}`, t("row.tap")], [l.ab, t("row.abToggle")], [`${l.gear} / ${l.brake}`, t("row.gearBrake")],
+      [l.chat, t("row.chatTouch")], [l.look, t("row.lookHeld")], [`${l.menu} / ${l.pick} / ${l.board}`, t("row.menuTouch")],
+      [t("row.tiltKey"), t("row.tilt")], [`${l.replay} / ${l.skip}`, t("row.replayTouch", { n: REPLAY_S })],
+      [t("row.tapScreen"), t("row.spectate")],
     ];
   }
   if (scheme === "keyboard") {
     const k = KEYBOARD_KEYS;
     return [
-      [keys(k.pitchDown, k.pitchUp), "Burun aşağı / yukarı (Y ters çevirince tersi)"], [keys(k.rollLeft, k.rollRight), "Yatış (roll)"],
-      [keys(k.yawLeft, k.yawRight), "Sapma (yaw)"], [keys(k.throttleUp, k.throttleDown), "Gaz artır / azalt"], [keys(k.ab), "Afterburner"],
-      [keys(k.fire), "Top"], [keys(k.missile), MISSILE], [keys(k.flare), "Flare"], [keys(k.gear), "İniş takımı aç/kapa"],
-      [keys(k.brake), "Fren (basılı)"], [keys(k.bomb), "Bomba (Üs Saldırısı)"], ...commonRows(k),
+      [keys(k.pitchDown, k.pitchUp), t("row.pitch")], [keys(k.rollLeft, k.rollRight), t("row.roll")],
+      [keys(k.yawLeft, k.yawRight), t("row.yaw")], [keys(k.throttleUp, k.throttleDown), t("row.throttleKeys")], [keys(k.ab), t("row.ab")],
+      [keys(k.fire), t("row.gun")], [keys(k.missile), t("row.missile")], [keys(k.flare), t("row.flare")], [keys(k.gear), t("row.gear")],
+      [keys(k.brake), t("row.brake")], [keys(k.bomb), t("row.bomb")], ...commonRows(k),
     ];
   }
   const m = MOUSE_KEYS;
   return [
-    ["Fare", "Nişan (uçak burnunu imlece çevirir)"], [keys(m.throttleUp, m.throttleDown), "Gaz artır / azalt"], [keys(m.ab), "Afterburner"],
-    [keys(m.rollLeft, m.rollRight), "Ek yatış (roll)"], [keys(m.fire), "Top"],
-    [keys(m.missile), `${MISSILE}; trackpad: iki parmak ya da ctrl+tık`], [keys(m.flare), "Flare"],
-    [keys(m.gear), "İniş takımı aç/kapa"], [keys(m.brake), "Fren (basılı)"], [keys(m.bomb), "Bomba (Üs Saldırısı)"], ...commonRows(m),
+    [t("row.mouse"), t("row.aim")], [keys(m.throttleUp, m.throttleDown), t("row.throttleKeys")], [keys(m.ab), t("row.ab")],
+    [keys(m.rollLeft, m.rollRight), t("row.rollExtra")], [keys(m.fire), t("row.gun")],
+    [keys(m.missile), t("row.missileMouse", { missile: t("row.missile") })], [keys(m.flare), t("row.flare")],
+    [keys(m.gear), t("row.gear")], [keys(m.brake), t("row.brake")], [keys(m.bomb), t("row.bomb")], ...commonRows(m),
   ];
 }

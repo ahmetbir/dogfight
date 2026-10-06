@@ -1,11 +1,20 @@
-// Quick chat: six preset lines on keys 1–6 (SOHBET menu on touch), shown in
-// the kill feed.
+// Quick chat: six preset lines on keys 1–6 (the CHAT menu on touch), shown in
+// the kill feed. Presets travel as ids; each viewer reads them in their own language.
+import { lattr, lt, t } from "../i18n/index.ts";
 import { h } from "./dom.ts";
 
-/** Preset texts by id 1..6 (index 0 unused); internal/protocol ChatMax = 6. */
-export const CHAT_TEXT: readonly string[] = [
-  "", "Arkandayım!", "Yardım lazım!", "Hedefe saldırıyorum", "Üsse dönüyorum", "Tamam", "Teşekkürler",
-];
+/** Preset ids; internal/protocol ChatMax = 6. */
+export const CHAT_IDS = [1, 2, 3, 4, 5, 6] as const;
+export type ChatId = (typeof CHAT_IDS)[number];
+
+export function isChatId(id: unknown): id is ChatId {
+  return (CHAT_IDS as readonly unknown[]).includes(id);
+}
+
+/** A preset's text in the current language; undefined for an unknown id. */
+export function chatText(id: number): string | undefined {
+  return isChatId(id) ? t(`chat.${id}`) : undefined;
+}
 
 export const CHAT_LIFE_MS = 5000;
 // internal/room ChatCooldown is 120 ticks (2 s); +100 ms so a send at exactly
@@ -42,7 +51,7 @@ export class ChatMenu {
 
   /** [id, text] of every preset. */
   options(): [number, string][] {
-    return CHAT_TEXT.slice(1).map((t, i) => [i + 1, t]);
+    return CHAT_IDS.map((id) => [id, t(`chat.${id}`)]);
   }
 
   isOpen(): boolean {
@@ -59,7 +68,7 @@ export class ChatMenu {
 
   /** Sends preset id when the menu is open and id is known; true when sent. */
   choose(id: number): boolean {
-    if (!this.open || !Number.isInteger(id) || id < 1 || id >= CHAT_TEXT.length) return false;
+    if (!this.open || !isChatId(id)) return false;
     this.set(false);
     this.send(id);
     return true;
@@ -68,12 +77,12 @@ export class ChatMenu {
   /** The menu's element (built on first use). */
   view(): HTMLElement {
     if (!this.el) {
-      this.el = h("div", { class: "chat-menu", role: "menu", "aria-label": "Hızlı sohbet" },
-        ...this.options().map(([id, t]) => {
-          const b = h("button", { type: "button", class: "chat-opt", role: "menuitem" }, t);
+      this.el = lattr(h("div", { class: "chat-menu", role: "menu" },
+        ...CHAT_IDS.map((id) => {
+          const b = h("button", { type: "button", class: "chat-opt", role: "menuitem" }, lt(`chat.${id}`));
           b.addEventListener("click", () => this.choose(id));
           return b;
-        }));
+        })), "aria-label", "chat.aria");
       this.el.hidden = !this.open;
     }
     return this.el;

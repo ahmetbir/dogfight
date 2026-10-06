@@ -225,7 +225,7 @@ func TestLeaderboard(t *testing.T) {
 		t.Fatalf("bad period: %d", code)
 	}
 	plain := newServer(t, Options{})
-	if code, body := get(t, plain.URL+"/api/leaderboard?period=week"); code != 503 || body != `{"error":"istatistik kapalı"}` {
+	if code, body := get(t, plain.URL+"/api/leaderboard?period=week"); code != 503 || body != `{"code":"stats_off","error":"istatistik kapalı"}` {
 		t.Fatalf("stats off: %d %s", code, body)
 	}
 }

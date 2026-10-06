@@ -1,4 +1,5 @@
 // Connection banner, fatal errors and the no-WebGL screen.
+import { t } from "../i18n/index.ts";
 import type { Status } from "../net/socket.ts";
 import { fill, h } from "./dom.ts";
 
@@ -16,18 +17,18 @@ export class Banner {
     if (this.fatalShown) return;
     if (s === "open") this.everOpen = true;
     if (s === "updating") {
-      this.show("info", h("span", { class: "spinner" }), "Sunucu güncelleniyor, yeniden bağlanılıyor…");
+      this.show("info", h("span", { class: "spinner" }), t("banner.updating"));
     } else if (s === "connecting" && this.everOpen) {
-      this.show("info", h("span", { class: "spinner" }), "Bağlantı koptu, yeniden bağlanılıyor…");
+      this.show("info", h("span", { class: "spinner" }), t("banner.lost"));
     } else {
       this.hide();
     }
   }
 
-  /** A server error: the connection is over; offer the way home. */
+  /** A server error (already in the current language): the connection is over; offer the way home. */
   fatal(msg: string): void {
     this.fatalShown = true;
-    this.show("error", h("strong", {}, msg || "Bağlantı hatası"), h("a", { href: "/", class: "btn small" }, "Ana sayfa"));
+    this.show("error", h("strong", {}, msg || t("err.conn")), h("a", { href: "/", class: "btn small" }, t("common.home")));
   }
 
   hide(): void {
@@ -48,8 +49,8 @@ export class Banner {
 export function noWebGL(root: HTMLElement): void {
   fill(root, h("div", { class: "screen" },
     h("div", { class: "panel narrow" },
-      h("h2", {}, "WebGL kullanılamıyor"),
-      h("p", {}, "Bu oyun 3B çizim için WebGL'e ihtiyaç duyar; tarayıcın ya da ekran kartı sürücün onu sağlamıyor."),
-      h("p", { class: "muted" }, "Güncel bir Chrome, Firefox, Edge veya Safari kullan ve donanım hızlandırmanın açık olduğundan emin ol."),
-      h("a", { href: "/", class: "btn" }, "Ana sayfa"))));
+      h("h2", {}, t("webgl.title")),
+      h("p", {}, t("webgl.body")),
+      h("p", { class: "muted" }, t("webgl.hint")),
+      h("a", { href: "/", class: "btn" }, t("common.home")))));
 }

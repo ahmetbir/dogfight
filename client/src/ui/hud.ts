@@ -3,6 +3,8 @@
 import type { GameHooks, HudView } from "../game/events.ts";
 import { enemyOnRadar } from "../game/sight.ts";
 import { threatened, type GameState } from "../game/state.ts";
+import { lt, t, type Key } from "../i18n/index.ts";
+import { fixed } from "../i18n/format.ts";
 import type { Item, PlaneJSON, Team } from "../net/protocol.ts";
 import { dist, type V3 } from "../sim/vec.ts";
 import { GroundHelp } from "./coach.ts";
@@ -10,8 +12,8 @@ import { GEffects } from "./gfx.ts";
 import { h, text } from "./dom.ts";
 import { Gauges } from "./hudtext.ts";
 import { flareCue, FlareHud } from "./flarecue.ts";
-import { CHAT_LIFE_MS, CHAT_TEXT } from "./chat.ts";
-import { KillFeed, WEAPON, whoEl, type Who } from "./killfeed.ts";
+import { CHAT_LIFE_MS, chatText } from "./chat.ts";
+import { KillFeed, weaponName, whoEl, type Who } from "./killfeed.ts";
 import { waitWhen } from "./pick.ts";
 import { Radar, type Contact } from "./radar.ts";
 import { outOfRange } from "./lockinfo.ts";
@@ -26,7 +28,7 @@ const GUN_CONE = (35 * Math.PI) / 180;
 const GUN_RANGE = 2000;
 const TOAST_MS = 1800;
 // The shield power-up was removed (FB-A 7): "shield" stays a wire Item but has no label.
-const ITEM: Partial<Record<Item, string>> = { missiles: "+ Füze", repair: "+ Onarım", turbo: "+ Turbo" };
+const ITEM: Partial<Record<Item, Key>> = { missiles: "hud.item.missiles", repair: "hud.item.repair", turbo: "hud.item.turbo" };
 
 /** Whether plane p is an enemy of a pilot on team mine. */
 export function hostile(mine: Team, p: { tm: Team }): boolean {
@@ -41,15 +43,15 @@ export class Hud {
   private readonly radar = new Radar();
   private readonly feed = new KillFeed();
   private readonly score = h("div", { class: "hud-score" });
-  private readonly warn = h("div", { class: "hud-warn", hidden: true }, "FÜZE UYARISI");
+  private readonly warn = h("div", { class: "hud-warn", hidden: true }, t("hud.missileWarn"));
   private readonly center = h("div", { class: "hud-center" });
   private readonly sub = h("div", { class: "hud-sub" });
-  private readonly prot = h("div", { class: "hud-tag", hidden: true }, "KORUMA");
-  private readonly outRange = h("div", { class: "hud-range", hidden: true }, "MENZİL DIŞI");
+  private readonly prot = h("div", { class: "hud-tag", hidden: true }, lt("hud.prot"));
+  private readonly outRange = h("div", { class: "hud-range", hidden: true }, lt("hud.outRange"));
   private readonly toast = h("div", { class: "hud-toast" });
   private readonly hitMark = h("div", { class: "hud-hit" });
   private readonly flash = h("div", { class: "hud-flash" });
-  private readonly watch = h("div", { class: "hud-watch", hidden: true }); // "İzliyorsun: …"
+  private readonly watch = h("div", { class: "hud-watch", hidden: true }); // "Watching: …"
   private readonly gauges = new Gauges();
   private readonly flare = new FlareHud();
   private readonly objective = new ObjectiveBar();
@@ -92,13 +94,14 @@ export class Hud {
         const k = killer && killer !== victim ? this.who(killer) : null;
         this.feed.add(v, k, w, performance.now());
         if (victim === this.state.you) {
-          this.killedBy = k ? `Düşürüldün — ${k.name} (${w ? WEAPON[w] : "?"})` : `Düştün (${w ? WEAPON[w] : "?"})`;
+          const weapon = w ? weaponName(w) : "?";
+          this.killedBy = k ? t("hud.downedBy", { name: k.name, w: weapon }) : t("hud.died", { w: weapon });
         }
       },
       pickup: (item, mine) => {
         const label = item && ITEM[item];
         if (!mine || !label) return;
-        this.toast.textContent = label;
+        this.toast.textContent = t(label);
         this.toastUntil = performance.now() + TOAST_MS;
       },
       decoy: (atMe, mine) => this.flare.decoy(atMe, mine, performance.now()),
@@ -111,20 +114,21 @@ export class Hud {
 
   /** A quick chat line from plane `from` in the kill feed; unknown presets are ignored. */
   chat(from: number, id: number): void {
-    const msg = Number.isInteger(id) ? CHAT_TEXT[id] : undefined;
-    if (!msg || id < 1) return;
+    const msg = chatText(id); // the preset in my language
+    if (!msg) return;
     this.feed.addLine(h("div", { class: "kf-line chat" }, whoEl(this.who(from)), ": ", msg), performance.now(), CHAT_LIFE_MS);
   }
 
-  /** No plane yet (joined, pick pending): hide the flight widgets and say why; touch names the UÇAK button. */
+  /** No plane yet (joined, pick pending): hide the flight widgets and say why; touch names its plane button. */
   waiting(on: boolean, left: number, touch = false): void {
     this.el.classList.toggle("waiting", on);
     if (!on) return;
     text(this.score, scoreLine(this.board(), this.roundLeft()));
     this.objective.update(this.state.round, this.state.mode, this.state.players.get(this.state.you)?.team ?? "none");
-    text(this.center, "Uçak seçimi bekleniyor");
+    text(this.center, t("hud.waitPick"));
     const others = [...this.state.planes.values()].some((p) => p.a && p.id !== this.state.you);
-    text(this.sub, `${touch ? "UÇAK" : "P"}: uçak seç  ·  ${waitWhen(left)} varsayılan uçakla doğarsın${others ? `  ·  ${touch ? "dokun" : "tık / ← →"}: izlenen uçak` : ""}`);
+    const watch = others ? t("hud.waitWatch", { key: t(touch ? "hud.tap" : "hud.clickArrows") }) : "";
+    text(this.sub, t("hud.waitSub", { key: touch ? t("touch.pick") : "P", when: waitWhen(left) }) + watch);
   }
 
   /** Board data shared with the scoreboard and round-end screens. */
@@ -185,8 +189,8 @@ export class Hud {
   }
 
   /**
-   * FÜZE UYARISI with the kind and distance of the nearest missile tracking
-   * me; under it FLARE! against an IR missile, DİK UÇ! (beam) against radar.
+   * The missile warning with the kind and distance of the nearest missile
+   * tracking me; under it FLARE! against an IR missile, the beam cue against radar.
    */
   private threat(v: HudView, now: number): void {
     const s = this.state;
@@ -217,15 +221,16 @@ export class Hud {
       // the bottom label says it all
     } else if (!v.alive) {
       const touch = v.scheme === "touch";
-      main = this.killedBy || "Düşürüldün";
-      sub = `Yeniden doğma ${Math.max(0, v.respawnS).toFixed(1)} sn  ·  ${touch ? "UÇAK" : "P"}: uçak seç${this.canReplay ? `  ·  ${touch ? "TEKRAR" : "R"}: tekrarı izle` : ""}`;
+      main = this.killedBy || t("hud.downed");
+      sub = t("hud.respawn", { s: t("unit.sec", { n: fixed(Math.max(0, v.respawnS), 1) }), key: touch ? t("touch.pick") : "P" }) +
+        (this.canReplay ? t("hud.replayHint", { key: touch ? t("touch.replay") : "R" }) : "");
     } else {
       this.killedBy = "";
       if (v.oobS > 0) {
         const left = Math.ceil(GRACE_S - v.oobS);
-        main = left > 0 ? `SAVAŞ ALANINA DÖN ${left}` : "SAVAŞ ALANINA DÖN";
+        main = left > 0 ? t("hud.oob", { n: left }) : t("hud.oobNow");
       } else if (v.scheme === "mouse" && !v.pointerLocked && !this.menuOpen()) {
-        sub = "Fareyle nişan için tıkla";
+        sub = t("hud.clickAim");
       }
     }
     text(this.center, main);

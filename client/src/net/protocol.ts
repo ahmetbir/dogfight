@@ -169,11 +169,12 @@ export type RoundMsg = {
 export type PlayerJSON = { id: number; name: string; team: Team; kind: AircraftKind; bot: boolean };
 export type PlayersMsg = { t: "players"; list: PlayerJSON[] };
 export type Pong = { t: "pong"; ts: number };
-export type ErrorMsg = { t: "error"; msg: string };
+/** A fatal server error: code (net/codes.ts) picks the shown text, msg is the server's own text (fallback). */
+export type ErrorMsg = { t: "error"; msg: string; code?: string };
 /** Quick chat from plane `from`, preset `id`. */
 export type ChatMsg = { t: "chat"; from: number; id: number };
 
 /** A short, non-fatal HUD message (a refused team choice). */
-export type NoticeMsg = { t: "notice"; msg: string };
+export type NoticeMsg = { t: "notice"; msg: string; code?: string };
 
 export type ServerMsg = Welcome | Snap | RoundMsg | PlayersMsg | Pong | ErrorMsg | ChatMsg | NoticeMsg;

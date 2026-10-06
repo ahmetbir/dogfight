@@ -1,7 +1,9 @@
 // Team choice (pick screen) and team switch (menu) for team and base modes.
 // The server decides (game.ChooseTeam); these mirror its rules so the UI can
 // say why a choice is closed before asking.
-import type { EventJSON, MissileJSON, PlaneJSON, PlayerJSON, RoundMsg, ServerMsg, Team, TeamChoice } from "../net/protocol.ts";
+import { lattr, lt, t, type Key } from "../i18n/index.ts";
+import { noticeText } from "../i18n/messages.ts";
+import type { EventJSON, MissileJSON, NoticeMsg, PlaneJSON, PlayerJSON, RoundMsg, ServerMsg, Team, TeamChoice } from "../net/protocol.ts";
 import { h, text } from "./dom.ts";
 
 export type Side = "nato" | "soviet";
@@ -16,8 +18,15 @@ export const HURT_S = 10;
 /** Debounce of selector clicks: team messages share the server's pick bucket (a burst over it kicks). */
 export const CHOOSE_GAP_MS = 400;
 
-export const TEAM_NAME: Record<Side, string> = { nato: "NATO", soviet: "SOVYET" };
-export const UNEVEN = "Takımlar dengesiz olur";
+/** "NATO" / "SOVYET" ("SOVIET"). */
+export const teamName = (s: Side) => t(`team.${s}`);
+/** Why a team is closed by the balance rule. */
+export const uneven = () => t("notice.team_uneven");
+
+/** A server notice (a refused team choice) in the current language, with this client's cooldown numbers. */
+export function noticeOf(m: NoticeMsg): string {
+  return noticeText(m.code, m.msg, { n: m.code === "team_hurt" ? HURT_S : SWITCH_COOLDOWN_S });
+}
 
 export function hasTeams(mode: string): boolean {
   return mode === "team" || mode === "base";
@@ -58,12 +67,12 @@ export type SwitchView = {
 
 /** Why the menu's switch is closed now, or null when it is open. */
 export function switchBlock(v: SwitchView): string | null {
-  if (!hasTeams(v.mode) || (v.mine !== "nato" && v.mine !== "soviet")) return "Bu modda takım yok";
-  if (v.round?.phase === "playing" && v.round.left < SWITCH_CLOSE_TICKS) return "Raundun son dakikasında değiştirilemez";
-  if (v.sinceSwitchS < SWITCH_COOLDOWN_S) return `Takım değiştirmek için ${Math.ceil(SWITCH_COOLDOWN_S - v.sinceSwitchS)} sn bekle`;
-  if (v.alive && v.threat) return "Kilitliyken takım değiştiremezsin";
-  if (v.alive && v.hurtAgoS < HURT_S) return "Hasar aldıktan sonra 10 sn bekle";
-  if (!balanced(v.others, v.mine, otherSide(v.mine))) return UNEVEN;
+  if (!hasTeams(v.mode) || (v.mine !== "nato" && v.mine !== "soviet")) return t("notice.team_none");
+  if (v.round?.phase === "playing" && v.round.left < SWITCH_CLOSE_TICKS) return t("notice.team_late");
+  if (v.sinceSwitchS < SWITCH_COOLDOWN_S) return t("notice.team_cooldown", { n: Math.ceil(SWITCH_COOLDOWN_S - v.sinceSwitchS) });
+  if (v.alive && v.threat) return t("notice.team_locked");
+  if (v.alive && v.hurtAgoS < HURT_S) return t("notice.team_hurt", { n: HURT_S });
+  if (!balanced(v.others, v.mine, otherSide(v.mine))) return uneven();
   return null;
 }
 
@@ -72,7 +81,7 @@ export function switchRow(v: SwitchView, onSwitch: (to: Side) => void): HTMLElem
   if (!hasTeams(v.mode) || (v.mine !== "nato" && v.mine !== "soviet")) return null;
   const to = otherSide(v.mine);
   const why = switchBlock(v);
-  const b = h("button", { type: "button", class: `btn team-switch ${to}`, disabled: why !== null }, `${TEAM_NAME[to]} takımına geç`);
+  const b = h("button", { type: "button", class: `btn team-switch ${to}`, disabled: why !== null }, t("team.switch", { team: teamName(to) }));
   b.addEventListener("click", () => onSwitch(to));
   return h("div", { class: "team-row" }, b, why ? h("span", { class: "form-error" }, why) : null);
 }
@@ -89,23 +98,23 @@ export function teamPickView(players: Iterable<PlayerJSON>, you: number, mine: T
   return { choice, allowed: { nato: balanced(others, mine, "nato"), soviet: balanced(others, mine, "soviet") }, note };
 }
 
-const CHOICES: [TeamChoice, string][] = [["auto", "Otomatik"], ["nato", "NATO"], ["soviet", "Sovyet"]];
+const CHOICES: [TeamChoice, Key][] = [["auto", "team.auto"], ["nato", "team.nato"], ["soviet", "team.sovietName"]];
 
-/** Otomatik / NATO / Sovyet; built once, updated in place (clicks survive the 10 Hz refresh). */
+/** Auto / NATO / Soviet; built once, updated in place (clicks survive the 10 Hz refresh). */
 export class TeamSelector {
   readonly el: HTMLElement;
   private readonly btns = new Map<TeamChoice, HTMLButtonElement>();
   private readonly note = h("span", { class: "form-error team-note" });
 
   constructor(onChoose: (c: TeamChoice) => void) {
-    const seg = h("div", { class: "seg team-seg", role: "group", "aria-label": "Takım" },
+    const seg = lattr(h("div", { class: "seg team-seg", role: "group" },
       ...CHOICES.map(([c, label]) => {
-        const b = h("button", { type: "button", class: `seg-btn ${c}`, "aria-pressed": "false" }, label);
+        const b = h("button", { type: "button", class: `seg-btn ${c}`, "aria-pressed": "false" }, lt(label));
         b.addEventListener("click", () => onChoose(c));
         this.btns.set(c, b);
         return b;
-      }));
-    this.el = h("div", { class: "team-pick" }, h("span", { class: "muted" }, "Takım"), seg, this.note);
+      })), "aria-label", "team.title");
+    this.el = h("div", { class: "team-pick" }, h("span", { class: "muted" }, lt("team.title")), seg, this.note);
   }
 
   update(v: TeamPickView): void {
@@ -115,7 +124,7 @@ export class TeamSelector {
       if (b.getAttribute("aria-pressed") !== on) b.setAttribute("aria-pressed", on);
       const closed = st.closed.includes(c);
       if (b.disabled !== closed) b.disabled = closed;
-      if (closed) b.title = UNEVEN;
+      if (closed) b.title = uneven();
       else b.removeAttribute("title");
     }
     text(this.note, st.note);
@@ -125,7 +134,7 @@ export class TeamSelector {
 /** The selector's look: the pressed choice, the closed teams, and the note under it. */
 export function selectorState(v: TeamPickView): { pressed: TeamChoice; closed: TeamChoice[]; note: string } {
   const closed = (["nato", "soviet"] as const).filter((c) => c !== v.choice && !v.allowed[c]);
-  const note = v.note || (closed.length ? `${TEAM_NAME[closed[0]]}: ${UNEVEN}` : "");
+  const note = v.note || (closed.length ? `${teamName(closed[0])}: ${uneven()}` : "");
   return { pressed: v.choice, closed, note };
 }
 
@@ -184,7 +193,7 @@ export class TeamFlow {
         this.hurtAt = this.switchedAt = -Infinity;
         return false;
       case "notice": // a server refusal: shown on the pick screen; the choice falls back
-        this.note = m.msg;
+        this.note = noticeOf(m);
         this.noteUntil = now + NOTE_MS;
         this.choice = this.confirmed;
         return false;

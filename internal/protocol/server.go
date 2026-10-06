@@ -152,9 +152,11 @@ type Pong struct {
 	TS float64 `json:"ts"`
 }
 
+// ErrorMsg ends the connection; Code (codes.go) names the failure, Msg is its Turkish text.
 type ErrorMsg struct {
-	T   string `json:"t"` // "error"
-	Msg string `json:"msg"`
+	T    string `json:"t"` // "error"
+	Msg  string `json:"msg"`
+	Code string `json:"code,omitempty"`
 }
 
 // ChatMsg relays a quick chat preset (1..ChatMax) from plane From.
@@ -166,14 +168,15 @@ type ChatMsg struct {
 
 // NoticeMsg is a short, non-fatal message for the HUD (a refused team switch).
 type NoticeMsg struct {
-	T   string `json:"t"` // "notice"
-	Msg string `json:"msg"`
+	T    string `json:"t"` // "notice"
+	Msg  string `json:"msg"`
+	Code string `json:"code,omitempty"`
 }
 
-func NewNotice(msg string) NoticeMsg      { return NoticeMsg{T: "notice", Msg: msg} }
-func NewPong(ts float64) Pong             { return Pong{T: "pong", TS: ts} }
-func NewError(msg string) ErrorMsg        { return ErrorMsg{T: "error", Msg: msg} }
-func NewChat(from sim.ID, id int) ChatMsg { return ChatMsg{T: "chat", From: from, ID: id} }
+func NewNotice(code, msg string) NoticeMsg { return NoticeMsg{T: "notice", Msg: msg, Code: code} }
+func NewPong(ts float64) Pong              { return Pong{T: "pong", TS: ts} }
+func NewError(code, msg string) ErrorMsg   { return ErrorMsg{T: "error", Msg: msg, Code: code} }
+func NewChat(from sim.ID, id int) ChatMsg  { return ChatMsg{T: "chat", From: from, ID: id} }
 
 // NewSnap builds the shared snapshot; ev are the events accumulated since
 // the previous one. Positions/velocities are rounded to 1 cm, rotations to

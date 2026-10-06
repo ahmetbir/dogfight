@@ -1,5 +1,6 @@
 // Which view the main camera takes: my own chase camera, the killcam on my
 // killer, an orbit around where I fell, or a spectated live plane.
+import { t } from "../i18n/index.ts";
 import type { V3 } from "../sim/vec.ts";
 
 export type CamMode = { kind: "own" } | { kind: "follow"; id: number } | { kind: "orbit"; at: V3 } | { kind: "overview" };
@@ -36,6 +37,7 @@ export function othersAlive(planes: Iterable<{ id: number; a: boolean }>, you: n
   return out.sort((a, b) => a - b);
 }
 
+/** "İzliyorsun: Viper" / "Watching: Viper" (player names are never translated). */
 export function watchingLabel(name: string): string {
-  return `İzliyorsun: ${name}`;
+  return t("watch.label", { name });
 }

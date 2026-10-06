@@ -1,3 +1,4 @@
+import { RECOVERABLE, ROOM_GONE } from "./codes.ts";
 import { TOKEN_RE } from "./pilot.ts";
 import { VERSION, type ClientMsg, type Create, type Join, type Quick, type ServerMsg } from "./protocol.ts";
 import { Shaper } from "./shaper.ts";
@@ -12,7 +13,7 @@ export type Status = "connecting" | "updating" | "open" | "closed";
 export type Handlers = {
   onMsg: (m: ServerMsg) => void;       // every server message except "error"
   onStatus: (s: Status) => void;
-  onFatal: (msg: string) => void;      // server "error": reconnecting has stopped
+  onFatal: (code: string, msg: string) => void; // server "error" (code: net/codes.ts): reconnecting has stopped
   onUnreachable?: () => void;          // the first connection never got a welcome; retry() starts over
 };
 
@@ -44,15 +45,8 @@ export const PING_MS = 15000; // server idle-closes after 30 s without input
 const OPEN = 1;
 /** WebSocket close code of a draining server (Service Restart): reconnect. */
 export const CLOSE_RESTART = 1012;
-/** The server's error when the rejoined room does not exist. */
-const NO_ROOM = "oda bulunamadı";
-/** Shown instead of NO_ROOM when the room was lost to a server update. */
-export const ROOM_GONE_AFTER_UPDATE = "Sunucu güncellendi, odan kapandı. Ana sayfadan yeni bir oyuna katıl.";
-/**
- * Server errors that end only this connection (the server's msgFlood in
- * internal/server/socket.go): the socket reconnects instead of giving up.
- */
-export const RECOVERABLE = new Set(["çok fazla mesaj"]);
+/** The server's error code when the rejoined room does not exist; ROOM_GONE replaces it right after an update. */
+const NO_ROOM = "no_room";
 
 export function socketURL(loc: { protocol: string; host: string }): string {
   return `${loc.protocol === "https:" ? "wss" : "ws"}://${loc.host}/ws`;
@@ -171,13 +165,13 @@ export class Socket {
     this.shaper?.received();
     switch (m.t) {
       case "error":
-        if (RECOVERABLE.has(m.msg) && this.conn) {
+        if (RECOVERABLE.has(m.code ?? "") && this.conn) {
           this.lost(this.conn); // the reconnect banner, then a fresh connection
           return;
         }
         this.stop();
         this.h.onStatus("closed");
-        this.h.onFatal(this.updated && m.msg === NO_ROOM ? ROOM_GONE_AFTER_UPDATE : m.msg);
+        this.h.onFatal(this.updated && m.code === NO_ROOM ? ROOM_GONE : m.code ?? "", m.msg ?? "");
         return;
       case "welcome":
         this.updated = false;

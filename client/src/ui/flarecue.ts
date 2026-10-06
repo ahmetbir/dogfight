@@ -1,7 +1,8 @@
-// Flare HUD: the blinking "FLARE!" cue while an IR missile tracking me is
-// close and a flare is ready, "DİK UÇ!" while a radar missile tracks me
+// Flare HUD: the blinking FLARE! cue while an IR missile tracking me is
+// close and a flare is ready, the beam cue while a radar missile tracks me
 // (beam it: flares do nothing), and the short note when a flare decoys a missile.
 import { RULES } from "../book/rules.ts";
+import { lt, t } from "../i18n/index.ts";
 import { KEYBOARD_KEYS, keys, MOUSE_KEYS } from "../input/bindings.ts";
 import { DT } from "../sim/flight.ts";
 import { h, text } from "./dom.ts";
@@ -11,12 +12,11 @@ export const FLARE_CUE_M = RULES.flareWarn;
 export const FLARE_COOLDOWN_TICKS = Math.round(RULES.flareCooldownS / DT);
 export const DECOY_NOTE_MS = 1500;
 
-/** Flare key per scheme from the bindings table; touch lights its FLARE button instead. */
-const FLARE_KEY: Record<string, string> = { mouse: keys(MOUSE_KEYS.flare).toUpperCase(), keyboard: keys(KEYBOARD_KEYS.flare).toUpperCase() };
-
-/** The key cap the cue shows for scheme ("" for touch). */
+/** The key cap the cue shows for scheme, from the bindings table ("" for touch: it lights its FLARE button instead). */
 export function flareKey(scheme: string): string {
-  return FLARE_KEY[scheme] ?? "";
+  if (scheme === "mouse") return keys(MOUSE_KEYS.flare).toUpperCase();
+  if (scheme === "keyboard") return keys(KEYBOARD_KEYS.flare).toUpperCase();
+  return "";
 }
 
 /** A missile tracking me is inside FLARE_CUE_M and a flare would leave now. */
@@ -26,23 +26,21 @@ export function flareCue(alive: boolean, incoming: number | null, flares: number
 
 /** The decoy note for me: the target hears it evaded, the shooter that the flare fooled its missile. */
 export function decoyNote(atMe: boolean, mine: boolean): { msg: string; good: boolean } | null {
-  if (atMe) return { msg: "FÜZE ATLATILDI!", good: true };
-  if (mine) return { msg: "Füzen flare'e kandı", good: false };
+  if (atMe) return { msg: t("flare.evaded"), good: true };
+  if (mine) return { msg: t("flare.fooled"), good: false };
   return null;
 }
 
-/** The beam cue against a radar missile: fly across its line of sight (flares do nothing). */
-export const BEAM_CUE = "DİK UÇ!";
-
 export class FlareHud {
   readonly cue: HTMLElement;
-  readonly beam = h("div", { class: "hud-flarecue beam", hidden: true }, BEAM_CUE);
+  /** The beam cue against a radar missile: fly across its line of sight (flares do nothing). */
+  readonly beam = h("div", { class: "hud-flarecue beam", hidden: true }, lt("flare.beam"));
   readonly note = h("div", { class: "hud-decoy", hidden: true });
   private readonly key = h("span", { class: "hud-key" });
   private noteUntil = 0;
 
   constructor() {
-    this.cue = h("div", { class: "hud-flarecue", hidden: true }, "FLARE!", this.key);
+    this.cue = h("div", { class: "hud-flarecue", hidden: true }, lt("flare.cue"), this.key);
   }
 
   /** on: show the cue; scheme picks the key cap; the touch FLARE button lights through `host`'s class; beam: a radar missile tracks me. */

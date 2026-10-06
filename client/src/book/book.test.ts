@@ -100,3 +100,32 @@ test("the weapons chapter covers the missile loadouts with the Go-checked radar 
   for (const s of ["IR (kısa menzil)", "Radar (orta menzil)", "Karışık", "DİK UÇ!", "2 IR + 1 R", `${RULES.radarLeashDeg}°`]) assert.ok(w.includes(s), s);
   assert.ok(w.includes(dist(PLANES[0]!.lockRange * RULES.radarRangeMul)), "radar lock range");
 });
+
+test("every chapter has an English version with the same structure and no Turkish left", async () => {
+  const { setLang } = await import("../i18n/index.ts");
+  const shape = (nodes: Node[]) => {
+    const count: Record<string, number> = {};
+    const walk = (n: FakeNode) => {
+      if (["h3", "figure", "table", "ul", "ol", "li", "svg"].includes(n.tag)) count[n.tag] = (count[n.tag] ?? 0) + 1;
+      n.children.forEach(walk);
+    };
+    (nodes as unknown as FakeNode[]).forEach(walk);
+    return count;
+  };
+  const tr = CHAPTERS.map((c) => [c.title(), shape(c.render({ aircraft: PLANES }))] as const);
+  setLang("en", null);
+  try {
+    CHAPTERS.forEach((c, i) => {
+      assert.notEqual(c.title(), tr[i]![0], `${c.id} title`);
+      assert.deepEqual(shape(c.render({ aircraft: PLANES })), tr[i]![1], c.id);
+      const text = textOf(c.id, PLANES).replaceAll("Türkçe", ""); // the language's own name
+      assert.ok(!/[çğıİöşüÇĞÖŞÜ]/.test(text), `${c.id}: ${text.match(/.{0,30}[çğıİöşüÇĞÖŞÜ].{0,30}/)?.[0]}`);
+    });
+    const weapons = textOf("silahlar", PLANES);
+    for (const s of ["IR (short range)", "Radar (medium range)", "Mixed", "BEAM IT!", "2 IR + 1 R", dist(RULES.flareRange)]) assert.ok(weapons.includes(s), s);
+    assert.ok(textOf("ucus", PLANES).includes(`${num(RULES.abBurnS)} s`) && num(1.5) === "1.5", "English decimal point and seconds");
+    for (const [k, what] of keyRows("touch")) assert.ok(textOf("kontroller", PLANES).includes(k) && textOf("kontroller", PLANES).includes(what), k);
+  } finally {
+    setLang("tr", null);
+  }
+});

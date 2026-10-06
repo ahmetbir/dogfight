@@ -1,5 +1,6 @@
 // Scoreboard (held Tab) and the round-end screen; both list every roster
 // player, with zero rows for players that have no board line yet (C19).
+import { lang, t } from "../i18n/index.ts";
 import type { LineJSON, PlayerJSON, Team } from "../net/protocol.ts";
 import { clock, fill, h } from "./dom.ts";
 
@@ -26,9 +27,10 @@ export function teamMode(mode: string): boolean {
 function table(rows: Row[], title?: HTMLElement): HTMLElement {
   return h("div", { class: "board-col" }, title ?? null,
     h("table", { class: "board" },
-      h("thead", {}, h("tr", {}, h("th", { class: "name" }, "İsim"), h("th", {}, "K"), h("th", {}, "Ö"), h("th", {}, "Puan"))),
+      h("thead", {}, h("tr", {}, h("th", { class: "name" }, t("board.name")), h("th", {}, t("board.k")), h("th", {}, t("board.d")),
+        h("th", {}, t("board.score")))),
       h("tbody", {}, ...rows.map((r) => h("tr", { class: r.me ? "me" : "" },
-        h("td", { class: "name" }, h("div", { class: "name-cell" }, h("span", { class: "pname" }, r.name), r.bot ? h("span", { class: "bot-tag" }, "BOT") : null)),
+        h("td", { class: "name" }, h("div", { class: "name-cell" }, h("span", { class: "pname" }, r.name), r.bot ? h("span", { class: "bot-tag" }, t("board.bot")) : null)),
         h("td", {}, r.k), h("td", {}, r.d), h("td", { class: "score" }, r.s))))));
 }
 
@@ -36,7 +38,7 @@ function columns(v: BoardView): HTMLElement {
   if (!teamMode(v.mode)) return h("div", { class: "board-cols" }, table(v.rows));
   const side = (t: Team, label: string, score: number) =>
     table(v.rows.filter((r) => r.team === t), h("div", { class: `board-title ${t}` }, h("span", {}, label), h("span", { class: "big" }, score)));
-  return h("div", { class: "board-cols two" }, side("nato", "NATO", v.nato), side("soviet", "SOVYET", v.soviet));
+  return h("div", { class: "board-cols two" }, side("nato", t("team.nato"), v.nato), side("soviet", t("team.soviet"), v.soviet));
 }
 
 export class Scoreboard {
@@ -47,7 +49,7 @@ export class Scoreboard {
   }
 
   show(v: BoardView): void {
-    fill(this.el, h("div", { class: "panel wide" }, h("h2", {}, "Skor tablosu"), columns(v)));
+    fill(this.el, h("div", { class: "panel wide" }, h("h2", {}, t("board.title")), columns(v)));
     this.el.hidden = false;
   }
 
@@ -61,17 +63,16 @@ export class RoundEnd {
   private readonly count = h("div", { class: "countdown" });
   private key = "";
 
-  /** Shows the end screen; the table is rebuilt only when it changed. */
-  show(winner: string, v: BoardView, leftS: number): void {
-    const key = JSON.stringify([winner, v]);
+  /** Shows the end screen; the table is rebuilt only when it (or the language) changed. */
+  show(winner: string, v: BoardView, leftS: number, wt?: Team): void {
+    const key = JSON.stringify([winner, wt, v, lang()]);
     if (key !== this.key) {
       this.key = key;
-      const title = winner === "Berabere" ? "Berabere" : teamMode(v.mode) ? `${winner.toUpperCase()} KAZANDI` : `${winner} kazandı`;
       fill(this.el, h("div", { class: "panel wide" },
-        h("div", { class: "winner" }, h("span", { class: "muted" }, "Raund bitti"), h("h1", {}, title)),
+        h("div", { class: "winner" }, h("span", { class: "muted" }, t("end.over")), h("h1", {}, winnerTitle(winner, v.mode, wt))),
         columns(v), this.count));
     }
-    this.count.textContent = `Yeni raund ${Math.max(0, Math.ceil(leftS))} sn`;
+    this.count.textContent = t("end.next", { n: Math.max(0, Math.ceil(leftS)) });
     this.el.hidden = false;
   }
 
@@ -81,13 +82,28 @@ export class RoundEnd {
   }
 }
 
+/** The server's winner name of a drawn round (internal/mode Draw); a wire value, never shown as is. */
+export const DRAW = "Berabere";
+
+/**
+ * The round-end title: a draw, the winning team (wt; older servers only send
+ * the name) or the FFA winner's name (a player name, never translated).
+ */
+export function winnerTitle(winner: string, mode: string, wt?: Team): string {
+  if (winner === DRAW) return t("end.draw");
+  if (!teamMode(mode)) return t("end.won", { name: winner });
+  const team = wt === "nato" || wt === "soviet" ? t(`team.${wt}`) : winner.toUpperCase();
+  return t("end.teamWon", { team });
+}
+
 /** Top-center score line: "NATO 12 – 9 SOVYET  6:42" or "1. Viper 8  •  Sen 5  6:42". */
 export function scoreLine(v: BoardView, leftS: number): string {
-  const t = clock(leftS);
-  if (teamMode(v.mode)) return `NATO ${v.nato} – ${v.soviet} SOVYET  ${t}`;
+  const c = clock(leftS);
+  if (teamMode(v.mode)) return `${t("common.teams", { a: v.nato, b: v.soviet })}  ${c}`;
   const top = v.rows[0];
   const me = v.rows.find((r) => r.me);
-  if (!top) return t;
-  const first = `1. ${top.me ? "Sen" : top.name} ${top.s}`;
-  return top.me || !me ? `${first}  ${t}` : `${first}  •  Sen ${me.s}  ${t}`;
+  if (!top) return c;
+  const you = t("common.you");
+  const first = `1. ${top.me ? you : top.name} ${top.s}`;
+  return top.me || !me ? `${first}  ${c}` : `${first}  •  ${you} ${me.s}  ${c}`;
 }

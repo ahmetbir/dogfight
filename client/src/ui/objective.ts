@@ -2,6 +2,7 @@
 // left) and the enemy targets still standing (radar squares).
 import type { RoundMsg, StructInfo, Team } from "../net/protocol.ts";
 import type { V3 } from "../sim/vec.ts";
+import { t } from "../i18n/index.ts";
 import { h, text } from "./dom.ts";
 
 /** One side's total target HP (internal/maps structLayout: 2×400 + 2×250 + 300 + 350). */
@@ -24,7 +25,7 @@ export function enemyTargets(structs: StructInfo[], hp: Map<number, number>, myT
 }
 
 type Side = "nato" | "soviet";
-const NAMES: Record<Side, string> = { nato: "NATO", soviet: "SOVYET" };
+
 
 class SideBar {
   readonly el: HTMLElement;
@@ -38,7 +39,7 @@ class SideBar {
 
   update(side: Side, hp: number, mine: boolean): void {
     this.el.className = `obj-side ${side}${mine ? " mine" : ""}`;
-    text(this.label, NAMES[side]);
+    text(this.label, t(`team.${side}`));
     this.fill.style.width = `${(objFrac(hp) * 100).toFixed(1)}%`;
     text(this.hp, String(Math.max(0, Math.round(hp))));
   }

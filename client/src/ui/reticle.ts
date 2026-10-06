@@ -2,6 +2,8 @@
 // lock box (with the lock's missile kind, distance and that kind's range
 // bar) and the cannon lead circle.
 import { add, len, norm, scale, sub, type V3 } from "../sim/vec.ts";
+import { lt } from "../i18n/index.ts";
+import { fixed } from "../i18n/format.ts";
 import { h, text } from "./dom.ts";
 import { inCone, rangeFill } from "./lockinfo.ts";
 
@@ -62,8 +64,9 @@ export function boxSize(progress: number): number {
 
 export { inCone }; // lives in lockinfo.ts, so the two modules do not import each other
 
+/** A HUD distance: "840 m", "1,3 km" / "1.3 km". */
 export function formatDist(m: number): string {
-  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m / 10) * 10} m`;
+  return m >= 1000 ? `${fixed(m / 1000, 1)} km` : `${Math.round(m / 10) * 10} m`;
 }
 
 export type ReticleView = {
@@ -78,7 +81,7 @@ export class Reticle {
   // Each mark is a zero-size anchor moved by transform; its child is centered on it by CSS.
   private readonly aim = h("div", { class: "rt-anchor", hidden: true }, h("div", { class: "rt-aim" }));
   private readonly nose = h("div", { class: "rt-anchor", hidden: true }, h("div", { class: "rt-nose" }));
-  private readonly frame = h("div", { class: "rt-box" }, h("span", { class: "rt-box-label" }, "KİLİT"));
+  private readonly frame = h("div", { class: "rt-box" }, h("span", { class: "rt-box-label" }, lt("reticle.lock")));
   private readonly lockDist = h("span", { class: "rt-lock-dist" });
   private readonly rangeBar = h("div", { class: "bar-fill" });
   private readonly lockInfo = h("div", { class: "rt-lock-info" }, this.lockDist, h("div", { class: "bar rt-range" }, this.rangeBar));

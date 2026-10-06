@@ -5,7 +5,7 @@ import { parseRooms } from "../net/api.ts";
 import { pickKey, type PickView } from "./pick.ts";
 import { roomLabel, teamsText } from "./rooms.ts";
 import {
-  balanced, humanCounts, selectorState, SWITCH_CLOSE_TICKS, switchBlock, TeamFlow, teamPickView, underFire, UNEVEN,
+  balanced, humanCounts, selectorState, SWITCH_CLOSE_TICKS, switchBlock, TeamFlow, teamPickView, underFire, uneven,
   type SwitchView, type TeamState,
 } from "./team.ts";
 
@@ -29,7 +29,7 @@ test("pick screen selector: auto pressed, uneven team closed with the reason", (
   // Me (1) on Soviet; another human on NATO: NATO would make 2-0.
   const v = teamPickView([pl(1, "soviet"), pl(2, "nato")], 1, "soviet", "auto", "");
   assert.deepEqual(v.allowed, { nato: false, soviet: true });
-  assert.deepEqual(selectorState(v), { pressed: "auto", closed: ["nato"], note: `NATO: ${UNEVEN}` });
+  assert.deepEqual(selectorState(v), { pressed: "auto", closed: ["nato"], note: `NATO: ${uneven()}` });
   // Alone: both open, nothing to say.
   const alone = teamPickView([pl(1, "nato")], 1, "nato", "soviet", "");
   assert.deepEqual(selectorState(alone), { pressed: "soviet", closed: [], note: "" });
@@ -60,7 +60,7 @@ test("menu switch: last minute in every team mode, cooldown, fire gates, balance
   assert.equal(switchBlock({ ...v, hurtAgoS: 9.9 }), "Hasar aldıktan sonra 10 sn bekle");
   assert.equal(switchBlock({ ...v, hurtAgoS: 10 }), null);
   assert.equal(switchBlock({ ...v, alive: false, threat: true, hurtAgoS: 1 }), null, "dead: nothing to escape from");
-  assert.equal(switchBlock({ ...v, mine: "soviet", others: { nato: 1, soviet: 0 } }), UNEVEN);
+  assert.equal(switchBlock({ ...v, mine: "soviet", others: { nato: 1, soviet: 0 } }), uneven());
   assert.equal(switchBlock({ ...v, mode: "ffa", mine: "none" }), "Bu modda takım yok");
 });
 

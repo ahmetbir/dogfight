@@ -2,6 +2,7 @@ package room
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -86,14 +87,20 @@ func TestSwitchWinGoesToTeamAtRoundEnd(t *testing.T) {
 }
 
 func TestTeamRefusalTexts(t *testing.T) {
-	for err, want := range map[error]string{
-		game.ErrLate:   "Raundun son dakikasında değiştirilemez",
-		game.ErrLocked: "Kilitliyken takım değiştiremezsin",
-		game.ErrHurt:   "Hasar aldıktan sonra 10 sn bekle",
-		game.ErrUneven: "Takımlar dengesiz olur",
+	for err, want := range map[error][2]string{
+		game.ErrLate:     {protocol.CodeTeamLate, "Raundun son dakikasında değiştirilemez"},
+		game.ErrLocked:   {protocol.CodeTeamLocked, "Kilitliyken takım değiştiremezsin"},
+		game.ErrHurt:     {protocol.CodeTeamHurt, "Hasar aldıktan sonra 10 sn bekle"},
+		game.ErrUneven:   {protocol.CodeTeamUneven, "Takımlar dengesiz olur"},
+		game.ErrTeamFull: {protocol.CodeTeamFull, "Takım dolu"},
+		game.ErrCooldown: {protocol.CodeTeamCooldown, "Takım değiştirmek için 30 sn bekle"},
+		game.ErrNoTeams:  {protocol.CodeTeamNone, "Bu modda takım yok"},
 	} {
-		if got := teamMsg(err); got != want {
-			t.Fatalf("%v → %q", err, got)
+		if code, msg := teamMsg(err); code != want[0] || msg != want[1] {
+			t.Fatalf("%v → %q %q", err, code, msg)
 		}
+	}
+	if code, msg := teamMsg(errors.New("x")); code != "" || msg != "" {
+		t.Fatal("unknown error got a notice")
 	}
 }

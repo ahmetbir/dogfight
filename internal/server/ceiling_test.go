@@ -116,14 +116,17 @@ func TestDroppedInputPressesLatch(t *testing.T) {
 	}
 }
 
-// The client reconnects on exactly this error text (RECOVERABLE in
-// client/src/net/socket.ts); the two must not drift.
+// The client reconnects on exactly the flood kick's code (RECOVERABLE in
+// client/src/net/codes.ts); the two must not drift.
 func TestFloodTextMatchesClient(t *testing.T) {
-	b, err := os.ReadFile("../../client/src/net/socket.ts")
+	b, err := os.ReadFile("../../client/src/net/codes.ts")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := `RECOVERABLE = new Set(["` + msgFlood + `"])`; !strings.Contains(string(b), want) {
-		t.Fatalf("client/src/net/socket.ts lacks %s", want)
+	if errCode(msgFlood) != protocol.CodeFlood {
+		t.Fatalf("errCode(msgFlood) = %q", errCode(msgFlood))
+	}
+	if want := `RECOVERABLE = new Set(["` + protocol.CodeFlood + `"])`; !strings.Contains(string(b), want) {
+		t.Fatalf("client/src/net/codes.ts lacks %s", want)
 	}
 }

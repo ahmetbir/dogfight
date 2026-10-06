@@ -59,9 +59,9 @@ export async function getJSON(url: string, headers: Record<string, string> = {},
 export const STATS_OFF = "off";
 export type Off = typeof STATS_OFF;
 
-/** The server's 503 answer while stats are off (internal/server msgStatsOff). */
+/** The server's 503 answer while stats are off (internal/protocol CodeStatsOff). */
 function statsOff(r: Reply | null): boolean {
-  return r !== null && r.status === 503 && isObj(r.body) && r.body.error === "istatistik kapalı";
+  return r !== null && r.status === 503 && isObj(r.body) && r.body.code === "stats_off";
 }
 
 /** A stats endpoint: parsed body, STATS_OFF, or null on any other failure. */

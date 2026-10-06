@@ -29,8 +29,8 @@ func TestDecodeTeamWhitelist(t *testing.T) {
 }
 
 func TestNoticeWire(t *testing.T) {
-	b, _ := json.Marshal(NewNotice("x"))
-	if string(b) != `{"t":"notice","msg":"x"}` {
+	b, _ := json.Marshal(NewNotice(CodeTeamFull, "x"))
+	if string(b) != `{"t":"notice","msg":"x","code":"team_full"}` {
 		t.Fatal(string(b))
 	}
 }

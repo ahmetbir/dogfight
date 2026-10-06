@@ -205,7 +205,12 @@ kbd { font: 600 12px system-ui, sans-serif; background: rgba(255, 255, 255, 0.08
 
 /* ---------- pilot's manual (book/book.ts) ---------- */
 .foot-right { display: flex; gap: 10px; }
-.brand .book-open { margin-top: 12px; }
+.brand .book-open { margin-top: 0; }
+/* home header: the manual button and the TR / EN switch side by side */
+.brand-tools { display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.seg.lang-toggle { display: inline-flex; flex: none; width: auto; }
+.seg.lang-toggle .seg-btn { flex: none; padding: 6px 12px; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; }
+.brand > .lang-toggle { margin-top: 10px; }
 .overlay.book { z-index: 20; }
 .book-panel:focus { outline: none; }
 .book-panel { width: min(1100px, calc(100vw - 32px)); height: min(780px, calc(100vh - 32px)); display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; }

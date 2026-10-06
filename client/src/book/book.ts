@@ -1,7 +1,9 @@
-// The pilot's manual ("Pilot El Kitabı"): a modal with a chapter list and a
+// The pilot's manual: a modal with a chapter list and a
 // content pane. Opened from the home page and the in-game menu; while open in
 // a game it counts as a menu (the plane gets no input), the server is not told.
 import type { AircraftInfo } from "../net/protocol.ts";
+import { lattr, lt } from "../i18n/index.ts";
+import { track } from "../i18n/live.ts";
 import { fill, h } from "../ui/dom.ts";
 import { builtinAircraft } from "./aircraft.ts";
 import { CHAPTERS } from "./chapters.ts";
@@ -81,22 +83,22 @@ export class Book {
       const t = h("button", {
         type: "button", class: "book-tab", role: "tab", id: `book-tab-${c.id}`, "aria-controls": "book-page", "aria-selected": "false",
         tabindex: -1,
-      }, h("span", { class: "book-num" }, String(i + 1)), c.title);
+      }, h("span", { class: "book-num" }, String(i + 1)), track(document.createTextNode(c.title()), (n) => { n.data = c.title(); }));
       t.addEventListener("click", () => this.show(i, false));
       return t;
     });
-    const toc = h("nav", { class: "book-toc", role: "tablist", "aria-orientation": "vertical", "aria-label": "Bölümler" }, ...this.tabs);
+    const toc = lattr(h("nav", { class: "book-toc", role: "tablist", "aria-orientation": "vertical" }, ...this.tabs), "aria-label", "book.toc");
     toc.addEventListener("keydown", (e) => {
       const to = tabMove(e.key, this.current, this.tabs.length);
       if (to === null) return;
       e.preventDefault();
       this.show(to, true);
     });
-    const close = h("button", { type: "button", class: "btn small book-close", "aria-label": "Kitabı kapat" }, "Kapat");
+    const close = lattr(h("button", { type: "button", class: "btn small book-close" }, lt("book.close")), "aria-label", "book.closeAria");
     close.addEventListener("click", () => this.close());
     // tabindex -1: a click on plain text inside focuses the panel, so focus never drops to <body>.
     this.panel = h("div", { class: "panel book-panel", role: "dialog", "aria-modal": "true", "aria-labelledby": "book-title", tabindex: -1 },
-      h("div", { class: "book-head" }, h("h2", { id: "book-title" }, "Pilot El Kitabı"), close),
+      h("div", { class: "book-head" }, h("h2", { id: "book-title" }, lt("book.title")), close),
       h("div", { class: "book-body" }, toc, this.page));
     fill(this.el, this.panel);
     this.el.addEventListener("click", (e) => { if (e.target === this.el) this.close(); });
@@ -168,7 +170,7 @@ export class Book {
     });
     this.page.setAttribute("aria-labelledby", `book-tab-${c.id}`);
     const live = this.opts.aircraft?.();
-    fill(this.page, h("h2", { class: "book-title" }, c.title), ...c.render({ aircraft: live?.length ? live : builtinAircraft() }));
+    fill(this.page, h("h2", { class: "book-title" }, c.title()), ...c.render({ aircraft: live?.length ? live : builtinAircraft() }));
     this.page.scrollTop = 0;
     remember(c.id);
     const tab = this.tabs[i]!;

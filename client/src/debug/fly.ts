@@ -74,8 +74,8 @@ export function debugFly(canvas: HTMLCanvasElement, params: URLSearchParams): vo
     fx.update(dt);
     sky.update(r.camera.position);
     r.render();
-    hud.textContent = `${settings.scheme}  hız ${len(fs.vel).toFixed(0)} m/s  irtifa ${fs.pos.y.toFixed(0)} m  gaz ${(out.stick.th * 100).toFixed(0)}%${out.stick.ab ? " AB" : ""}\n` +
-      (settings.scheme === "mouse" && !input.locked() ? "fareyi kilitlemek için tıkla" : "");
+    hud.textContent = `${settings.scheme}  speed ${len(fs.vel).toFixed(0)} m/s  alt ${fs.pos.y.toFixed(0)} m  throttle ${(out.stick.th * 100).toFixed(0)}%${out.stick.ab ? " AB" : ""}\n` +
+      (settings.scheme === "mouse" && !input.locked() ? "click to lock the mouse" : "");
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

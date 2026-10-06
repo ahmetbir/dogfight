@@ -1,5 +1,6 @@
 // Afterburner heat bar next to the AB light (feedback #1 item 15): fills
 // while the afterburner burns, flashes while it is locked out.
+import { lattr } from "../i18n/index.ts";
 import { h } from "./dom.ts";
 
 export type AbHeat = { pct: number; locked: boolean; warm: boolean };
@@ -15,7 +16,7 @@ export class AbHeatBar {
   private readonly fill = h("div", { class: "bar-fill" });
 
   constructor() {
-    this.el = h("div", { class: "bar ab-heat", title: "Afterburner ısısı" }, this.fill);
+    this.el = lattr(h("div", { class: "bar ab-heat" }, this.fill), "title", "g.abHeat");
   }
 
   update(s: AbHeat): void {

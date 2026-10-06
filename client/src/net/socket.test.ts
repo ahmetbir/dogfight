@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Socket, socketURL, PING_MS, FIRST_TRIES, RECOVERABLE, ROOM_GONE_AFTER_UPDATE, type Conn, type Env, type Status } from "./socket.ts";
+import { RECOVERABLE, ROOM_GONE } from "./codes.ts";
+import { Socket, socketURL, PING_MS, FIRST_TRIES, type Conn, type Env, type Status } from "./socket.ts";
 import { VERSION, type ServerMsg } from "./protocol.ts";
 
 class FakeConn implements Conn {
@@ -52,7 +53,7 @@ function harness(entry: any = { t: "create", mode: "ffa", size: 4, diff: "normal
   const fatal: string[] = [];
   let unreachable = 0;
   const s = new Socket("ws://x/ws", "Ace", entry, {
-    onMsg: (m) => msgs.push(m), onStatus: (st) => status.push(st), onFatal: (m) => fatal.push(m),
+    onMsg: (m) => msgs.push(m), onStatus: (st) => status.push(st), onFatal: (code, m) => fatal.push(`${code}|${m}`),
     onUnreachable: () => unreachable++,
   }, f.env);
   return { ...f, s, msgs, status, fatal, unreachable: () => unreachable };
@@ -138,11 +139,11 @@ test("pings every 15 s from open, also before welcome", () => {
 test("server error is fatal: no reconnect, reported once", () => {
   const h = harness({ t: "join", code: "NOPE" });
   h.conns[0].open();
-  h.conns[0].recv({ t: "error", msg: "oda bulunamadı" });
+  h.conns[0].recv({ t: "error", code: "no_room", msg: "room text" });
   h.conns[0].drop();
   h.advance(60000);
   assert.equal(h.conns.length, 1);
-  assert.deepEqual(h.fatal, ["oda bulunamadı"]);
+  assert.deepEqual(h.fatal, ["no_room|room text"]);
   assert.equal(h.status.at(-1), "closed");
   assert.equal(h.msgs.length, 0);
 });
@@ -229,7 +230,7 @@ test("a flood error in game reconnects to the room instead of ending it", () => 
   const h = harness();
   h.conns[0].open();
   h.conns[0].recv(welcome("ABCD"));
-  h.conns[0].recv({ t: "error", msg: [...RECOVERABLE][0] });
+  h.conns[0].recv({ t: "error", code: [...RECOVERABLE][0], msg: "x" });
   assert.equal(h.fatal.length, 0);
   assert.equal(h.conns[0].closed, true);
   assert.equal(h.status.at(-1), "connecting", "the reconnect banner");
@@ -272,20 +273,20 @@ test("close 1012 (server updating) reports 'updating' and rejoins the room on th
   assert.equal(h.fatal.length, 0);
 });
 
-test("after an update the old room is gone: a friendly fatal instead of 'oda bulunamadı'", () => {
+test("after an update the old room is gone: a friendly fatal instead of no_room", () => {
   const h = harness();
   h.conns[0].open();
   h.conns[0].recv(welcome("ABCD"));
   h.conns[0].drop(1012);
   h.advance(500);
   h.conns[1].open();
-  h.conns[1].recv({ t: "error", msg: "oda bulunamadı" });
-  assert.deepEqual(h.fatal, [ROOM_GONE_AFTER_UPDATE]);
+  h.conns[1].recv({ t: "error", code: "no_room", msg: "room text" });
+  assert.deepEqual(h.fatal, [`${ROOM_GONE}|room text`]);
   // without an update the server's own text stays
   const g = harness({ t: "join", code: "NOPE" });
   g.conns[0].open();
-  g.conns[0].recv({ t: "error", msg: "oda bulunamadı" });
-  assert.deepEqual(g.fatal, ["oda bulunamadı"]);
+  g.conns[0].recv({ t: "error", code: "no_room", msg: "room text" });
+  assert.deepEqual(g.fatal, ["no_room|room text"]);
 });
 
 test("a 1012 before the first welcome retries the same entry at once", () => {

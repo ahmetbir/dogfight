@@ -1,23 +1,22 @@
-// Settings menu (Esc): scheme, sensitivity, invert Y, G effects, missile cam,
+// Settings menu (Esc): language, scheme, sensitivity, invert Y, G effects, missile cam,
 // performance mode, tilt aim (touch only), volume, key list, leave.
+import { t, type Key } from "../i18n/index.ts";
+import { fixed, pct } from "../i18n/format.ts";
 import { keyRows } from "../input/bindings.ts";
 import { saveSettings, type Settings } from "../input/schemes.ts";
 import { requestTilt } from "../input/tilt.ts";
 import { fill, h } from "./dom.ts";
+import { langToggle } from "./lang.ts";
 import { roomLink } from "./link.ts";
 
-/** Key list per scheme, rendered from the bindings the schemes read (input/bindings.ts). */
-export const KEYS: Record<Settings["scheme"], [string, string][]> = {
-  mouse: keyRows("mouse"), keyboard: keyRows("keyboard"), touch: keyRows("touch"),
-};
-
-const SCHEME_NAMES: [Settings["scheme"], string][] = [["mouse", "Fare ile nişan"], ["keyboard", "Klavye"], ["touch", "Dokunmatik"]];
+const SCHEME_NAMES: [Settings["scheme"], Key][] = [["mouse", "scheme.mouse"], ["keyboard", "scheme.keyboard"], ["touch", "scheme.touch"]];
 
 export type SettingsHooks = {
   changed(s: Settings): void; // after every change (already saved)
   resume(): void;
   leave(): void;
   book(): void; // open the pilot's manual
+  lang?(): void; // after a language switch (screens that are not live re-render)
 };
 
 export class SettingsMenu {
@@ -51,7 +50,7 @@ export class SettingsMenu {
     this.el.hidden = true;
   }
 
-  /** Focuses the Kitap button (the manual closed back into the menu). */
+  /** Focuses the manual's button (the manual closed back into the menu). */
   focusBook(): void {
     this.bookBtn?.focus();
   }
@@ -61,7 +60,7 @@ export class SettingsMenu {
     this.hooks.changed(this.s);
   }
 
-  /** "Eğimle nişan" asks for the motion sensors while turning on (iOS: inside this tap); a refusal unticks it. */
+  /** Tilt aim asks for the motion sensors while turning on (iOS: inside this tap); a refusal unticks it. */
   private tiltCheck(): HTMLElement {
     const c = h("input", { type: "checkbox", class: "check", checked: this.s.tilt });
     const note = h("span", { class: "form-error" });
@@ -75,18 +74,18 @@ export class SettingsMenu {
       void requestTilt().then((ok) => {
         c.checked = ok;
         this.s.tilt = ok;
-        if (!ok) note.textContent = "Eğim izni verilmedi";
+        if (!ok) note.textContent = t("settings.tiltDenied");
         this.change();
       });
     });
-    return h("div", {}, h("label", { class: "field inline" }, c, h("span", {}, "Eğimle nişan")), note);
+    return h("div", {}, h("label", { class: "field inline" }, c, h("span", {}, t("settings.tilt"))), note);
   }
 
   private render(): void {
     const s = this.s;
-    const scheme = h("div", { class: "seg", role: "group", "aria-label": "Kontrol şeması" },
+    const scheme = h("div", { class: "seg", role: "group", "aria-label": t("settings.scheme") },
       ...SCHEME_NAMES.map(([v, label]) => {
-        const b = h("button", { type: "button", class: "seg-btn", "aria-pressed": String(s.scheme === v) }, label);
+        const b = h("button", { type: "button", class: "seg-btn", "aria-pressed": String(s.scheme === v) }, t(label));
         b.addEventListener("click", () => {
           s.scheme = v;
           this.change();
@@ -94,36 +93,43 @@ export class SettingsMenu {
         });
         return b;
       }));
-    const sens = slider(0.2, 3, 0.1, s.sensitivity, (v) => v.toFixed(1) + "×", (v) => { s.sensitivity = v; this.change(); });
-    const vol = slider(0, 1, 0.05, s.volume, (v) => `${Math.round(v * 100)}%`, (v) => { s.volume = v; this.change(); });
-    const check = (label: string, get: () => boolean, set: (on: boolean) => void) => {
+    const sens = slider(0.2, 3, 0.1, s.sensitivity, (v) => fixed(v, 1) + "×", (v) => { s.sensitivity = v; this.change(); });
+    const vol = slider(0, 1, 0.05, s.volume, (v) => pct(v), (v) => { s.volume = v; this.change(); });
+    const check = (label: Key, get: () => boolean, set: (on: boolean) => void) => {
       const c = h("input", { type: "checkbox", class: "check", checked: get() });
       c.addEventListener("change", () => { set(c.checked); this.change(); });
-      return h("label", { class: "field inline" }, c, h("span", {}, label));
+      return h("label", { class: "field inline" }, c, h("span", {}, t(label)));
     };
-    const resume = h("button", { type: "button", class: "btn primary" }, "Devam");
+    const resume = h("button", { type: "button", class: "btn primary" }, t("settings.resume"));
     resume.addEventListener("click", () => this.hooks.resume());
-    const leave = h("button", { type: "button", class: "btn danger" }, "Odadan çık");
+    const leave = h("button", { type: "button", class: "btn danger" }, t("settings.leave"));
     leave.addEventListener("click", () => this.hooks.leave());
-    const book = h("button", { type: "button", class: "btn" }, "Kitap");
+    const book = h("button", { type: "button", class: "btn" }, t("settings.book"));
     book.addEventListener("click", () => this.hooks.book());
     this.bookBtn = book;
+    // A switch re-renders the menu (and whatever the game re-renders), focus back on the toggle.
+    const lang = langToggle(() => {
+      this.render();
+      this.hooks.lang?.();
+      this.el.querySelector<HTMLElement>(".lang-toggle [aria-pressed=true]")?.focus();
+    });
     fill(this.el, h("div", { class: "panel settings-panel" },
-      h("div", { class: "panel-head" }, h("h2", {}, "Ayarlar"), this.code ? roomLink(this.code) : null),
+      h("div", { class: "panel-head" }, h("h2", {}, t("settings.title")), this.code ? roomLink(this.code) : null),
       h("div", { class: "settings-grid" },
         h("div", { class: "settings-form" },
-          h("div", { class: "field" }, h("span", {}, "Kontrol şeması"), scheme),
-          s.scheme === "mouse" ? h("div", { class: "field" }, h("span", {}, "Fare hassasiyeti"), sens) : null,
-          check("Y eksenini ters çevir", () => s.invertY, (on) => { s.invertY = on; }),
-          check("G efektleri", () => s.gfx, (on) => { s.gfx = on; }),
-          check("Füze kamerası", () => s.missileCam, (on) => { s.missileCam = on; }),
-          check("Performans modu", () => s.perf, (on) => { s.perf = on; }),
+          h("div", { class: "field" }, h("span", {}, t("lang.label")), lang),
+          h("div", { class: "field" }, h("span", {}, t("settings.scheme")), scheme),
+          s.scheme === "mouse" ? h("div", { class: "field" }, h("span", {}, t("settings.sens")), sens) : null,
+          check("settings.invertY", () => s.invertY, (on) => { s.invertY = on; }),
+          check("settings.gfx", () => s.gfx, (on) => { s.gfx = on; }),
+          check("settings.missileCam", () => s.missileCam, (on) => { s.missileCam = on; }),
+          check("settings.perf", () => s.perf, (on) => { s.perf = on; }),
           s.scheme === "touch" ? this.tiltCheck() : null,
-          h("div", { class: "field" }, h("span", {}, "Ses seviyesi"), vol),
-          this.team ? h("div", { class: "field" }, h("span", {}, "Takım"), this.team) : null),
-        h("div", { class: "keys" }, h("h3", {}, "Tuşlar"),
+          h("div", { class: "field" }, h("span", {}, t("settings.volume")), vol),
+          this.team ? h("div", { class: "field" }, h("span", {}, t("team.title")), this.team) : null),
+        h("div", { class: "keys" }, h("h3", {}, t("settings.keys")),
           h("table", { class: "keytable" }, h("tbody", {},
-            ...KEYS[s.scheme].map(([k, what]) => h("tr", {}, h("td", {}, h("kbd", {}, k)), h("td", {}, what))))))),
+            ...keyRows(s.scheme).map(([k, what]) => h("tr", {}, h("td", {}, h("kbd", {}, k)), h("td", {}, what))))))),
       h("div", { class: "panel-foot" }, leave, h("div", { class: "foot-right" }, book, resume))));
   }
 }

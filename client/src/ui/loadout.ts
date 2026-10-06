@@ -1,26 +1,31 @@
 // Missile loadouts: the pick screen's selector and the pure helpers the HUD
 // uses (counts, ranges, the kind of a lock or an incoming missile).
 import { RULES } from "../book/rules.ts";
+import { lattr, lt, t } from "../i18n/index.ts";
+import { sec } from "../i18n/format.ts";
 import { LOADOUTS, type Loadout, type MissileJSON } from "../net/protocol.ts";
 import { dist, v3, type V3 } from "../sim/vec.ts";
 import { h, text } from "./dom.ts";
 
 export type MissileKind = "ir" | "radar";
 
-export const LOADOUT_LABEL: Record<Loadout, string> = { ir: "IR (kısa menzil)", radar: "Radar (orta menzil)", mixed: "Karışık" };
-
 const R = RULES;
-export const LOADOUT_HINT: Record<Loadout, string> = {
-  ir: "Isı güdümlü, ateşle-unut. Flare'e kanabilir.",
-  radar: `Kilit menzili ×${R.radarRangeMul}, kilit ${R.radarLockS} sn; sayı yarıya iner. Füze vurana dek hedefi burnunun ${R.radarLeashDeg}° içinde tut. Flare işlemez; hedef füzeye dik uçarsa (${R.radarBeamS} sn) iz kopar.`,
-  mixed: "Yarısı IR + 1 radar. Füze tuşu: kilitli hedef IR menzilinin dışındaysa radar, içindeyse IR atar.",
-};
+const LABEL_KEY = { ir: "lo.ir", radar: "lo.radar", mixed: "lo.mixed" } as const satisfies Record<Loadout, string>;
+
+/** "IR (kısa menzil)" / "IR (short range)". */
+export const loadoutLabel = (lo: Loadout) => t(LABEL_KEY[lo]);
+
+/** The pick screen's hint under the loadout buttons. */
+export function loadoutHint(lo: Loadout): string {
+  if (lo === "radar") return t("lo.hintRadar", { mul: R.radarRangeMul, lock: sec(R.radarLockS), leash: R.radarLeashDeg, beam: sec(R.radarBeamS) });
+  return t(lo === "mixed" ? "lo.hintMixed" : "lo.hintIr");
+}
 
 /** Why the missile key did nothing without a lock: how long to hold the target per loadout. */
 export function noLockNotice(lo: Loadout): string {
-  if (lo === "radar") return `KİLİT YOK — hedefi nişangâhta ${R.radarLockS} sn tut`;
-  if (lo === "mixed") return `KİLİT YOK — hedefi nişangâhta ${R.lockS} sn tut (uzakta radar: ${R.radarLockS} sn)`;
-  return `KİLİT YOK — hedefi nişangâhta ${R.lockS} sn tut`;
+  if (lo === "radar") return t("lo.noLock", { s: sec(R.radarLockS) });
+  if (lo === "mixed") return t("lo.noLockMixed", { s: sec(R.lockS), r: sec(R.radarLockS) });
+  return t("lo.noLock", { s: sec(R.lockS) });
 }
 
 /** Wire number (snapshot lo) → loadout; unknown or missing is IR. */
@@ -74,14 +79,14 @@ export function incomingIR(me: V3, missiles: MissileJSON[], you: number): number
   return incoming(me, missiles.filter((m) => kindOf(m.mk) === "ir"), you)?.dist ?? null;
 }
 
-/** A radar missile tracks me: the "DİK UÇ!" (beam) cue. */
+/** A radar missile tracks me: the beam cue. */
 export function beamCue(alive: boolean, missiles: MissileJSON[], you: number): boolean {
   return alive && missiles.some((m) => m.tg === you && kindOf(m.mk) === "radar");
 }
 
-/** "FÜZE UYARISI · RADAR · 1.2 km". */
+/** "FÜZE UYARISI · RADAR · 1,2 km" / "MISSILE WARNING · RADAR · 1.2 km". */
 export function warnText(inc: { kind: MissileKind; dist: number } | null, fmt: (m: number) => string): string {
-  return inc ? `FÜZE UYARISI · ${inc.kind === "radar" ? "RADAR" : "IR"} · ${fmt(inc.dist)}` : "FÜZE UYARISI";
+  return inc ? t("hud.missileWarnAt", { kind: inc.kind === "radar" ? "RADAR" : "IR", dist: fmt(inc.dist) }) : t("hud.missileWarn");
 }
 
 /** Pick screen row: three buttons, the chosen one pressed, and its hint under them. */
@@ -92,13 +97,13 @@ export class LoadoutSelector {
 
   constructor(onPick: (lo: Loadout) => void) {
     const row = LOADOUTS.map((lo) => {
-      const b = h("button", { type: "button", class: `seg-btn lo-${lo}`, "aria-pressed": "false" }, LOADOUT_LABEL[lo]);
+      const b = h("button", { type: "button", class: `seg-btn lo-${lo}`, "aria-pressed": "false" }, lt(LABEL_KEY[lo]));
       b.addEventListener("click", () => onPick(lo));
       this.buttons.set(lo, b);
       return b;
     });
-    this.el = h("div", { class: "team-pick loadout-pick" }, h("span", { class: "muted" }, "Füze yükü"),
-      h("div", { class: "seg grid3 loadout-seg", role: "group", "aria-label": "Füze yükü" }, ...row), this.hint);
+    this.el = h("div", { class: "team-pick loadout-pick" }, h("span", { class: "muted" }, lt("lo.title")),
+      lattr(h("div", { class: "seg grid3 loadout-seg", role: "group" }, ...row), "aria-label", "lo.title"), this.hint);
   }
 
   update(lo: Loadout): void {
@@ -106,6 +111,6 @@ export class LoadoutSelector {
       const on = String(k === lo);
       if (b.getAttribute("aria-pressed") !== on) b.setAttribute("aria-pressed", on);
     }
-    text(this.hint, LOADOUT_HINT[lo]);
+    text(this.hint, loadoutHint(lo));
   }
 }

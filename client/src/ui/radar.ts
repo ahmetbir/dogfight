@@ -1,5 +1,6 @@
 // Top-down radar, north (−Z) up, 4 km radius around me.
 import type { V3 } from "../sim/vec.ts";
+import { lt } from "../i18n/index.ts";
 import { h } from "./dom.ts";
 
 export const RADAR_M = 4000;
@@ -34,7 +35,7 @@ export class Radar {
   constructor() {
     this.cv = h("canvas", { class: "radar-canvas", width: SIZE, height: SIZE });
     this.g = this.cv.getContext("2d");
-    this.el = h("div", { class: "radar" }, this.cv, h("span", { class: "radar-n" }, "K"), h("span", { class: "radar-r" }, "4 km"));
+    this.el = h("div", { class: "radar" }, this.cv, h("span", { class: "radar-n" }, lt("radar.north")), h("span", { class: "radar-r" }, "4 km"));
   }
 
   draw(me: V3, fwd: V3, contacts: Contact[]): void {

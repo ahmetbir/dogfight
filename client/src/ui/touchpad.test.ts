@@ -2,10 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Pointers, replayButton } from "./touchpad.ts";
 
-test("replay button: TEKRAR when ready, GEÇ while playing, hidden otherwise", () => {
-  assert.equal(replayButton(true, false), "TEKRAR");
-  assert.equal(replayButton(false, true), "GEÇ");
-  assert.equal(replayButton(true, true), "GEÇ");
+test("replay button: replay when ready, skip while playing, hidden otherwise", () => {
+  assert.equal(replayButton(true, false), "replay");
+  assert.equal(replayButton(false, true), "skip");
+  assert.equal(replayButton(true, true), "skip");
   assert.equal(replayButton(false, false), null);
 });
 

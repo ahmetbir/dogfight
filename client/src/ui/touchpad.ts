@@ -1,8 +1,9 @@
 // Touch overlay (spec §12.3): a floating stick on the left half, a throttle
 // slider on the left edge and the action buttons on the right. Every finger
-// (pointerId) is bound to one role while it is down, so the stick and ATEŞ
-// work together. It only writes the shared TouchState; input/touch flies it.
-import { TOUCH_LABEL as L } from "../input/bindings.ts";
+// (pointerId) is bound to one role while it is down, so the stick and the
+// fire button work together. It only writes the shared TouchState; input/touch flies it.
+import { lattr, lt, t } from "../i18n/index.ts";
+import type { TouchControl } from "../input/bindings.ts";
 import { stickVector, type Tap, type TouchState } from "../input/touch.ts";
 import { h, text } from "./dom.ts";
 
@@ -36,19 +37,21 @@ export class Pointers {
   }
 }
 
-/** The replay button (R on a keyboard): TEKRAR while down with a replay ready, GEÇ while one plays, else hidden. */
-export function replayButton(canReplay: boolean, replaying: boolean): typeof L.replay | typeof L.skip | null {
-  if (replaying) return L.skip;
-  return canReplay ? L.replay : null;
+/** The replay button (R on a keyboard): "replay" while down with a replay ready, "skip" while one plays, else hidden. */
+export function replayButton(canReplay: boolean, replaying: boolean): "replay" | "skip" | null {
+  if (replaying) return "skip";
+  return canReplay ? "replay" : null;
 }
 
+const label = (c: TouchControl) => lt(`touch.${c}`);
+
 export type TouchPadOpts = {
-  bomb: boolean;     // base attack: show BOMBA
-  onChat(): void;    // SOHBET: toggle the six-preset menu
-  onMenu(): void;    // MENÜ: settings (Esc)
-  onPick(): void;    // UÇAK: aircraft pick (P)
-  onBoard(show: boolean): void; // SKOR held: scoreboard (Tab)
-  onReplay(): void;  // TEKRAR / GEÇ: start or skip the replay (R)
+  bomb: boolean;     // base attack: show the bomb button
+  onChat(): void;    // chat: toggle the six-preset menu
+  onMenu(): void;    // menu: settings (Esc)
+  onPick(): void;    // plane: aircraft pick (P)
+  onBoard(show: boolean): void; // score held: scoreboard (Tab)
+  onReplay(): void;  // replay / skip: start or skip the replay (R)
 };
 
 export class TouchPad {
@@ -81,41 +84,41 @@ export class TouchPad {
       this.knob.style.transform = `translate(${dx * k}px, ${dy * k}px)`;
     });
     this.thTrack = h("div", { class: "tp-th-track" }, this.thFill);
-    const th = h("div", { class: "tp-throttle", "aria-label": "Gaz" }, this.thTrack, h("span", { class: "tp-th-label" }, L.throttle));
+    const th = lattr(h("div", { class: "tp-throttle" }, this.thTrack, h("span", { class: "tp-th-label" }, label("throttle"))), "aria-label", "touch.throttleAria");
     const slide = (e: PointerEvent) => {
       const r = this.thTrack.getBoundingClientRect();
       state.throttle = Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / Math.max(1, r.height)));
       this.sync();
     };
     this.bind(th, "throttle", slide, slide);
-    const btn = (role: Role, label: string, cls = "") => {
-      const b = h("button", { type: "button", class: `tp-btn tp-${role}${cls}` }, label);
+    const btn = (role: Role & TouchControl, cls = "") => {
+      const b = h("button", { type: "button", class: `tp-btn tp-${role}${cls}` }, label(role));
       this.bind(b, role, () => { if (role === "chat") opts.onChat(); });
       return b;
     };
-    const small = (label: string, f: () => void) => {
-      const b = h("button", { type: "button", class: "tp-small" }, label);
+    const small = (c: TouchControl, f: () => void) => {
+      const b = h("button", { type: "button", class: "tp-small" }, label(c));
       b.addEventListener("click", f);
       return b;
     };
-    const board = h("button", { type: "button", class: "tp-small" }, L.board);
+    const board = h("button", { type: "button", class: "tp-small" }, label("board"));
     board.addEventListener("pointerdown", () => opts.onBoard(true));
     for (const t of ["pointerup", "pointercancel", "pointerleave"]) board.addEventListener(t, () => opts.onBoard(false));
     this.replay.addEventListener("click", () => opts.onReplay());
     this.el = h("div", { class: "touchpad" }, zone, th,
-      h("div", { class: "tp-top" }, small(L.menu, () => opts.onMenu()), small(L.pick, () => opts.onPick()), board, this.replay),
+      h("div", { class: "tp-top" }, small("menu", () => opts.onMenu()), small("pick", () => opts.onPick()), board, this.replay),
       h("div", { class: "tp-buttons" },
-        btn("chat", L.chat), btn("look", L.look), btn("ab", L.ab), btn("gear", L.gear), btn("brake", L.brake),
-        btn("flare", L.flare), btn("missile", L.missile), opts.bomb ? btn("bomb", L.bomb) : null, btn("fire", L.fire, " big")));
+        btn("chat"), btn("look"), btn("ab"), btn("gear"), btn("brake"),
+        btn("flare"), btn("missile"), opts.bomb ? btn("bomb") : null, btn("fire", " big")));
     this.el.addEventListener("contextmenu", (e) => e.preventDefault()); // long press
     this.sync();
   }
 
-  /** Shows TEKRAR / GEÇ per replayButton (every frame; touches the DOM only on change). */
+  /** Shows replay / skip per replayButton (every frame; touches the DOM only on change). */
   replayState(canReplay: boolean, replaying: boolean): void {
-    const label = replayButton(canReplay, replaying);
-    this.replay.hidden = label === null;
-    if (label) text(this.replay, label);
+    const c = replayButton(canReplay, replaying);
+    this.replay.hidden = c === null;
+    if (c) text(this.replay, t(`touch.${c}`));
   }
 
   /** Redraws the slider from the state (the scheme sets it to idle on a runway respawn). */

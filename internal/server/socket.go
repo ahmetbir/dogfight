@@ -25,6 +25,7 @@ const (
 	msgJoins    = "çok fazla deneme, biraz bekle"
 	msgFlood    = "çok fazla mesaj"
 	msgConns    = "çok fazla bağlantı"
+	msgTimeout  = "zaman aşımı"
 )
 
 var (
@@ -88,9 +89,9 @@ func (s *Server) socket(w http.ResponseWriter, r *http.Request) {
 	conn.Close()
 }
 
-// fail sends a final error message and closes with StatusPolicyViolation.
+// fail sends a final error message (with its code) and closes with StatusPolicyViolation.
 func fail(conn *wsconn.Conn, msg string) {
-	conn.Fail(protocol.NewError(msg))
+	conn.Fail(protocol.NewError(errCode(msg), msg))
 	<-conn.Done()
 }
 
@@ -142,7 +143,7 @@ func (s *Server) msgOf(err error, p *peer) string {
 		s.rejects.note("flood", p.ip, "bucket", fe.bucket, "type", fe.typ)
 		return msgFlood
 	case errors.Is(err, errTimeout), errors.Is(err, context.DeadlineExceeded):
-		return "zaman aşımı"
+		return msgTimeout
 	}
 	return msgBad
 }

@@ -6,23 +6,15 @@ import { append, h, type Child } from "../ui/dom.ts";
 /** What a chapter renders from: the aircraft table (the welcome's in a game, else the built-in one). */
 export type BookCtx = { aircraft: AircraftInfo[] };
 
-export type Chapter = { id: string; title: string; render(ctx: BookCtx): Node[] };
+/** A chapter's content in one language. */
+export type ChapterBody = (ctx: BookCtx) => Node[];
 
-// ---- numbers ----
+/** A chapter: its title and content in the current language. */
+export type Chapter = { id: string; title(): string; render(ctx: BookCtx): Node[] };
 
-/** Rounded with at most `digits` decimals, Turkish decimal comma: 0.55 → "0,55". */
-export function num(v: number, digits = 1): string {
-  const r = Math.round(v * 10 ** digits) / 10 ** digits;
-  return String(r).replace(".", ",");
-}
+// ---- numbers (in the current language) ----
 
-export const kmh = (ms: number) => `${Math.round(ms * 3.6)} km/h`;
-/** "28 m/s (101 km/h)". */
-export const speed = (ms: number) => `${num(ms)} m/s (${kmh(ms)})`;
-export const sec = (s: number) => `${num(s)} sn`;
-export const pct = (x: number) => `%${Math.round(x * 100)}`;
-/** 900 → "900 m", 1500 → "1,5 km". */
-export const dist = (m: number) => (m >= 1000 ? `${num(m / 1000, 2)} km` : `${Math.round(m)} m`);
+export { dist, kmh, num, pct, sec, speed } from "../i18n/format.ts";
 
 // ---- text blocks ----
 

@@ -1,6 +1,7 @@
 // HUD readout panels: speed, altitude, throttle/AB and flight lights on the
 // left; HP, cannon heat, lock range and ammo on the right. Refreshed at 10 Hz.
 import type { HudView } from "../game/events.ts";
+import { lt, type Key } from "../i18n/index.ts";
 import { abHeat, AbHeatBar } from "./abheat.ts";
 import { h, text } from "./dom.ts";
 import { FlightLights } from "./flightlights.ts";
@@ -13,7 +14,7 @@ export class Gauges {
   private readonly speed = h("span", { class: "g-big" });
   private readonly alt = h("span", { class: "g-big" });
   private readonly thFill = h("div", { class: "bar-fill" });
-  private readonly ab = h("span", { class: "ab-light" }, "AB");
+  private readonly ab = h("span", { class: "ab-light" }, "AB"); // the same in every language
   private readonly abBar = new AbHeatBar();
   private readonly hpFill = h("div", { class: "bar-fill" });
   private readonly hpText = h("span", { class: "g-num" });
@@ -25,18 +26,18 @@ export class Gauges {
   private readonly lights = new FlightLights();
 
   constructor() {
-    const row = (label: string, ...c: HTMLElement[]) => h("div", { class: "g-row" }, h("span", { class: "g-label" }, label), ...c);
+    const label = (k: Key) => h("span", { class: "g-label" }, lt(k));
+    const row = (k: Key, ...c: HTMLElement[]) => h("div", { class: "g-row" }, label(k), ...c);
     this.left = h("div", { class: "hud-panel hud-left" },
-      row("HIZ", this.speed, h("span", { class: "g-unit" }, "km/h")),
-      row("İRT", this.alt, h("span", { class: "g-unit" }, "m")),
-      row("GAZ", h("div", { class: "bar throttle" }, this.thFill), this.ab, this.abBar.el),
+      row("g.speed", this.speed, h("span", { class: "g-unit" }, "km/h")),
+      row("g.alt", this.alt, h("span", { class: "g-unit" }, "m")),
+      row("g.thr", h("div", { class: "bar throttle" }, this.thFill), this.ab, this.abBar.el),
       this.lights.el);
     this.right = h("div", { class: "hud-panel hud-right" },
-      row("CAN", h("div", { class: "bar hp" }, this.hpFill), this.hpText),
-      row("ISI", this.heatBar),
-      h("div", { class: "g-row lock-range" }, h("span", { class: "g-label" }, "MENZİL"), this.range),
-      h("div", { class: "g-row ammo" },
-        h("span", { class: "g-label" }, "FÜZE"), this.ms, h("span", { class: "g-label" }, "FLARE"), this.fl));
+      row("g.hp", h("div", { class: "bar hp" }, this.hpFill), this.hpText),
+      row("g.heat", this.heatBar),
+      h("div", { class: "g-row lock-range" }, label("g.range"), this.range),
+      h("div", { class: "g-row ammo" }, label("g.missiles"), this.ms, label("g.flares"), this.fl));
   }
 
   update(v: HudView): void {
@@ -59,7 +60,7 @@ export class Gauges {
   }
 }
 
-/** MENZİL: the IR range, the radar range, or "IR / radar" with both kinds aboard. */
+/** The lock-range readout: the IR range, the radar range, or "IR / radar" with both kinds aboard. */
 export function rangeText(v: Pick<HudView, "lockRange" | "missiles" | "radars" | "loadout">): string {
   if (v.lockRange <= 0) return "—";
   const r = ranges(v.lockRange);

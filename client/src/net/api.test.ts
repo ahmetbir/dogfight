@@ -42,10 +42,10 @@ test("fetchMe sends the token only in the X-Pilot-Token header", async () => {
 
 test("stats endpoints tell 'stats off' from other failures", async () => {
   const res = (status: number, body: string) => (async () => new Response(body, { status })) as typeof fetch;
-  assert.equal(await fetchLeaderboard("week", res(503, '{"error":"istatistik kapalı"}')), STATS_OFF);
-  assert.equal(await fetchMe("AAAAAAAAAAAAAAAAAAAAAA", res(503, '{"error":"istatistik kapalı"}')), STATS_OFF);
+  assert.equal(await fetchLeaderboard("week", res(503, '{"error":"x","code":"stats_off"}')), STATS_OFF);
+  assert.equal(await fetchMe("AAAAAAAAAAAAAAAAAAAAAA", res(503, '{"error":"x","code":"stats_off"}')), STATS_OFF);
   assert.equal(await fetchLeaderboard("week", res(503, "<html>bad gateway</html>")), null, "a proxy 503 is a plain failure");
-  assert.equal(await fetchLeaderboard("week", res(500, '{"error":"istatistik kapalı"}')), null);
+  assert.equal(await fetchLeaderboard("week", res(500, '{"error":"x","code":"stats_off"}')), null);
   assert.deepEqual(await fetchLeaderboard("all", res(200, '{"week":"","top":[]}')), { week: "", top: [] });
 });
 

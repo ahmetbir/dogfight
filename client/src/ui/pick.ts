@@ -2,6 +2,7 @@
 // the missile loadout and (team modes) the team.
 import type { AircraftInfo, AircraftKind, Loadout, Team, TeamChoice } from "../net/protocol.ts";
 import { RULES } from "../book/rules.ts";
+import { lt, t, type Key } from "../i18n/index.ts";
 import { fill, h, text } from "./dom.ts";
 import { roomLink } from "./link.ts";
 import { loadoutCounts, LoadoutSelector, missileText } from "./loadout.ts";
@@ -14,7 +15,7 @@ export type PickView = {
   protectedNow: boolean;        // alive in spawn protection: a pick applies at once
   waiting: boolean;             // no plane yet: the first pick spawns me
   waitLeft: number;             // while waiting: whole seconds until the default spawn
-  teamPick?: TeamPickView | null; // team modes, before the first plane: Otomatik / NATO / Sovyet
+  teamPick?: TeamPickView | null; // team modes, before the first plane: auto / NATO / Soviet
   loadout?: Loadout;            // the missile loadout my next pick carries (default IR)
 };
 
@@ -26,20 +27,20 @@ export function waitLeft(welcomeAt: number, now: number): number {
   return Math.max(0, Math.ceil(PICK_TIMEOUT_S - (now - welcomeAt) / 1000));
 }
 
-/** "N sn içinde" while time is left, "birazdan" once it ran out. */
+/** "N sn içinde" / "in N s" while time is left, "birazdan" / "shortly" once it ran out. */
 export function waitWhen(left: number): string {
-  return left > 0 ? `${left} sn içinde` : "birazdan";
+  return left > 0 ? t("pick.in", { n: left }) : t("pick.soon");
 }
 
-type Stat = { label: string; get(a: AircraftInfo): number; fmt(a: AircraftInfo): string };
+type Stat = { label: Key; get(a: AircraftInfo): number; fmt(a: AircraftInfo): string };
 
+const MISSILE_STAT: Key = "pick.missiles";
 const STATS: Stat[] = [
-  { label: "Can", get: (a) => a.maxHP, fmt: (a) => String(a.maxHP) },
-  { label: "Hız", get: (a) => a.maxSpeedAB, fmt: (a) => `${Math.round(a.maxSpeedAB * 3.6)} km/h` },
-  { label: "Dönüş", get: (a) => a.pitchRate, fmt: (a) => `${Math.round((a.pitchRate * 180) / Math.PI)}°/s` },
-  { label: "Füze", get: (a) => a.missiles, fmt: (a) => String(a.missiles) },
+  { label: "pick.hp", get: (a) => a.maxHP, fmt: (a) => String(a.maxHP) },
+  { label: "pick.speed", get: (a) => a.maxSpeedAB, fmt: (a) => `${Math.round(a.maxSpeedAB * 3.6)} km/h` },
+  { label: "pick.turn", get: (a) => a.pitchRate, fmt: (a) => `${Math.round((a.pitchRate * 180) / Math.PI)}°/s` },
+  { label: MISSILE_STAT, get: (a) => a.missiles, fmt: (a) => String(a.missiles) },
 ];
-const MISSILE_STAT = "Füze";
 
 /** Kinds a team may fly (FFA flies all), in the welcome's order. */
 export function kindsFor(team: Team, aircraft: AircraftInfo[]): AircraftInfo[] {
@@ -58,8 +59,8 @@ export function pickKey(v: PickView): string {
 }
 
 export function pickNote(v: PickView): string {
-  if (v.waiting) return `Seçtiğin uçakla doğarsın; seçmezsen ${waitWhen(v.waitLeft)} varsayılan uçakla başlarsın.`;
-  return v.protectedNow ? "Koruma süresindesin: seçim hemen geçerli olur." : "Seçim bir sonraki doğuşta geçerli olur.";
+  if (v.waiting) return t("pick.noteWait", { when: waitWhen(v.waitLeft) });
+  return t(v.protectedNow ? "pick.noteProt" : "pick.noteNext");
 }
 
 type Card = { card: HTMLElement; flag: HTMLElement; ms: HTMLElement | null; missiles: number };
@@ -123,15 +124,15 @@ export class PickScreen {
     const all = v.aircraft;
     this.cards = new Map();
     const cards = kindsFor(v.team, all).map((a) => {
-      const flag = h("div", { class: "plane-flag", hidden: true }, "Şu an uçtuğun");
+      const flag = h("div", { class: "plane-flag", hidden: true }, lt("pick.flying"));
       let ms: HTMLElement | null = null;
       const card = h("button", { type: "button", class: "plane-card", "aria-pressed": "false" },
         h("div", { class: "plane-head" }, h("span", { class: "plane-name" }, a.name),
-          h("span", { class: `team-tag ${a.team}` }, a.team === "nato" ? "NATO" : "SOVYET")),
+          h("span", { class: `team-tag ${a.team}` }, lt(a.team === "nato" ? "team.nato" : "team.soviet"))),
         ...STATS.map((s) => {
           const value = h("span", { class: "stat-value" }, s.fmt(a));
           if (s.label === MISSILE_STAT) ms = value; // follows the loadout (show)
-          return h("div", { class: "stat" }, h("span", { class: "stat-label" }, s.label), bar(statFill(a, all, s.get)), value);
+          return h("div", { class: "stat" }, h("span", { class: "stat-label" }, lt(s.label)), bar(statFill(a, all, s.get)), value);
         }),
         flag);
       card.addEventListener("click", () => this.onPick(a.kind));
@@ -140,14 +141,14 @@ export class PickScreen {
     });
     this.teams = v.teamPick ? new TeamSelector(this.onTeam) : null;
     this.loadouts = new LoadoutSelector(this.onLoadout);
-    const go = h("button", { type: "button", class: "btn primary" }, "Uçuşa dön");
+    const go = h("button", { type: "button", class: "btn primary" }, lt("pick.back"));
     go.addEventListener("click", () => this.onClose());
     fill(this.el, h("div", { class: "panel wide" },
-      h("div", { class: "panel-head" }, h("h2", {}, "Uçağını seç"), roomLink(v.code)),
+      h("div", { class: "panel-head" }, h("h2", {}, lt("pick.title")), roomLink(v.code)),
       this.teams?.el,
       this.loadouts.el,
       h("div", { class: "plane-grid" }, ...cards),
-      h("div", { class: "panel-foot" }, h("span", { class: "muted" }, this.note, "  ·  P ile tekrar açılır"), go)));
+      h("div", { class: "panel-foot" }, h("span", { class: "muted" }, this.note, lt("pick.reopen")), go)));
   }
 }
 

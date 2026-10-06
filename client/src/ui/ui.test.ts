@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import type { AircraftInfo, MissileJSON, PlayerJSON, StructInfo } from "../net/protocol.ts";
 import { enemyTargets, objFrac } from "./objective.ts";
 import { v3 } from "../sim/vec.ts";
-import { ChatThrottle, CHAT_TEXT, chatId } from "./chat.ts";
+import { ChatThrottle, chatId, chatText } from "./chat.ts";
 import { effectiveRange, incomingDistance, outOfRange, rangeFill } from "./lockinfo.ts";
 import { mergeHooks } from "../game/events.ts";
 import { clock } from "./dom.ts";
-import { createEntry, DEFAULT_CREATE, MAP_NAMES, parseSeed, sizeRange, WEATHER_NAMES } from "./create.ts";
+import { createEntry, DEFAULT_CREATE, mapName, parseSeed, sizeRange, weatherName } from "./create.ts";
 import { normalizeCode } from "../net/code.ts";
 import { Refresher, roomLabel } from "./rooms.ts";
 import { gearLight, ParkBrake, rearmText } from "./flightlights.ts";
@@ -17,7 +17,10 @@ import { kindsFor, PICK_TIMEOUT_S, pickKey, pickNote, statFill, waitLeft, waitWh
 import { radarPoint } from "./radar.ts";
 import { boxSize, formatDist, inCone, leadDir } from "./reticle.ts";
 import { boardRows, scoreLine } from "./scoreboard.ts";
-import { KEYS } from "./settings.ts";
+import { keyRows } from "../input/bindings.ts";
+
+/** The settings menu's key lists (Turkish, the default language). */
+const KEYS = { mouse: keyRows("mouse"), keyboard: keyRows("keyboard"), touch: keyRows("touch") };
 
 const player = (id: number, name: string, team: PlayerJSON["team"], bot = false): PlayerJSON => ({ id, name, team, kind: "f16", bot });
 
@@ -42,7 +45,7 @@ test("clock and distance formats", () => {
   assert.equal(clock(0), "0:00");
   assert.equal(clock(61), "1:01");
   assert.equal(formatDist(843), "840 m");
-  assert.equal(formatDist(1260), "1.3 km");
+  assert.equal(formatDist(1260), "1,3 km", "Turkish decimal comma");
 });
 
 test("home: room code, seed and size rules", () => {
@@ -130,8 +133,8 @@ test("create entry: every setting on the wire, seed optional", () => {
   assert.deepEqual(e, { t: "create", mode: "base", size: 3, diff: "normal", map: "dag", wx: "gece", start: "hava", vis: "ozel", seed: 42 });
   assert.deepEqual(createEntry({ ...DEFAULT_CREATE, seed: "abc" }), { error: "Seed bir tam sayı olmalı." });
   assert.deepEqual(sizeRange("base"), sizeRange("team"));
-  assert.equal(MAP_NAMES.col, "Çöl");
-  assert.equal(WEATHER_NAMES.firtina, "Fırtına");
+  assert.equal(mapName("col"), "Çöl");
+  assert.equal(weatherName("firtina"), "Fırtına");
 });
 
 test("room list label", () => {
@@ -176,9 +179,10 @@ test("lock readouts", () => {
 });
 
 test("quick chat keys, texts and throttle", () => {
-  assert.equal(CHAT_TEXT.length, 7);
-  assert.equal(CHAT_TEXT[1], "Arkandayım!");
-  assert.equal(CHAT_TEXT[6], "Teşekkürler");
+  assert.equal(chatText(0), undefined);
+  assert.equal(chatText(7), undefined);
+  assert.equal(chatText(1), "Arkandayım!");
+  assert.equal(chatText(6), "Teşekkürler");
   assert.equal(chatId("Digit3"), 3);
   assert.equal(chatId("Numpad6"), 6);
   assert.equal(chatId("Digit7"), 0);

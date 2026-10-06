@@ -1,13 +1,16 @@
-// The manual's chapters, in reading order.
-import { controls } from "./ch-controls.ts";
-import { flight } from "./ch-flight.ts";
-import { ground } from "./ch-ground.ts";
-import { hud } from "./ch-hud.ts";
-import { modes } from "./ch-modes.ts";
-import { start } from "./ch-start.ts";
-import { tips } from "./ch-tips.ts";
-import { weapons } from "./ch-weapons.ts";
-import { world } from "./ch-world.ts";
+// The manual's chapters, in reading order; each renders in the current language.
+import { BOOK } from "../i18n/book/index.ts";
+import type { ChapterName } from "../i18n/book/types.ts";
+import { lang, t, type Key } from "../i18n/index.ts";
 import type { Chapter } from "./kit.ts";
 
-export const CHAPTERS: readonly Chapter[] = [start, controls, flight, ground, weapons, modes, world, hud, tips];
+/** Chapter id (stable: remembered in storage), its prose and its title key. */
+const ORDER: [string, ChapterName, Key][] = [
+  ["baslangic", "start", "ch.start"], ["kontroller", "controls", "ch.controls"], ["ucus", "flight", "ch.flight"], ["yer", "ground", "ch.ground"],
+  ["silahlar", "weapons", "ch.weapons"], ["modlar", "modes", "ch.modes"], ["dunya", "world", "ch.world"], ["hud", "hud", "ch.hud"],
+  ["ipuclari", "tips", "ch.tips"],
+];
+
+export const CHAPTERS: readonly Chapter[] = ORDER.map(([id, name, title]) => ({
+  id, title: () => t(title), render: (ctx) => BOOK[lang()][name](ctx),
+}));

@@ -1,6 +1,7 @@
-// Open-room list on the home page: refreshed every 5 s, one "Katıl" per room.
+// Open-room list on the home page: refreshed every 5 s, one join button per room.
+import { t } from "../i18n/index.ts";
 import { fetchRooms, type RoomRow } from "../net/api.ts";
-import { MAP_NAMES, MODE_NAMES, WEATHER_NAMES } from "./create.ts";
+import { mapName, modeName, weatherName } from "./create.ts";
 import { clock, fill, h, text } from "./dom.ts";
 
 const REFRESH_MS = 5000;
@@ -12,12 +13,17 @@ export function seatsText(r: RoomRow): string {
 
 /** "NATO 1 – 2 SOVYET": humans per team (team modes), "" otherwise. */
 export function teamsText(r: RoomRow): string {
-  return r.teams ? `NATO ${r.teams[0]} – ${r.teams[1]} SOVYET` : "";
+  return r.teams ? t("common.teams", { a: r.teams[0], b: r.teams[1] }) : "";
+}
+
+/** Mode, teams, map and weather: "Takımlı · NATO 1 – 1 SOVYET · Ada · Açık". */
+function settingsText(r: RoomRow): string {
+  return [modeName(r.mode), teamsText(r), mapName(r.map), weatherName(r.wx)].filter(Boolean).join(" · ");
 }
 
 /** "2/4 · Takımlı · NATO 1 – 1 SOVYET · Ada · Açık": occupancy first, so a narrow row never cuts it. */
 export function roomLabel(r: RoomRow): string {
-  return [seatsText(r), MODE_NAMES[r.mode], teamsText(r), MAP_NAMES[r.map], WEATHER_NAMES[r.wx]].filter(Boolean).join(" · ");
+  return `${seatsText(r)} · ${settingsText(r)}`;
 }
 
 /**
@@ -68,9 +74,9 @@ export class RoomList {
     this.onJoin = onJoin;
     this.refresher = new Refresher(fetchRows, (rows) => this.show(rows));
     this.el = h("section", { class: "panel card rooms-card" },
-      h("div", { class: "card-head" }, h("h2", {}, "Açık Odalar"), h("span", { class: "live-dot", title: "5 sn'de bir yenilenir" })),
+      h("div", { class: "card-head" }, h("h2", {}, t("rooms.title")), h("span", { class: "live-dot", title: t("rooms.live") })),
       this.list, this.status);
-    text(this.status, "Yükleniyor…");
+    text(this.status, t("rooms.loading"));
   }
 
   start(): void {
@@ -87,22 +93,22 @@ export class RoomList {
 
   private show(rows: RoomRow[] | null): void {
     if (rows === null) { // keep the last list
-      text(this.status, "Liste alınamadı");
+      text(this.status, t("rooms.failed"));
       return;
     }
-    text(this.status, rows.length ? "" : "Açık oda yok — Hızlı Oyna yeni oda kurar.");
+    text(this.status, rows.length ? "" : t("rooms.none"));
     fill(this.list, ...rows.map((r) => this.row(r)));
   }
 
   private row(r: RoomRow): HTMLElement {
     const full = r.humans >= r.seats;
-    const join = h("button", { type: "button", class: "btn small", disabled: full }, full ? "Dolu" : "Katıl");
+    const join = h("button", { type: "button", class: "btn small", disabled: full }, full ? t("rooms.full") : t("common.join"));
     join.addEventListener("click", () => this.onJoin(r.code));
     return h("div", { class: "room-row" },
       h("span", { class: "code-tag" }, r.code),
       h("span", { class: "room-seats" }, seatsText(r)),
-      h("span", { class: "room-label", title: roomLabel(r) }, [MODE_NAMES[r.mode], teamsText(r), MAP_NAMES[r.map], WEATHER_NAMES[r.wx]].filter(Boolean).join(" · ")),
-      h("span", { class: "room-left muted" }, r.phase === "ended" ? "ara" : clock(r.left)),
+      h("span", { class: "room-label", title: roomLabel(r) }, settingsText(r)),
+      h("span", { class: "room-left muted" }, r.phase === "ended" ? t("rooms.break") : clock(r.left)),
       join);
   }
 }

@@ -37,7 +37,7 @@ export type Heard = { id: number; pos: V3; vel: V3; th: number; ab: boolean };
 /** The main camera this frame: where it is and looks (the audio listener), what it watches. */
 export type CamView = {
   pos: V3; vel: V3; fwd: V3; // vel: what the camera rides along with (Doppler)
-  label: string;             // "İzliyorsun: …" while watching; "" otherwise
+  label: string;             // "Watching: …" while watching; "" otherwise
   planes: Heard[];           // other planes around the camera
   replay: boolean;           // the replay is playing
   canReplay: boolean;        // I am down and R would start it

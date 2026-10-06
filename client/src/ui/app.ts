@@ -6,6 +6,8 @@ import { mergeHooks, type GameHooks } from "../game/events.ts";
 import { nextTarget, othersAlive } from "../game/spectate.ts";
 import { startGame, type Game } from "../game/loop.ts";
 import { GameState } from "../game/state.ts";
+import { lt, t } from "../i18n/index.ts";
+import { errorText } from "../i18n/messages.ts";
 import { loadSettings, type Settings } from "../input/schemes.ts";
 import { requestTilt, Tilt } from "../input/tilt.ts";
 import { newTouchState } from "../input/touch.ts";
@@ -22,7 +24,7 @@ import { escapeAction, keyRouter } from "./keys.ts";
 import { kindsFor, PickScreen, waitLeft } from "./pick.ts";
 import { RoundEnd, Scoreboard } from "./scoreboard.ts";
 import { SettingsMenu } from "./settings.ts";
-import { switchRow, TeamFlow } from "./team.ts";
+import { noticeOf, switchRow, TeamFlow } from "./team.ts";
 import { TouchPad } from "./touchpad.ts";
 
 const UI_MS = 100;
@@ -65,6 +67,10 @@ export function play(o: PlayOpts): void {
       menu.close();
       book.open();
     },
+    lang: () => {
+      openMenu(); // the team row is built per open
+      if (board.isOpen()) board.show(hud.board());
+    },
   });
   // The manual covers the game like a menu; closing it returns to the menu it was opened from.
   const book = new Book({
@@ -79,7 +85,7 @@ export function play(o: PlayOpts): void {
   const board = new Scoreboard();
   const roundEnd = new RoundEnd();
   const extra: Extra = o.extra?.({ state, settings, blocked }) ?? { hooks: {} };
-  const loading = h("div", { class: "screen" }, h("div", { class: "panel narrow loading" }, h("span", { class: "spinner" }), "Bağlanıyor…"));
+  const loading = h("div", { class: "screen" }, h("div", { class: "panel narrow loading" }, h("span", { class: "spinner" }), lt("app.connecting")));
   fill(ui, loading);
   if (DEBUG) Object.assign(globalThis, { debugGame: { state, renderer } });
 
@@ -224,7 +230,7 @@ export function play(o: PlayOpts): void {
     const r = state.round;
     if (r?.phase === "ended") {
       board.hide();
-      roundEnd.show(r.winner ?? "", hud.board(), hud.roundLeft());
+      roundEnd.show(r.winner ?? "", hud.board(), hud.roundLeft(), r.wt);
     } else {
       roundEnd.hide();
       if (board.isOpen()) board.show(hud.board());
@@ -250,7 +256,7 @@ export function play(o: PlayOpts): void {
       if (!started) {
         started = true;
         fill(ui, hud.el, board.el, roundEnd.el, pick.el, menu.el, book.el);
-        document.body.classList.add("in-game"); // portrait phones: "Telefonu yan çevir"
+        document.body.classList.add("in-game"); // portrait phones: the turn-sideways prompt
         syncTouch();
         game = startGame({ socket, renderer, state, settings, feed, hooks, blocked, touch, spectate: () => spectate });
       } else {
@@ -259,7 +265,7 @@ export function play(o: PlayOpts): void {
       }
     }
     if (m.t === "chat") hud.chat(m.from, m.id);
-    if (m.t === "notice") hooks.notice?.(m.msg); // a refused team choice
+    if (m.t === "notice") hooks.notice?.(noticeOf(m)); // a refused team choice
     if (m.t === "players") {
       const mine = me();
       if (!mine) return;
@@ -278,7 +284,8 @@ export function play(o: PlayOpts): void {
   const socket: Socket = new Socket(socketURL(location), o.name, o.entry, {
     onMsg,
     onStatus: (s) => banner.status(s),
-    onFatal: (msg) => {
+    onFatal: (code, raw) => {
+      const msg = errorText(code, raw);
       clearInterval(uiTimer);
       banner.fatal(msg);
       game?.stop(); // the socket is gone for good: freeze, do not fly on
@@ -288,7 +295,7 @@ export function play(o: PlayOpts): void {
       releasePointer();
       if (!started) { // nothing behind it yet: a centered card instead of the top banner
         banner.hide();
-        errorCard(ui, "Odaya girilemedi", msg || "Bağlantı hatası");
+        errorCard(ui, t("card.joinFail"), msg);
       }
     },
     onUnreachable: () => unreachableCard(ui, () => { fill(ui, loading); socket.retry(); }),
