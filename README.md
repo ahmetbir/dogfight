@@ -533,10 +533,10 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 ## Project layout
 
 ```
-cmd/dogfight/        main: flags, HTTP server, embedded web/, graceful shutdown, drain, -healthcheck
+cmd/dogfight/        main: flags, HTTP server, embedded web/, graceful shutdown, stats handoff, -healthcheck
 cmd/loadtest/        WebSocket load generator and CPU bench
 core/                game-agnostic Go stack: wsconn, limit, pilot, metrics, netproto, room, lobby,
-                     server, loadtest, internal/fakegame + fakekit (test doubles)
+                     server, drain (blue/green actor), loadtest, internal/fakegame + fakekit (test doubles)
 internal/match/      Dogfight on core: room, seat, summary and lobby aliases, game adapter
 internal/front/      Dogfight's HTTP front: server wiring, stats API
 internal/golden/     frozen wire-format goldens and the core import-boundary test

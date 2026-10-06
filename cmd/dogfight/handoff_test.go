@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"playground/core/drain"
 	"playground/internal/stats"
 )
 
@@ -95,7 +96,6 @@ func TestAcquireStatsKeepsRetryingAfterWait(t *testing.T) {
 
 type fakeSrv struct {
 	mu    sync.Mutex
-	on    bool
 	conns int
 	flush func() // FlushStats: what the rooms would record
 }
@@ -107,14 +107,9 @@ func (f *fakeSrv) FlushStats(context.Context) bool {
 	return true
 }
 
-func (f *fakeSrv) Drain(on bool) { f.mu.Lock(); f.on = on; f.mu.Unlock() }
-func (f *fakeSrv) Conns() int    { f.mu.Lock(); defer f.mu.Unlock(); return f.conns }
-func (f *fakeSrv) set(n int)     { f.mu.Lock(); f.conns = n; f.mu.Unlock() }
-func (f *fakeSrv) draining() bool {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.on
-}
+func (f *fakeSrv) Drain(bool) {}
+func (f *fakeSrv) Conns() int { f.mu.Lock(); defer f.mu.Unlock(); return f.conns }
+func (f *fakeSrv) set(n int)  { f.mu.Lock(); f.conns = n; f.mu.Unlock() }
 
 type drainRig struct {
 	srv  *fakeSrv
@@ -122,20 +117,17 @@ type drainRig struct {
 	dir  string
 	sig  chan os.Signal
 	quit chan struct{}
-	done chan struct{}
 }
 
-func startDrainer(t *testing.T, conns int, max time.Duration) *drainRig {
+// startDrainer runs the core drain actor over Dogfight's stats handoff.
+func startDrainer(t *testing.T, conns int) *drainRig {
 	t.Helper()
 	r := &drainRig{srv: &fakeSrv{conns: conns}, slot: stats.NewSlot(), dir: t.TempDir(),
-		sig: make(chan os.Signal, 1), quit: make(chan struct{}), done: make(chan struct{})}
-	d := drainer{
-		srv: r.srv, slot: r.slot,
-		acquire: func(ctx context.Context) { acquireStats(ctx, r.slot, r.dir, 5*time.Millisecond, 5*time.Second) },
-		quit:    func() { close(r.quit) },
-		every:   5 * time.Millisecond, max: max, now: time.Now,
-	}
-	go func() { d.run(t.Context(), r.sig); close(r.done) }()
+		sig: make(chan os.Signal, 1), quit: make(chan struct{})}
+	ho := statsHandoff{slot: r.slot, dir: r.dir, retry: 5 * time.Millisecond, wait: 5 * time.Second}
+	a := drain.New(r.srv, ho, func() { close(r.quit) }, drain.Options{Every: 5 * time.Millisecond, Max: time.Hour})
+	done := make(chan struct{})
+	go func() { a.Run(t.Context(), r.sig); close(done) }()
 	t.Cleanup(func() { r.slot.Close() })
 	eventually(t, r.slot.Ready, "stats open at start")
 	return r
@@ -152,61 +144,29 @@ func eventually(t *testing.T, ok func() bool, what string) {
 	}
 }
 
-func closed(c <-chan struct{}) func() bool {
-	return func() bool {
-		select {
-		case <-c:
-			return true
-		default:
-			return false
-		}
-	}
-}
-
-// SIGUSR1: drain, hand the stats lock over at once, quit when the last
-// socket closes.
-func TestDrainHandsOffStatsAndQuitsWhenEmpty(t *testing.T) {
-	r := startDrainer(t, 2, time.Hour)
+// SIGUSR1 hands the stats flock over at once: the next server's store opens.
+func TestDrainHandsOffStatsLock(t *testing.T) {
+	r := startDrainer(t, 2)
 	r.sig <- syscall.SIGUSR1
-	eventually(t, r.srv.draining, "server not draining")
 	eventually(t, func() bool { return !r.slot.Ready() }, "stats still open")
 	var next *stats.Store // the new server's store: it opens once the drain released the lock
 	eventually(t, func() bool { next, _ = stats.Open(r.dir, stats.Options{}); return next != nil }, "lock not released on drain")
 	next.Close()
-	time.Sleep(30 * time.Millisecond)
-	if closed(r.quit)() {
-		t.Fatal("quit with players still connected")
-	}
-	r.srv.set(0)
-	eventually(t, closed(r.quit), "no quit after the last socket closed")
-	eventually(t, closed(r.done), "drainer still running")
 }
 
-func TestDrainQuitsAfterMax(t *testing.T) {
-	r := startDrainer(t, 3, 40*time.Millisecond)
-	r.sig <- syscall.SIGUSR1
-	eventually(t, closed(r.quit), "no quit after the drain max")
-}
-
-// SIGUSR2 undoes a drain: serving again, stats reopen (lock free again).
-func TestUndrain(t *testing.T) {
-	r := startDrainer(t, 1, time.Hour)
+// SIGUSR2 reopens the slot and acquires the (free again) lock.
+func TestUndrainReacquiresStats(t *testing.T) {
+	r := startDrainer(t, 1)
 	r.sig <- syscall.SIGUSR1
 	eventually(t, func() bool { return !r.slot.Ready() }, "stats still open")
 	r.sig <- syscall.SIGUSR2
-	eventually(t, func() bool { return !r.srv.draining() }, "still draining")
 	eventually(t, r.slot.Ready, "stats not reopened")
-	r.srv.set(0)
-	time.Sleep(30 * time.Millisecond)
-	if closed(r.quit)() {
-		t.Fatal("an undrained server quit")
-	}
 }
 
 // The rooms' open tallies are flushed into the store before the drain
 // closes it: the next server's store has them.
 func TestDrainFlushesTalliesBeforeHandoff(t *testing.T) {
-	r := startDrainer(t, 1, time.Hour)
+	r := startDrainer(t, 1)
 	r.srv.flush = func() { r.slot.Record(stats.Delta{Pilot: "aa", Name: "Ace", Kills: 3, Flight: 3600}) }
 	r.sig <- syscall.SIGUSR1
 	var next *stats.Store

@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"playground/core/drain"
 	"playground/core/metrics"
 	"playground/core/pilot"
 	"playground/internal/front"
@@ -86,7 +87,7 @@ func run(cfg config) error {
 	var sink match.StatsSink // only a non-nil slot: no typed-nil interface
 	var dropped func() uint64
 	if cfg.dataDir != "" {
-		st = stats.NewSlot() // opened by the drainer: it may wait for the old server's lock
+		st = stats.NewSlot() // opened by the drain actor: it may wait for the old server's lock
 		sink, dropped = st, st.Dropped
 	}
 	reg := metrics.New("dogfight", dropped)
@@ -101,10 +102,13 @@ func run(cfg config) error {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGUSR1, syscall.SIGUSR2)
 	defer signal.Stop(sig)
-	d := drainer{srv: h, slot: st, quit: quit, every: drainEvery, max: cfg.drainMax, now: time.Now,
-		acquire: func(ctx context.Context) { acquireStats(ctx, st, cfg.dataDir, statsRetry, cfg.statsWait) }}
+	var ho drain.Handoff // only a non-nil slot: no typed-nil interface
+	if st != nil {
+		ho = statsHandoff{slot: st, dir: cfg.dataDir, retry: statsRetry, wait: cfg.statsWait}
+	}
+	d := drain.New(h, ho, quit, drain.Options{Every: drainEvery, Max: cfg.drainMax})
 	drainDone := make(chan struct{})
-	go func() { defer close(drainDone); d.run(ctx, sig) }()
+	go func() { defer close(drainDone); d.Run(ctx, sig) }()
 	srv := &http.Server{
 		Addr:              cfg.addr,
 		Handler:           h,
