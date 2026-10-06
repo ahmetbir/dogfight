@@ -1,6 +1,18 @@
 package server
 
-import "playground/internal/limit"
+import (
+	"errors"
+	"fmt"
+
+	"playground/internal/limit"
+)
+
+// errNet is a refusal by the per-/48 aggregate cap; it is also limit.ErrKey
+// (same answer to the client), told apart only in logs and metrics.
+var errNet = fmt.Errorf("server: /48 full: %w", limit.ErrKey)
+
+// isNet reports whether err is the /48 aggregate refusal.
+func isNet(err error) bool { return errors.Is(err, errNet) }
 
 // connGate caps open game sockets server-wide and per address key
 // (limitKey: an IPv4 address or an IPv6 /64), and on top of that per IPv6
@@ -14,8 +26,8 @@ func newConnGate(l Limits) *connGate {
 	return &connGate{addr: limit.NewGate(l.MaxConns, l.MaxConnsIP), net: limit.NewGate(l.MaxConns, l.MaxConnsNet)}
 }
 
-// Acquire takes a slot for key, or reports limit.ErrKey (the address or its
-// /48 is full) or limit.ErrTotal. Every nil return must be paired with one
+// Acquire takes a slot for key, or reports limit.ErrKey (the address is
+// full; errNet, which is also ErrKey, when its /48 is) or limit.ErrTotal. Every nil return must be paired with one
 // Release(key).
 func (g *connGate) Acquire(key string) error {
 	if err := g.addr.Acquire(key); err != nil {
@@ -24,7 +36,7 @@ func (g *connGate) Acquire(key string) error {
 	if n, ok := netKey(key); ok {
 		if err := g.net.Acquire(n); err != nil {
 			g.addr.Release(key)
-			return limit.ErrKey
+			return errNet
 		}
 	}
 	return nil

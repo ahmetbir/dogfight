@@ -54,7 +54,10 @@ func (s *Server) socket(w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r, s.o.TrustProxy)
 	p := &peer{ip: ip.String(), key: limitKey(ip), guard: newMsgGuard(s.o.Limits, s.o.Now)}
 	if err := s.conns.Acquire(p.key); err != nil {
-		if errors.Is(err, limit.ErrKey) {
+		if isNet(err) {
+			s.rejects.note("conns-per-net", p.ip)
+			http.Error(w, msgConns, http.StatusTooManyRequests)
+		} else if errors.Is(err, limit.ErrKey) {
 			s.rejects.note("conns-per-ip", p.ip)
 			http.Error(w, msgConns, http.StatusTooManyRequests)
 		} else {

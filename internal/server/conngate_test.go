@@ -13,8 +13,15 @@ func TestConnGateReleasesBothCaps(t *testing.T) {
 	if g.Acquire(a) != nil || g.Acquire(b) != nil {
 		t.Fatal("under the caps")
 	}
-	if err := g.Acquire(a); !errors.Is(err, limit.ErrKey) {
-		t.Fatalf("/48 full = %v, want ErrKey", err)
+	if err := g.Acquire(a); !errors.Is(err, limit.ErrKey) || !isNet(err) {
+		t.Fatalf("/48 full = %v, want ErrKey and errNet", err)
+	}
+	g2 := newConnGate(Limits{MaxConns: 100, MaxConnsIP: 1, MaxConnsNet: 9})
+	if g2.Acquire(a) != nil {
+		t.Fatal("first")
+	}
+	if err := g2.Acquire(a); !errors.Is(err, limit.ErrKey) || isNet(err) {
+		t.Fatalf("/64 full = %v, want ErrKey, not errNet", err)
 	}
 	// The refused /48 slot must not leak a /64 slot: a has one left.
 	g.Release(b)
