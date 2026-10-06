@@ -1,5 +1,5 @@
 // The centered error card shown when a session cannot start.
-import { errorCard as core } from "../core/ui/errorcard.ts";
+import { errorCard as core } from "roomkit/ui/errorcard";
 import { t } from "../i18n/index.ts";
 import { h } from "./dom.ts";
 

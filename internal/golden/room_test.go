@@ -11,7 +11,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"playground/core/room"
+	"github.com/ahmetbir/roomkit/room"
 	"playground/internal/game"
 	"playground/internal/match"
 	"playground/internal/protocol"

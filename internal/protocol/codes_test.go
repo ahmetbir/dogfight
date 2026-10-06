@@ -7,7 +7,7 @@ import (
 	"slices"
 	"testing"
 
-	"playground/core/netproto"
+	"github.com/ahmetbir/roomkit/netproto"
 )
 
 // The client lists the same notice codes (client/src/net/codes.ts) and

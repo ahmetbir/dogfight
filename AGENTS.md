@@ -10,36 +10,40 @@ file links to it instead of repeating it.
 A browser multiplayer jet dogfight. A Go server is the only authority over the game (60 Hz
 simulation); a TypeScript + Three.js client is bundled by esbuild and embedded into the Go binary
 (`cmd/dogfight/web`, Go `embed`), so the server ships as one file. Go module path: `playground`.
+The game-agnostic multiplayer stack is a separate repository and dependency,
+[roomkit](https://github.com/ahmetbir/roomkit) (Go module `github.com/ahmetbir/roomkit`, npm
+package `roomkit` from GitHub); its own `AGENTS.md` holds the core invariants.
 
 ### Map of the tree
 
 | Path | What lives there |
 |---|---|
-| `core/` | Game-agnostic Go multiplayer stack: `wsconn`, `limit`, `pilot`, `metrics`, `netproto`, `room`, `lobby`, `server`, `drain`, `loadtest`; test doubles in `core/internal/fakegame`, `fakekit` |
 | `internal/match` | Dogfight as a `room.Game` (room adapter, stats tally, notices) |
 | `internal/front` | Dogfight's `server.Kit` (protocol version, decode, rate classes, room settings) and stats API |
 | `internal/protocol` | Dogfight's JSON messages and conversions |
 | `internal/game`, `mode`, `bot`, `sim`, `maps`, `terrain`, `weather`, `rng`, `geom` | The game itself: rules, bots, deterministic simulation, world generation |
 | `internal/stats` | Pilot stats store (single-writer actor, JSONL journal + snapshot) |
-| `internal/golden` | Frozen wire-format goldens and the core import-boundary tests |
+| `internal/golden` | Frozen wire-format goldens (they pin roomkit's behaviour as Dogfight sees it) |
 | `cmd/dogfight` | Main: flags, HTTP server, embedded `web/`, signals, stats handoff |
 | `cmd/loadtest` | WebSocket load generator and CPU bench (Dogfight's `loadtest.Script`) |
-| `client/src/core` | Game-agnostic TS: reconnecting socket, shaper, prediction/reconcile, interpolation, i18n, store, UI shells |
 | `client/src/*` | The game client: `net`, `predict`, `render`, `input`, `audio`, `ui`, `game`, `sim` (TS port of the flight model), `book`, `debug` |
 | `testdata/vectors` | Flight, terrain and map vectors written by Go, replayed by the TS tests |
 | `client/src/golden` | Client goldens: socket wire strings, prediction and interpolation numbers |
 | `deploy/`, `scripts/` | Compose, sample nginx vhost, release/deploy/smoke scripts |
 | `docs/superpowers/` | Design specs and implementation plans (mostly Turkish) |
 
-### The one rule: core never imports game code
+### The shared core lives in roomkit
 
-- `core/**` (tests included) imports only the standard library, `github.com/coder/websocket` and
-  `core/**`. Enforced by `TestCoreImportsNothingFromDogfight` and `TestCoreAllowlistIsEmpty` in
-  `internal/golden/boundary_test.go`. The allowlist is empty and must stay empty.
-- `client/src/core/**` imports only `client/src/core/**` (no game modules, no `three`; `node:`
-  imports only in tests). Enforced by `client/src/core/boundary.test.ts`.
-- If core needs something from the game, add it to a core interface (`room.Game`, `server.Kit`,
-  `loadtest.Script`, a TS policy/model type) and implement it on the game side.
+- Go imports `github.com/ahmetbir/roomkit/<pkg>`; the client imports `roomkit/<module>` (compiled
+  JS + types from roomkit's `dist/`). roomkit cannot import Dogfight: it is another module.
+- If the core needs something from the game, add it to a roomkit interface (`room.Game`,
+  `server.Kit`, `loadtest.Script`, a TS policy/model type) and implement it here.
+- **Changing roomkit:** work in a roomkit checkout beside this one and point Dogfight at it on a
+  local branch (`go mod edit -replace github.com/ahmetbir/roomkit=../roomkit`,
+  `cd client && npm install ../../roomkit`); run this repo's goldens and smoke test; then tag
+  roomkit and pin the tag here (`go get github.com/ahmetbir/roomkit@vX.Y.Z`,
+  `"roomkit": "github:ahmetbir/roomkit#vX.Y.Z"`). `scripts/release.sh` refuses a `replace` or a
+  `file:` dependency and builds with `GOWORK=off`.
 
 ## Setup
 
@@ -190,7 +194,7 @@ dependencies to this repo.
 ### Concurrency
 
 - **A room is one actor goroutine.** It owns the `Game`; every `room.Game` method runs on it and
-  must not block, do I/O, start goroutines or keep the `Outbox` (`core/room/game.go`). The stats
+  must not block, do I/O, start goroutines or keep the `Outbox` (`roomkit/room/game.go`). The stats
   sink's `Record` must not block.
 - **Nothing blocks the room on a client.** `wsconn.Conn.Send` never blocks: the outbound queue
   holds 64 messages; when full, the oldest snapshot is evicted (its events carried into the next,
@@ -219,7 +223,7 @@ dependencies to this repo.
 - The server is authoritative; the client sends only input (clamped, NaN/Inf neutralized
   server-side).
 - The client predicts its own plane and reconciles on each snapshot: unacknowledged inputs are
-  replayed (`client/src/core/predict/reconcile.ts`, baseline = median offset over ~30 snapshots),
+  replayed (`roomkit/ts/predict/reconcile.ts`, baseline = median offset over ~30 snapshots),
   corrections are smoothed with a 0.1 s time constant and corrections over 50 m snap
   (`client/src/predict/predictor.ts`). Other planes are interpolated 100 ms behind
   (`INTERP_DELAY_MS`).
@@ -230,7 +234,7 @@ dependencies to this repo.
 
 ### Rate limits
 
-Server (`core/server/guard.go`, `inbound.go`, defaults in `server.go`):
+Server (`roomkit/server/guard.go`, `inbound.go`, defaults in `server.go`):
 
 - Inputs (`in`) have their own bucket (90/s, burst 120) and are only ever **dropped** over rate,
   never kicked; a dropped input's one-shot presses carry over to the next one.
@@ -240,7 +244,7 @@ Server (`core/server/guard.go`, `inbound.go`, defaults in `server.go`):
 - Hard ceiling before decoding: more than 300 messages/s or 64 KB/s averaged over 5 s ends the
   connection. Inbound frames are capped at 2048 bytes (`wsconn` read limit).
 
-Client (`client/src/core/net/shaper.ts`, Dogfight policy `client/src/net/shaper.ts`): while the
+Client (`roomkit/ts/net/shaper.ts`, Dogfight policy `client/src/net/shaper.ts`): while the
 socket has more than 8 KB buffered or the server has been silent for 1 s, only the newest input
 is held; picks go out at most every 500 ms; pings every 15 s (server idle-closes at 30 s);
 chat through `ChatThrottle`.
@@ -252,10 +256,10 @@ bucket; otherwise players get kicked with `flood`. Core types (`hello`, `create`
 
 ### Error codes and texts
 
-- Error codes are stable strings shared by Go and TS: `core/netproto/codes.go` and
-  `client/src/core/net/codes.ts` (error and API codes), game notice codes in
+- Error codes are stable strings shared by Go and TS: `roomkit/netproto/codes.go` and
+  `roomkit/ts/net/codes.ts` (error and API codes), game notice codes in
   `internal/protocol/codes.go` and `client/src/net/codes.ts`. Pinned by
-  `TestErrorCodesMatchClientCore` (`core/netproto/crosslang_test.go`) and
+  `TestErrorCodesMatchClientCore` (`roomkit/netproto/crosslang_test.go`) and
   `TestNoticeCodesMatchClient` (`internal/protocol/codes_test.go`). Other cross-language pins:
   `TestWelcomeMatchesClientCore`, `TestRestartCodeMatchesClientCore`,
   `TestPingIntervalUnderIdleTimeout`, `TestQueueSizesMatchClientCore`.
@@ -276,11 +280,11 @@ bucket; otherwise players get kicked with `flood`. Core types (`hello`, `create`
 
 - `client/static/index.html` references fixed names (`/app.js`, `/style.css`, `/hud.css`,
   `/mobile.css`). The server rewrites them to content-hashed URLs (`/app.js?v=<sha256 prefix>`)
-  when serving the page (`core/server/assets.go`). Versioned URLs are served `immutable`, bare
+  when serving the page (`roomkit/server/assets.go`). Versioned URLs are served `immutable`, bare
   names `no-cache`.
 - A CDN may apply its own browser cache TTL to fixed names regardless of `no-cache`, so a bundle
   referenced without the hash can stay stale for hours. A new bundle file must be added to the
-  `bundle` list in `core/server/assets.go`, and referenced in `index.html` exactly as
+  `bundle` list in `roomkit/server/assets.go`, and referenced in `index.html` exactly as
   `"/<name>"` (double quotes, leading slash) or it will not be fingerprinted.
 
 ### Drain and blue/green
@@ -288,7 +292,7 @@ bucket; otherwise players get kicked with `flood`. Core types (`hello`, `create`
 - `SIGUSR1` drains: rooms keep playing, open stats tallies are flushed, the stats store writes its
   final snapshot and releases `stats.lock` at once, new sockets are closed with `1012`
   ("server restarting"), `/api/*` answers 503; the process exits when the last game socket
-  closes or after `-drain-max`. `SIGUSR2` undrains (rollback). See `core/drain/drain.go`.
+  closes or after `-drain-max`. `SIGUSR2` undrains (rollback). See `roomkit/drain/drain.go`.
 - The client treats `1012` as "updating" and rejoins the same room code.
 - An nginx reload keeps open WebSockets on the old workers only if `worker_shutdown_timeout` is
   not set; with it set, a reload cuts long-lived sockets.
@@ -299,10 +303,10 @@ bucket; otherwise players get kicked with `flood`. Core types (`hello`, `create`
 - `X-Real-IP` is trusted only from `-trust-proxy` CIDRs; in the sample deploy that is the edge
   docker network's subnet only.
 - Per-address limits key on one IPv4 address or one IPv6 /64; all /64s of a /48 share an
-  aggregate socket cap (`core/server/clientip.go`, `conngate.go`).
+  aggregate socket cap (`roomkit/server/clientip.go`, `conngate.go`).
 - `/api/me` answers the same `{"pilot":null}` for a missing, invalid, unknown or oversized
   token. The server keeps only the token's SHA-256; the raw token never reaches logs, metrics,
-  URLs or disk (`core/pilot`).
+  URLs or disk (`roomkit/pilot`).
 - Never commit `deploy/deploy.env`, `.env*`, keys or certificates (`.gitignore` covers
   `*.pem`, `*.key`). Use `deploy/deploy.env.example` placeholders in docs and examples.
 
@@ -342,14 +346,15 @@ bucket; otherwise players get kicked with `flood`. Core types (`hello`, `create`
 
 ### Adding a second game on core
 
-Read `docs/superpowers/specs/2026-10-07-core-extraction-design.md` (sections 4 to 10 and 13).
+Read `docs/superpowers/specs/2026-10-07-core-extraction-design.md` (sections 4 to 9, 11 and 13)
+and `docs/superpowers/specs/2026-10-07-roomkit-design.md` (where the core lives now).
 In short, a game provides:
 
-- a `room.Game` (`core/room/game.go`) for one match;
-- a `server.Kit` (`core/server/kit.go`): protocol version, decode, room settings, rate classes,
+- a `room.Game` (roomkit `room/game.go`) for one match;
+- a `server.Kit` (`roomkit/server/kit.go`): protocol version, decode, room settings, rate classes,
   in-room messages, lobby row; optionally a `server.Stats`;
-- a `loadtest.Script` (`core/loadtest/run.go`) for `cmd/loadtest`-style tests;
-- on the client, instances of `client/src/core`: `Socket` with its `{ version, policy }`, a
+- a `loadtest.Script` (`roomkit/loadtest/run.go`) for `cmd/loadtest`-style tests;
+- on the client, instances of roomkit's TS modules: `Socket` with its `{ version, policy }`, a
   `ShaperPolicy`, `Reconciler` with its `Model`, `InterpBuffer`, i18n and UI shells.
 
 Stats schema, rounds, teams, bots, world model and game UI deliberately stay out of core until a

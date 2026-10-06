@@ -1,11 +1,11 @@
 // UI language: Turkish (the source) and English, on the core i18n. t() reads
 // the current dictionary; setLang() switches it live.
-import { createI18n } from "../core/i18n/i18n.ts";
+import { createI18n } from "roomkit/i18n/i18n";
 import { EN } from "./en/index.ts";
 import { TR, type Key } from "./tr/index.ts";
 
 export type { Key } from "./tr/index.ts";
-export type { Params } from "../core/i18n/types.ts";
+export type { Params } from "roomkit/i18n/types";
 
 export type Lang = "tr" | "en";
 export const LANGS: readonly Lang[] = ["tr", "en"];

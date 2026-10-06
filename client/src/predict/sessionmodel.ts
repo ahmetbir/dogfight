@@ -1,1 +1,1 @@
-export { SessionModel } from "../core/predict/sessionmodel.ts";
+export { SessionModel } from "roomkit/predict/sessionmodel";

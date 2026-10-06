@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"playground/core/drain"
+	"github.com/ahmetbir/roomkit/drain"
 	"playground/internal/stats"
 )
 

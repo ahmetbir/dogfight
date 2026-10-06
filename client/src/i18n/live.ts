@@ -1,1 +1,1 @@
-export { liveCount, relabel, track } from "../core/i18n/live.ts";
+export { liveCount, relabel, track } from "roomkit/i18n/live";

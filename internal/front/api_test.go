@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"playground/core/pilot"
-	"playground/core/server"
+	"github.com/ahmetbir/roomkit/pilot"
+	"github.com/ahmetbir/roomkit/server"
 	"playground/internal/protocol"
 	"playground/internal/stats"
 )

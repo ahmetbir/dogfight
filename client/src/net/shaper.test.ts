@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Shaper } from "../core/net/shaper.ts";
+import { Shaper } from "roomkit/net/shaper";
 import { MAX_BUFFERED, PICK_GAP_MS, POLICY, STALL_MS } from "./shaper.ts";
 import type { ClientMsg, In } from "./protocol.ts";
 

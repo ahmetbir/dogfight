@@ -13,6 +13,15 @@ if [[ -n "$(git status --porcelain)" ]]; then
 fi
 VERSION="$(git describe --always --dirty)"
 
+# The shared core must come from a published roomkit tag: a local replace or
+# file: dependency (fine while iterating on a branch) would ship unreleased
+# code, and a stray go.work would override go.mod.
+if grep -qE '^replace|=> \.\./' go.mod || grep -q '"file:' client/package.json; then
+  echo "release: go.mod or client/package.json points at a local roomkit; pin a tag" >&2
+  exit 1
+fi
+export GOWORK=off
+
 export PATH="$PWD/.tools/node/bin:$PATH"
 if ! node --version | grep -q '^v22\.'; then
   echo "release: need Node 22 at .tools/node/bin (found $(node --version 2>/dev/null || echo none))" >&2

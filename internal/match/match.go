@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"math"
 
-	"playground/core/room"
-	"playground/core/wsconn"
+	"github.com/ahmetbir/roomkit/room"
+	"github.com/ahmetbir/roomkit/wsconn"
 	"playground/internal/game"
 	"playground/internal/mode"
 	"playground/internal/protocol"

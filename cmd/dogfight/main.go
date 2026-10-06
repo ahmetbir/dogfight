@@ -17,9 +17,9 @@ import (
 	"syscall"
 	"time"
 
-	"playground/core/drain"
-	"playground/core/metrics"
-	"playground/core/pilot"
+	"github.com/ahmetbir/roomkit/drain"
+	"github.com/ahmetbir/roomkit/metrics"
+	"github.com/ahmetbir/roomkit/pilot"
 	"playground/internal/front"
 	"playground/internal/match"
 	"playground/internal/stats"

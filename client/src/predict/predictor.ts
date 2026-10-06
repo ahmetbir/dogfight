@@ -1,6 +1,6 @@
 // Client-side prediction of the local plane: the core reconciler with the
 // flight model and a position + attitude smoother.
-import { Reconciler, type Smoother } from "../core/predict/reconcile.ts";
+import { Reconciler, type Smoother } from "roomkit/predict/reconcile";
 import { stepFlight, type FlightMods, type FlightState, type Spec, type StickInput } from "../sim/flight.ts";
 import type { GroundSample } from "../sim/ground.ts";
 import { add, len, qConj, qIdentity, qMul, qNorm, qSlerp, scale, sub, v3, type Q, type V3 } from "../sim/vec.ts";

@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"playground/core/netproto"
+	"github.com/ahmetbir/roomkit/netproto"
 )
 
 // Dogfight's welcome carries the core envelope (netproto.Welcome) under the

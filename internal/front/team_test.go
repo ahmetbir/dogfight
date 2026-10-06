@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"playground/core/server"
+	"github.com/ahmetbir/roomkit/server"
 	"playground/internal/protocol"
 )
 

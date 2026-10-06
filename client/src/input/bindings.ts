@@ -3,7 +3,7 @@
 // lists (settings menu, pilot's manual) render. Change a key here and every
 // list follows.
 import { REPLAY_MS } from "../game/replay.ts";
-import { keyName as coreKeyName, keys as coreKeys, type Codes, type KeyRow } from "../core/ui/keys.ts";
+import { keyName as coreKeyName, keys as coreKeys, type Codes, type KeyRow } from "roomkit/ui/keys";
 import { t } from "../i18n/index.ts";
 
 export type { KeyRow };

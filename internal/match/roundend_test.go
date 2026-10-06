@@ -5,7 +5,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"playground/core/room"
+	"github.com/ahmetbir/roomkit/room"
 )
 
 // A whole round through the room: presence and flight accrue in Step, and the

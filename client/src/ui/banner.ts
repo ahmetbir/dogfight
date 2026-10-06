@@ -1,5 +1,5 @@
 // Connection banner, fatal errors and the no-WebGL screen.
-import { Banner as CoreBanner } from "../core/ui/banner.ts";
+import { Banner as CoreBanner } from "roomkit/ui/banner";
 import { t } from "../i18n/index.ts";
 import { fill, h } from "./dom.ts";
 

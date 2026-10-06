@@ -3,7 +3,7 @@ package protocol
 import (
 	"math"
 
-	"playground/core/netproto"
+	"github.com/ahmetbir/roomkit/netproto"
 	"playground/internal/game"
 	"playground/internal/geom"
 	"playground/internal/sim"

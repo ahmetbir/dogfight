@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"playground/core/server"
+	"github.com/ahmetbir/roomkit/server"
 	"playground/internal/front"
 	"playground/internal/stats"
 )

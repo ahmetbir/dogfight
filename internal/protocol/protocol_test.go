@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"playground/core/netproto"
+	"github.com/ahmetbir/roomkit/netproto"
 	"playground/internal/bot"
 	"playground/internal/game"
 	"playground/internal/maps"

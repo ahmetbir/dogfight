@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"math"
 
-	"playground/core/netproto"
+	"github.com/ahmetbir/roomkit/netproto"
 	"playground/internal/sim"
 )
 

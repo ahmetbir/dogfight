@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"playground/core/loadtest"
+	"github.com/ahmetbir/roomkit/loadtest"
 	"playground/internal/protocol"
 )
 

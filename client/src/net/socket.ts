@@ -1,9 +1,9 @@
 // Dogfight's socket: the core socket with Dogfight's messages, version and shaping.
-import { Socket as CoreSocket, type Env, type Handlers, type Join, type Quick } from "../core/net/socket.ts";
+import { Socket as CoreSocket, type Env, type Handlers, type Join, type Quick } from "roomkit/net/socket";
 import { VERSION, type ClientMsg, type Create, type ServerMsg } from "./protocol.ts";
 import { POLICY } from "./shaper.ts";
 
-export { socketURL, RECONNECT_MS, FIRST_TRIES, PING_MS, CLOSE_RESTART, type Conn, type Env, type Status } from "../core/net/socket.ts";
+export { socketURL, RECONNECT_MS, FIRST_TRIES, PING_MS, CLOSE_RESTART, type Conn, type Env, type Status } from "roomkit/net/socket";
 export type Socket = CoreSocket<ClientMsg, ServerMsg>;
 export type { Handlers };
 

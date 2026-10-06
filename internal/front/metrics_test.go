@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"playground/core/metrics"
-	"playground/core/server"
+	"github.com/ahmetbir/roomkit/metrics"
+	"github.com/ahmetbir/roomkit/server"
 	"playground/internal/protocol"
 )
 

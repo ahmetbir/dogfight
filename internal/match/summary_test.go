@@ -5,7 +5,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"playground/core/room"
+	"github.com/ahmetbir/roomkit/room"
 )
 
 func TestSummaryTracksJoins(t *testing.T) {

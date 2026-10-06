@@ -1,5 +1,5 @@
 // Interpolation of remote planes: the core buffer over FlightState.
-import { InterpBuffer as Core, ServerClock as CoreClock, extrapolate as coreExtrapolate } from "../core/predict/interp.ts";
+import { InterpBuffer as Core, ServerClock as CoreClock, extrapolate as coreExtrapolate } from "roomkit/predict/interp";
 import type { FlightState } from "../sim/flight.ts";
 import { add, lerp, qSlerp, scale } from "../sim/vec.ts";
 

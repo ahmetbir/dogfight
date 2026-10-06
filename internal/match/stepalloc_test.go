@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"playground/core/room"
+	"github.com/ahmetbir/roomkit/room"
 	"playground/internal/sim"
 )
 

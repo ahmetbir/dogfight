@@ -1,1 +1,1 @@
-export { normalizeCode } from "../core/net/code.ts";
+export { normalizeCode } from "roomkit/net/code";

@@ -1,7 +1,7 @@
 // Dogfight's DOM helpers: the core ones plus the stored player name.
-import { slot } from "../core/store.ts";
+import { slot } from "roomkit/store";
 
-export { append, clock, fill, h, text, type Attrs, type Child } from "../core/ui/dom.ts";
+export { append, clock, fill, h, text, type Attrs, type Child } from "roomkit/ui/dom";
 
 const NAME = slot("dogfight.name");
 

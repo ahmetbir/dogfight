@@ -9,14 +9,14 @@ import (
 )
 
 // The raw pilot token must never reach a log line or a metric label (spec
-// §10.1). This scans every non-test source that handles it: a log or metric
-// call naming a token variable fails the build's tests.
+// §10.1). This scans every non-test Dogfight source that handles it: a log or
+// metric call naming a token variable fails the build's tests. roomkit runs
+// the same scan over its own server, room, lobby, metrics and pilot.
 func TestTokenNeverLogged(t *testing.T) {
 	sink := regexp.MustCompile(`slog\.|\.(Info|Warn|Error|Debug|Inc|Observe)\(`)
 	tok := regexp.MustCompile(`(?i)\btok\b|NewToken|fresh|pilot\.Header|X-Pilot-Token`)
 	var files []string
-	for _, dir := range []string{".", "../../core/server", "../../core/room", "../../core/lobby", "../stats", "../match",
-		"../../core/metrics", "../../core/pilot", "../../cmd/dogfight"} {
+	for _, dir := range []string{".", "../stats", "../match", "../../cmd/dogfight"} {
 		m, err := filepath.Glob(filepath.Join(dir, "*.go"))
 		if err != nil {
 			t.Fatal(err)
@@ -26,7 +26,7 @@ func TestTokenNeverLogged(t *testing.T) {
 		}
 		files = append(files, m...)
 	}
-	if len(files) < 10 {
+	if len(files) < 5 {
 		t.Fatalf("scanned only %d files", len(files))
 	}
 	for _, f := range files {

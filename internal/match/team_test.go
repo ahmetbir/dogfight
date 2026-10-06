@@ -6,7 +6,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"playground/core/room"
+	"github.com/ahmetbir/roomkit/room"
 	"playground/internal/bot"
 	"playground/internal/game"
 	"playground/internal/mode"

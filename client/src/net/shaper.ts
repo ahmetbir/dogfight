@@ -1,8 +1,8 @@
 // Dogfight's outbound shaping: inputs merge their one-shot presses, picks keep a gap.
-import type { ShaperPolicy } from "../core/net/shaper.ts";
+import type { ShaperPolicy } from "roomkit/net/shaper";
 import type { ClientMsg } from "./protocol.ts";
 
-export { MAX_BUFFERED, STALL_MS } from "../core/net/shaper.ts";
+export { MAX_BUFFERED, STALL_MS } from "roomkit/net/shaper";
 /** Least time between two picks; a pick inside it waits and the newest one is sent. */
 export const PICK_GAP_MS = 500;
 

@@ -3,9 +3,9 @@ package match
 import (
 	"context"
 
-	"playground/core/lobby"
-	"playground/core/metrics"
-	"playground/core/room"
+	"github.com/ahmetbir/roomkit/lobby"
+	"github.com/ahmetbir/roomkit/metrics"
+	"github.com/ahmetbir/roomkit/room"
 	"playground/internal/game"
 	"playground/internal/protocol"
 	"playground/internal/sim"

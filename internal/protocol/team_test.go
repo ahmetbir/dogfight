@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"playground/core/netproto"
+	"github.com/ahmetbir/roomkit/netproto"
 	"playground/internal/sim"
 )
 

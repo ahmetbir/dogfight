@@ -1,1 +1,1 @@
-export type { Area, Msg, Params, Plural } from "../core/i18n/types.ts";
+export type { Area, Msg, Params, Plural } from "roomkit/i18n/types";

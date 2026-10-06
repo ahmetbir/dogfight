@@ -9,8 +9,8 @@ import (
 
 	"github.com/coder/websocket"
 
-	"playground/core/netproto"
-	"playground/core/server"
+	"github.com/ahmetbir/roomkit/netproto"
+	"github.com/ahmetbir/roomkit/server"
 	"playground/internal/protocol"
 	"playground/internal/stats"
 )

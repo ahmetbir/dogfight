@@ -543,11 +543,9 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 ```
 cmd/dogfight/        main: flags, HTTP server, embedded web/, graceful shutdown, stats handoff, -healthcheck
 cmd/loadtest/        WebSocket load generator and CPU bench
-core/                game-agnostic Go stack: wsconn, limit, pilot, metrics, netproto, room, lobby,
-                     server, drain (blue/green actor), loadtest, internal/fakegame + fakekit (test doubles)
 internal/match/      Dogfight on core: room, seat, summary and lobby aliases, game adapter
 internal/front/      Dogfight's HTTP front: server wiring, stats API
-internal/golden/     frozen wire-format goldens and the core import-boundary test
+internal/golden/     frozen wire-format goldens
 internal/protocol/   JSON message types and conversions
 internal/game/       one room's match: world, rules, scoreboard, bots, roster
 internal/mode/       team / FFA / Base Attack rules, scoreboard, structure HP
@@ -560,8 +558,6 @@ internal/weather/    6 weather types: wind, gusts, missile lock range multiplier
 internal/rng/        seeded splitmix (no global randomness)
 internal/stats/      pilot stats store: actor, JSONL journal + snapshot, leaderboard
 internal/geom/       vectors and quaternions
-client/src/core/     game-agnostic TypeScript: reconnecting socket, prediction, interpolation,
-                     i18n, store, audio and UI shells (never imports Three.js or game code)
 client/src/          net (socket), predict (prediction + interpolation), render (Three.js),
                      input (mouse, keyboard, touch, tilt), audio (Web Audio jet sound),
                      ui (DOM), game (loop, cameras, killcam, replay), sim (TS flight/ground port),
@@ -584,11 +580,12 @@ docs/superpowers/    design specs and implementation plans (in Turkish)
 
 ### Shared core
 
-`core/` (Go) and `client/src/core/` (TypeScript) are the game-agnostic multiplayer stack: rooms,
-lobby, handshake, limits, blue/green drain, pilot tokens, metrics, load test; reconnecting socket,
-prediction, interpolation, i18n and UI shells. Dogfight is one game on it (`internal/match`,
-`internal/front`). Neither tree may import game code; tests enforce it. Design:
-`docs/superpowers/specs/2026-10-07-core-extraction-design.md`.
+The game-agnostic multiplayer stack lives in its own repository,
+[roomkit](https://github.com/ahmetbir/roomkit): rooms, lobby, handshake, limits, blue/green drain,
+pilot tokens, metrics, load test; reconnecting socket, prediction, interpolation, i18n and UI
+shells. Dogfight is one game on it (`internal/match`, `internal/front`) and pins a roomkit tag in
+`go.mod` and `client/package.json`. Design: `docs/superpowers/specs/2026-10-07-core-extraction-design.md`
+and `docs/superpowers/specs/2026-10-07-roomkit-design.md`.
 
 ## Contributing
 

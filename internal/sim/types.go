@@ -3,7 +3,7 @@ package sim
 import (
 	"math"
 
-	"playground/core/netproto"
+	"github.com/ahmetbir/roomkit/netproto"
 	"playground/internal/geom"
 )
 

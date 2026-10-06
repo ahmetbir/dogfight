@@ -1,7 +1,7 @@
 // Procedural sound with Web Audio nodes only (no audio files). The
 // AudioContext is created on the first user gesture (autoplay policy) and
 // suspended while the tab is hidden; every call before that is a no-op.
-import { AudioShell, falloff } from "../core/audio/shell.ts";
+import { AudioShell, falloff } from "roomkit/audio/shell";
 import { Flybys, type Ear, type FlySource } from "./flyby.ts";
 import { JetEngine } from "./jet.ts";
 import { crackle, pinkNoise } from "./jetmath.ts";

@@ -1,7 +1,7 @@
-import { slot } from "../core/store.ts";
-import { tokenStore } from "../core/net/pilot.ts";
+import { slot } from "roomkit/store";
+import { tokenStore } from "roomkit/net/pilot";
 
-export { TOKEN_RE } from "../core/net/pilot.ts";
+export { TOKEN_RE } from "roomkit/net/pilot";
 
 const tokens = tokenStore(slot("dogfight.pilot"));
 

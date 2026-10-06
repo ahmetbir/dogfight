@@ -32,7 +32,7 @@ import (
 	"syscall"
 	"time"
 
-	"playground/core/loadtest"
+	"github.com/ahmetbir/roomkit/loadtest"
 	"playground/internal/bot"
 	"playground/internal/game"
 	"playground/internal/maps"

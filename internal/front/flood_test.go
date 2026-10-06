@@ -8,7 +8,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"playground/core/server"
+	"github.com/ahmetbir/roomkit/server"
 )
 
 // writeRaw writes one text frame; false once the server has closed.

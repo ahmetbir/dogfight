@@ -1,7 +1,7 @@
 package front
 
 import (
-	"playground/core/server"
+	"github.com/ahmetbir/roomkit/server"
 	"playground/internal/game"
 	"playground/internal/match"
 	"playground/internal/protocol"

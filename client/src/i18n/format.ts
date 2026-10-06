@@ -1,6 +1,6 @@
 // Numbers and units in the current language: Turkish writes a decimal comma
 // and "%55", English a decimal point and "55%"; seconds are "sn" / "s".
-import { makeFormat } from "../core/i18n/format.ts";
+import { makeFormat } from "roomkit/i18n/format";
 import { lang, t } from "./index.ts";
 
 export const { num, fixed } = makeFormat(() => lang() === "tr");

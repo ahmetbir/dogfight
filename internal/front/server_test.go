@@ -13,8 +13,8 @@ import (
 
 	"github.com/coder/websocket"
 
-	"playground/core/pilot"
-	"playground/core/server"
+	"github.com/ahmetbir/roomkit/pilot"
+	"github.com/ahmetbir/roomkit/server"
 	"playground/internal/match"
 	"playground/internal/protocol"
 )

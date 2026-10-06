@@ -8,6 +8,14 @@
     "check": "tsc --noEmit",
     "test": "node --experimental-strip-types --no-warnings --test 'src/**/*.test.ts'"
   },
-  "dependencies": { "three": "^0.186.1" },
-  "devDependencies": { "@types/node": "^22", "@types/three": "^0.186.0", "esbuild": "^0.28.2", "typescript": "^5.8" }
+  "dependencies": {
+    "roomkit": "git+https://github.com/ahmetbir/roomkit.git#v0.1.0",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/three": "^0.186.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.8"
+  }
 }

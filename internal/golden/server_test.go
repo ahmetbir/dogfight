@@ -16,7 +16,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"playground/core/server"
+	"github.com/ahmetbir/roomkit/server"
 	"playground/internal/front"
 	"playground/internal/match"
 	"playground/internal/stats"

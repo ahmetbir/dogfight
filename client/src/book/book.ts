@@ -3,7 +3,7 @@
 // a game it counts as a menu (the plane gets no input), the server is not told.
 import type { AircraftInfo } from "../net/protocol.ts";
 import { lattr, lt } from "../i18n/index.ts";
-import { tabMove, trapIndex } from "../core/ui/modal.ts";
+import { tabMove, trapIndex } from "roomkit/ui/modal";
 import { track } from "../i18n/live.ts";
 import { fill, h } from "../ui/dom.ts";
 import { builtinAircraft } from "./aircraft.ts";

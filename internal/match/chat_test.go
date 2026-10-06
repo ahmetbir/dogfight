@@ -5,8 +5,8 @@ import (
 	"testing/synctest"
 	"time"
 
-	"playground/core/netproto"
-	"playground/core/room"
+	"github.com/ahmetbir/roomkit/netproto"
+	"github.com/ahmetbir/roomkit/room"
 	"playground/internal/bot"
 	"playground/internal/game"
 	"playground/internal/mode"
