@@ -11,7 +11,7 @@ import (
 )
 
 // flareSnap is a 12-plane world after `dropping` planes released one flare
-// each on every second for `seconds` s (FlareLife keeps at most 3 per plane).
+// each on every second for `seconds` s.
 func flareSnap(dropping, seconds int) sim.Snapshot {
 	w := sim.NewWorld(sim.Config{Seed: 3, Terrain: terrain.Generate(1)})
 	for i := range 12 {
@@ -20,7 +20,7 @@ func flareSnap(dropping, seconds int) sim.Snapshot {
 	for i := 1; i <= seconds*60; i++ {
 		in := map[sim.ID]sim.Input{}
 		for id := range dropping {
-			in[sim.ID(id+1)] = sim.Input{Throttle: 0.6, Flare: i%sim.FlareCooldown == 1}
+			in[sim.ID(id+1)] = sim.Input{Throttle: 0.6, Flare: i%60 == 1}
 		}
 		w.Step(in)
 	}
@@ -52,6 +52,7 @@ func TestSnapFlaresWire(t *testing.T) {
 		if per > 50 {
 			t.Fatalf("%.1f bytes per flare", per)
 		}
+		t.Logf("room cap, %d flares: ~%.0f bytes more", sim.MaxRoomFlares, per*sim.MaxRoomFlares)
 	}
 }
 

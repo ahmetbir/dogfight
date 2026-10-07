@@ -92,7 +92,8 @@ export const combat: Combat = {
     list(
       ["Seni izleyen her füze, yanan bir flare'in ", b(dist(R.flareRange)), " yakınına girince o flare için bir kez ", b(pct(R.flareChance)),
         " olasılıkla kanar: flare'e döner ve flare sönünce kendini imha eder."],
-      ["İki flare arası ", sec(R.flareCooldownS), ": art arda iki üç flare şansını katlar."],
+      ["İki flare arası ", sec(R.flareCooldownS), "; tuşu basılı tutarsan seri çıkar. Her flare ayrı şanstır: art arda üç flare füzeyi ",
+        b(pct(1 - (1 - R.flareChance) ** 3)), " olasılıkla kandırır."],
       ["Zamanlama her şeydir: füze ", b(dist(R.flareWarn)), " içine girince HUD'da ", b("FLARE!"),
         " yanıp söner. Çok erken atılan flare füze yaklaşmadan söner."],
       ["Flare ", sec(R.flareRegenS), "'de +1 yenilenir (yüke kadar)."],

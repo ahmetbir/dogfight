@@ -7,15 +7,14 @@ import (
 )
 
 const (
-	FlareCooldown  = 60          // ticks between drops
-	FlareLife      = 150         // ticks a flare burns (2.5 s)
-	FlareRange     = 900.0       // m: a missile this close to a burning flare gets its decoy roll
-	FlareChance    = 0.65        // decoy probability per (missile, flare) pair
-	FlareWarn      = 800.0       // m: a tracking missile this close calls for a flare (HUD cue, bots)
-	FlareDrag      = 1.5         // 1/s: exponential slow-down of the launch velocity
-	MaxPlaneFlares = 3           // burning flares per plane (FlareLife/FlareCooldown rounds up to 3)
-	MaxRoomFlares  = 36          // burning flares per room (12 planes × 3); bounds the snapshot
-	flareIDBase    = ID(1 << 26) // keeps flare IDs apart from missiles (1<<24) and bombs (1<<25)
+	FlareCooldown = 15          // ticks between drops (0.25 s: three in half a second)
+	FlareLife     = 150         // ticks a flare burns (2.5 s)
+	FlareRange    = 900.0       // m: a missile this close to a burning flare gets its decoy roll
+	FlareChance   = 0.65        // decoy probability per (missile, flare) pair
+	FlareWarn     = 800.0       // m: a tracking missile this close calls for a flare (HUD cue, bots)
+	FlareDrag     = 1.5         // 1/s: exponential slow-down of the launch velocity
+	MaxRoomFlares = 120         // burning flares per room (12 planes × FlareLife/FlareCooldown); bounds the snapshot, not reached in play
+	flareIDBase   = ID(1 << 26) // keeps flare IDs apart from missiles (1<<24) and bombs (1<<25)
 )
 
 // Flare is a burning decoy: it leaves the plane with its velocity, slows
@@ -36,28 +35,17 @@ func (w *World) dropFlare(p *Plane, in Input, ev *[]Event) {
 	}
 	p.Flares--
 	p.FlareReadyTick = w.tick + FlareCooldown
-	w.capFlares(p.ID)
+	w.capFlares()
 	w.nextFlare++
 	w.flares = append(w.flares, &Flare{ID: flareIDBase + w.nextFlare, Owner: p.ID, Pos: p.Pos, Vel: p.Vel, ExpireTick: w.tick + FlareLife})
 	*ev = append(*ev, Event{Kind: EvFlare, Plane: p.ID, Pos: p.Pos})
 }
 
-// capFlares makes room for one more flare of owner: past MaxPlaneFlares its
-// oldest burns out, past MaxRoomFlares the room's oldest (drop order). A
-// missile chasing a removed flare self-destructs on its next step.
-func (w *World) capFlares(owner ID) {
-	own, oldest := 0, -1
-	for i, f := range w.flares {
-		if f.Owner == owner {
-			own++
-			if oldest < 0 {
-				oldest = i
-			}
-		}
-	}
-	if own >= MaxPlaneFlares {
-		w.flares = slices.Delete(w.flares, oldest, oldest+1)
-	} else if len(w.flares) >= MaxRoomFlares {
+// capFlares makes room for one more flare: past MaxRoomFlares the room's
+// oldest (drop order) burns out. A plane has no cap of its own. A missile
+// chasing a removed flare self-destructs on its next step.
+func (w *World) capFlares() {
+	if len(w.flares) >= MaxRoomFlares {
 		w.flares = slices.Delete(w.flares, 0, 1)
 	}
 }

@@ -92,7 +92,8 @@ export const combat: Combat = {
     list(
       ["Every missile tracking you that comes within ", b(dist(R.flareRange)), " of a burning flare is fooled once per flare with ", b(pct(R.flareChance)),
         " probability: it turns to the flare and destroys itself when the flare burns out."],
-      [sec(R.flareCooldownS), " between two flares: two or three in a row multiply your chances."],
+      [sec(R.flareCooldownS), " between two flares; hold the key for a salvo. Each flare is its own chance: three in a row fool the missile ",
+        b(pct(1 - (1 - R.flareChance) ** 3)), " of the time."],
       ["Timing is everything: when a missile comes within ", b(dist(R.flareWarn)), ", ", b("FLARE!"),
         " blinks on the HUD. A flare dropped too early burns out before the missile arrives."],
       ["Flares regenerate, +1 every ", sec(R.flareRegenS), " (up to your load)."],

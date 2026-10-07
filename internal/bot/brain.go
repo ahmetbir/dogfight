@@ -57,6 +57,10 @@ func paramsFor(d Difficulty) params {
 
 const decideEvery = 6 // ticks: 10 Hz thinking, spread over bots by ID
 
+// botFlareGap is a bot's pace between flares, slower than the sim's
+// FlareCooldown: the faster salvo is the human pilot's edge.
+const botFlareGap = 60
+
 // Brain is one bot pilot. It decides at 10 Hz and steers every tick toward
 // the last decided direction.
 type Brain struct {
@@ -85,6 +89,7 @@ type Brain struct {
 	threat     sim.ID // missile being tracked
 	detectedAt int
 	flareReady bool // rolled at detection: this bot defends right (flares IR, beams radar) against this missile
+	nextFlare  int  // earliest tick of the next drop (botFlareGap)
 
 	// Runway phases (ground.go, land.go).
 	life    int // Plane.Life the phase belongs to
@@ -166,11 +171,11 @@ func (b *Brain) decide(s *sim.Snapshot, self sim.Plane, env *Env) {
 	if !threatened {
 		b.threat = 0
 	}
-	// Flares (IR only): once reacted, one per second (sim cooldown) while the
-	// missile keeps tracking inside FlareWarn; flareReady is the difficulty's roll.
+	// Flares (IR only): once reacted, one per botFlareGap while the missile
+	// keeps tracking inside FlareWarn; flareReady is the difficulty's roll.
 	if threatened && m.Kind == sim.MissileIR && b.flareReady && s.Tick-b.detectedAt >= b.p.reactTicks &&
-		m.Pos.Dist(self.Pos) < sim.FlareWarn && self.Flares > 0 && s.Tick >= self.FlareReadyTick {
-		b.flare = true
+		m.Pos.Dist(self.Pos) < sim.FlareWarn && self.Flares > 0 && s.Tick >= self.FlareReadyTick && s.Tick >= b.nextFlare {
+		b.flare, b.nextFlare = true, s.Tick+1+botFlareGap // the sim drops on the next tick
 	}
 
 	if dir, ok := avoidTerrain(self, env.Terrain); ok {
