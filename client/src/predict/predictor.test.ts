@@ -71,10 +71,21 @@ test("a 100 m correction glides: no frame moves more than 100 m × dt / 0.6 s", 
   assert.ok(d[179] < 2, `offset after 3 s = ${d[179]}`);
 });
 
-test("corrections over 150 m teleport", () => {
+test("a 250 m correction glides at no more than 150 m/s", () => {
+  const d = fade(250, 240);
+  let prev = 250;
+  for (const x of d) {
+    assert.ok(prev - x <= 150 / 60 + 1e-9, `step ${prev - x} m`);
+    prev = x;
+  }
+  assert.ok(d[0] > 247, "not teleported");
+  assert.ok(d[239] < 2, `offset after 4 s = ${d[239]}`);
+});
+
+test("corrections over 300 m teleport", () => {
   const pr = new Predictor(F16);
   pr.reset(start());
-  const far = { ...start(), pos: v3(0, 1500, -160) };
+  const far = { ...start(), pos: v3(0, 1500, -310) };
   pr.reconcile(far, 0, 0, AIR_ENV);
   assert.deepEqual(pr.render(0).pos, far.pos);
 });
