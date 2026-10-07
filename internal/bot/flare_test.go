@@ -8,7 +8,7 @@ import (
 	"playground/internal/terrain"
 )
 
-// A hard bot flares only inside FlareWarn, then once per sim cooldown for as
+// A hard bot flares only inside FlareWarn, then once per botFlareGap for as
 // long as the missile keeps tracking it.
 func TestBrainFlaresInsideWarnRangeEverySecond(t *testing.T) {
 	m := terrain.Generate(1)
