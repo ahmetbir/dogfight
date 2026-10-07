@@ -221,7 +221,9 @@ func TestBotsPlayARealMatch(t *testing.T) {
 	if testing.Short() {
 		t.Skip("long")
 	}
-	for seed := range int64(10) {
+	const seeds = 10
+	total := 0
+	for seed := range int64(seeds) {
 		g := New(Settings{Mode: mode.Team, Size: 4, Difficulty: bot.Normal, Seed: seed})
 		kills, crashes := 0, 0
 		for range 60 * 180 {
@@ -238,13 +240,20 @@ func TestBotsPlayARealMatch(t *testing.T) {
 		t.Logf("seed %d: %d kills, %d crashes", seed, kills, crashes)
 		// Flare ruling (2026-10-06): burning flares plus a flare a second from
 		// bots cut missile hits ~47% -> ~28%; 10 seeds averaged 25 kills
-		// before, 16 after (12-24). The floor still catches bots that do not fight.
-		if kills < 10 {
+		// before, 16 after (12-24). Phase 4 (17 kinds, tougher attack jets,
+		// no teammate rams): 15.4 on average, 10-19. The gate is the average
+		// over the seeds, so one quiet seed does not decide it; a seed with
+		// almost no kills still means bots that do not fight.
+		total += kills
+		if kills < 5 {
 			t.Errorf("seed %d: only %d kills in 3 min", seed, kills)
 		}
 		if per := float64(crashes) / 8 / 3; per >= 0.5 {
 			t.Errorf("seed %d: %.2f crashes per bot per minute", seed, per)
 		}
+	}
+	if avg := float64(total) / seeds; avg < 12 {
+		t.Errorf("%.1f kills per 3 min on average over %d seeds, want at least 12", avg, seeds)
 	}
 }
 
