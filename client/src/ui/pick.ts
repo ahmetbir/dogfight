@@ -110,11 +110,14 @@ export class PickScreen {
     this.key = "";
   }
 
-  /** Back to flight, or a click beside the panel: flies the selection while waiting (pickOnLeave). */
-  private leave(): void {
+  /**
+   * Back to flight, a click beside the panel or Esc: flies the selection while
+   * waiting (pickOnLeave), else closes (close: the caller's way, default onClose).
+   */
+  leave(close: () => void = this.onClose): void {
     const k = this.v ? pickOnLeave(this.v, this.hangar.selected()) : null;
     if (k) this.onPick(k);
-    else this.onClose();
+    else close();
   }
 
   /** Opens (or refreshes, when open) the screen for v. */
