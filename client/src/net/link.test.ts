@@ -111,3 +111,12 @@ test("a bogus pong (from the future, not finite) is ignored", () => {
   l.pong(Number.NaN, 100);
   assert.equal(l.view(100).rttMs, null);
 });
+
+test("an unanswered ping raises the shown RTT: a silent link does not keep showing its last good value", () => {
+  const l = flowing(2000, 40);
+  l.ping(2000, () => true);
+  assert.equal(l.view(2030).rttMs, 40, "younger than the RTT: no news");
+  assert.equal(l.view(2900).rttMs, 900);
+  l.pong(2000, 3100);
+  assert.equal(l.view(3100).rttMs, Math.round(40 + (1100 - 40) * 0.3), "answered: back to the smoothed samples");
+});

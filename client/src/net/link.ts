@@ -25,6 +25,7 @@ export class LinkMonitor {
   private lastRecv: number;
   private lastPing = -Infinity;
   private rtt: number | null = null;
+  private unanswered: number | null = null; // send time of the oldest ping without a pong
   private lastTick: number | null = null;
   private window: number[] = []; // per expected snapshot: 1 lost, 0 arrived
   private unstableUntil = -Infinity;
@@ -37,6 +38,7 @@ export class LinkMonitor {
   reset(now: number): void {
     this.lastRecv = now;
     this.lastTick = null;
+    this.unanswered = null;
     this.window = [];
     this.unstableUntil = -Infinity;
   }
@@ -62,13 +64,16 @@ export class LinkMonitor {
   pong(ts: number, now: number): void {
     const sample = now - ts;
     if (!Number.isFinite(sample) || sample < 0) return;
+    this.unanswered = null;
     this.rtt = this.rtt === null ? sample : this.rtt + (sample - this.rtt) * RTT_SMOOTH;
   }
 
   /** Sends a ping through send when one is due (at most every PING_MS). */
   ping(now: number, send: (ts: number) => boolean): void {
     if (now - this.lastPing < PING_MS) return;
-    if (send(now)) this.lastPing = now;
+    if (!send(now)) return;
+    this.lastPing = now;
+    this.unanswered ??= now;
   }
 
   /** Milliseconds since the server was last heard. */
@@ -79,7 +84,9 @@ export class LinkMonitor {
   view(now: number): LinkView {
     const silent = this.silentMs(now);
     const loss = this.window.length ? (100 * this.window.reduce((a, b) => a + b, 0)) / this.window.length : 0;
-    const rtt = this.rtt === null ? null : Math.round(this.rtt);
+    // A ping out longer than the measured RTT already says the RTT is at least that.
+    const late = this.unanswered === null ? 0 : now - this.unanswered;
+    const rtt = this.rtt === null && late < PING_MS ? null : Math.round(Math.max(this.rtt ?? 0, late));
     const level = Math.max(grade(silent, SILENT_MS), grade(loss, LOSS_PCT), rtt === null ? 0 : grade(rtt, RTT_MS));
     const quality: Quality = silent >= UNSTABLE_MS ? "lost" : (["good", "fair", "poor"] as const)[level];
     return { quality, rttMs: rtt, lossPct: Math.round(loss), unstable: silent >= UNSTABLE_MS || now < this.unstableUntil };
