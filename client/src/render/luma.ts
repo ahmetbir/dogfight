@@ -60,6 +60,7 @@ export class LumaProbe {
   private resolveFb: WebGLFramebuffer | null = null;
   private resolveRb: WebGLRenderbuffer | null = null;
   private smallFb: WebGLFramebuffer | null = null;
+  private smallRb: WebGLRenderbuffer | null = null;
   private pbo: WebGLBuffer | null = null;
   private fence: WebGLSync | null = null;
   private signalled = false;
@@ -83,6 +84,7 @@ export class LumaProbe {
   capture(now: number): void {
     if (this.broken) return;
     const gl = this.gl;
+    if (gl.isContextLost()) return; // its objects are gone; the owner drops this probe once the context is back
     try {
       if (this.fence) {
         // Seen signalled in one frame, read in the next: the browser then serves the read from its copy.
@@ -109,17 +111,34 @@ export class LumaProbe {
     }
   }
 
+  /** Frees the GPU objects (the full-size resolve buffer included) and forgets the grid. */
+  dispose(): void {
+    const gl = this.gl;
+    if (!gl.isContextLost()) {
+      if (this.fence) gl.deleteSync(this.fence);
+      gl.deleteFramebuffer(this.resolveFb);
+      gl.deleteRenderbuffer(this.resolveRb);
+      gl.deleteFramebuffer(this.smallFb);
+      gl.deleteRenderbuffer(this.smallRb);
+      gl.deleteBuffer(this.pbo);
+    }
+    this.resolveFb = this.resolveRb = this.smallFb = this.smallRb = this.pbo = this.fence = null;
+    this.signalled = false;
+    this.fw = this.fh = 0;
+    this.grid = null;
+  }
+
   private start(): void {
     const gl = this.gl;
     const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
     if (w === 0 || h === 0) return;
     if (!this.smallFb) {
       this.smallFb = gl.createFramebuffer();
-      const rb = gl.createRenderbuffer();
-      gl.bindRenderbuffer(gl.RENDERBUFFER, rb);
+      this.smallRb = gl.createRenderbuffer();
+      gl.bindRenderbuffer(gl.RENDERBUFFER, this.smallRb);
       gl.renderbufferStorage(gl.RENDERBUFFER, gl.RGBA8, READ_W, READ_H);
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.smallFb);
-      gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, rb);
+      gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, this.smallRb);
       this.pbo = gl.createBuffer();
       gl.bindBuffer(gl.PIXEL_PACK_BUFFER, this.pbo);
       gl.bufferData(gl.PIXEL_PACK_BUFFER, this.px.byteLength, gl.STREAM_READ);
@@ -151,5 +170,43 @@ export class LumaProbe {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); // three.js expects the default framebuffer bound between renders
     this.fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
     gl.flush();
+  }
+}
+
+/**
+ * The probe on demand: made on the first sample while wanted, freed the
+ * moment it is not (Classic pays nothing, not even a retained buffer), and
+ * dropped when the WebGL context is lost or restored, since its objects died
+ * with the old context.
+ */
+export class Backdrop {
+  private readonly open: () => WebGL2RenderingContext;
+  private probe: LumaProbe | null = null;
+
+  /** open: the renderer's context; called only when a sample is first wanted. */
+  constructor(open: () => WebGL2RenderingContext) {
+    this.open = open;
+  }
+
+  /** The latest grid while on; null when off (the probe is released) or before the first read lands. Call right after the frame is drawn. */
+  sample(now: number, on: boolean): Float32Array | null {
+    if (!on) {
+      this.release();
+      return null;
+    }
+    this.probe ??= new LumaProbe(this.open());
+    this.probe.capture(now);
+    return this.probe.current();
+  }
+
+  /** Frees the probe's GPU objects. */
+  release(): void {
+    this.probe?.dispose();
+    this.probe = null;
+  }
+
+  /** The context was lost or restored: forget the probe (nothing to free; the objects are gone). */
+  forget(): void {
+    this.probe = null;
   }
 }

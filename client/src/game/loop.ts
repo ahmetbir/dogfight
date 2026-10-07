@@ -201,6 +201,7 @@ export function startGame(ctx: GameCtx): Game {
     fx.update(dt);
     world.update(dt, r.camera.position);
     r.render();
+    const backdrop = r.backdrop(now, ctx.settings.hud === "military"); // before the inset, which is not the world behind the HUD
     cams.inset(now);
     if (me && fs) {
       hooks.hud?.({
@@ -222,7 +223,7 @@ export function startGame(ctx: GameCtx): Game {
         abHeat: fs.abh ?? 0, abLocked: !!fs.abl,
         pos: fs.pos, vel: fs.vel, fwd: qForward(fs.rot), up: qRotate(fs.rot, { x: 0, y: 1, z: 0 }), aimDir: mine ? ctl?.aimDir ?? null : null,
         project: (p) => r.project(p),
-        backdrop: ctx.settings.hud === "military" ? r.backdrop(now) : null,
+        backdrop,
         planeAt: (id) => {
           const p = state.planes.get(id);
           const s = p?.a ? state.interp.get(id)?.sample(rt) : null;
