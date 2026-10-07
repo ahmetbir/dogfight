@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"playground/internal/protocol"
+	"playground/internal/sim"
 )
 
 // Input pacing at the 60 Hz send rate.
@@ -41,12 +42,18 @@ func stick(i int, seq uint32) protocol.ClientMsg {
 
 func r3(x float64) float64 { return math.Round(x*1000) / 1000 }
 
-// pickKind is the aircraft player i flies for its team: the two types of
-// each side alternate. An unknown team gets the NATO pair.
+// pickKind is the aircraft player i flies for its team: each side's types
+// in turn (sim.Kinds order). An unknown team gets the NATO list.
 func pickKind(team string, i int) string {
-	pair := [2]string{"f16", "f15"}
+	side := sim.TeamNATO
 	if team == "soviet" {
-		pair = [2]string{"mig29", "su27"}
+		side = sim.TeamSoviet
 	}
-	return pair[i%2]
+	var kinds []string
+	for _, k := range sim.Kinds() {
+		if sim.SpecOf(k).Team == side {
+			kinds = append(kinds, k.String())
+		}
+	}
+	return kinds[i%len(kinds)]
 }

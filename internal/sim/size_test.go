@@ -17,7 +17,7 @@ func TestSizesDerivedFromAirframe(t *testing.T) {
 			t.Fatalf("%v: airframe %v × %v, nose %v: missing or implausible", k, s.Length, s.Span, s.Nose)
 		}
 		far := math.Max(math.Max(s.Nose, s.Length-s.Nose), s.Span/2)
-		if s.HitRadius() != far || s.RamRadius() != 1.2*far || s.WallRadius() != s.Span/2 || s.Muzzle() != s.Nose+MuzzleLead {
+		if s.HitRadius() != far || s.RamRadius() != 1.2*far || s.WallRadius() != min(s.Span/2, MaxWallRadius) || s.Muzzle() != s.Nose+MuzzleLead {
 			t.Fatalf("%v: derived sizes off the rule: hit %v ram %v wall %v muzzle %v", k, s.HitRadius(), s.RamRadius(), s.WallRadius(), s.Muzzle())
 		}
 	}
@@ -135,8 +135,8 @@ func TestWallRadiusFitsHangar(t *testing.T) {
 func TestTeammatesDoNotRam(t *testing.T) {
 	ram := func(ta, tb Team, ff bool) bool {
 		w := NewWorld(Config{Seed: 1, Terrain: terrain.Generate(1), FriendlyFire: ff})
-		w.AddPlane(1, ta, Su27)
-		w.AddPlane(2, tb, MiG29)
+		w.AddPlane(1, ta, Su30)
+		w.AddPlane(2, tb, MiG31)
 		w.clearProtection()
 		w.setFlight(1, FlightState{Pos: geom.V(0, 2000, 0), Rot: geom.Identity(), Vel: geom.V(0, 0, -100)})
 		w.setFlight(2, FlightState{Pos: geom.V(0, 2000, -15), Rot: geom.Identity(), Vel: geom.V(0, 0, 100)})

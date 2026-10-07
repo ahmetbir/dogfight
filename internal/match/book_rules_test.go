@@ -163,7 +163,7 @@ func goRules(t *testing.T) map[string]float64 {
 			"MaxHP": s.MaxHP, "MaxSpeed": s.MaxSpeed, "MaxSpeedAB": s.MaxSpeedAB, "Accel": s.Accel, "RollRate": s.RollRate,
 			"PitchRate": s.PitchRate, "YawRate": s.YawRate, "CornerSpeed": s.CornerSpeed, "Missiles": float64(s.Missiles),
 			"Flares": float64(s.Flares), "LockRange": s.LockRange, "RotateSpeed": s.RotateSpeed,
-			"Length": s.Length, "Span": s.Span, "Nose": s.Nose,
+			"Length": s.Length, "Span": s.Span, "Nose": s.Nose, "ExtraBombs": float64(s.ExtraBombs),
 		} {
 			r[n+f] = v
 		}
@@ -199,9 +199,9 @@ func structureRules(t *testing.T, r map[string]float64) {
 	if len(planes) == 0 {
 		t.Fatal("base game without planes")
 	}
-	r["bombs"] = float64(planes[0].Bombs)
+	r["bombs"] = float64(planes[0].Bombs - sim.SpecOf(planes[0].Kind).ExtraBombs)
 	for _, p := range planes {
-		if float64(p.Bombs) != r["bombs"] {
+		if float64(p.Bombs-sim.SpecOf(p.Kind).ExtraBombs) != r["bombs"] {
 			t.Fatalf("bomb loadouts differ: %d vs %v", p.Bombs, r["bombs"])
 		}
 	}

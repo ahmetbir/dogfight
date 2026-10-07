@@ -90,7 +90,8 @@ func TestPickKindMatchesTeam(t *testing.T) {
 		team string
 		i    int
 		want string
-	}{{"nato", 0, "f16"}, {"nato", 1, "f15"}, {"soviet", 2, "mig29"}, {"soviet", 3, "su27"}, {"none", 0, "f16"}}
+	}{{"nato", 0, "f16"}, {"nato", 1, "f15"}, {"nato", 2, "f22"}, {"nato", 9, "f16"}, {"soviet", 0, "mig29"},
+		{"soviet", 1, "su27"}, {"soviet", 7, "mig23"}, {"soviet", 8, "mig29"}, {"none", 0, "f16"}}
 	for _, c := range cases {
 		if got := pickKind(c.team, c.i); got != c.want {
 			t.Errorf("pickKind(%q,%d) = %q, want %q", c.team, c.i, got, c.want)

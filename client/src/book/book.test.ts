@@ -53,10 +53,12 @@ test("every chapter renders with the live and the built-in aircraft table", () =
 
 test("the built-in aircraft table comes from the Go-checked rules", () => {
   const t = builtinAircraft();
-  assert.deepEqual(t.map((a) => a.kind), ["f16", "f15", "mig29", "su27"]);
+  assert.deepEqual(t.map((a) => a.kind).slice(0, 5), ["f16", "f15", "mig29", "su27", "f22"]);
+  assert.equal(t.length, 17);
   assert.equal(t[0]!.maxHP, RULES.f16MaxHP);
   assert.equal(t[3]!.rotateSpeed, RULES.su27RotateSpeed);
-  assert.deepEqual(t.map((a) => a.team), ["nato", "nato", "soviet", "soviet"]);
+  assert.equal(t[16]!.lockRange, RULES.mig23LockRange);
+  assert.equal(t.filter((a) => a.team === "nato").length, 9);
 });
 
 test("numbers come from the rules and the aircraft table", () => {

@@ -152,6 +152,8 @@ test("pilot token storage and card formats", () => {
   assert.equal(formatFlight(60 * 60 * 12), "12 dk");
   assert.equal(formatFlight(60 * 60 * 192), "3 sa 12 dk");
   assert.equal(favoriteName("mig29"), "MiG-29");
+  assert.equal(favoriteName("f18"), "F/A-18");
+  assert.equal(favoriteName("zeppelin"), "—");
   assert.equal(favoriteName(""), "—");
 });
 

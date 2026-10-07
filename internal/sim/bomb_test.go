@@ -6,6 +6,7 @@ import (
 
 	"playground/internal/geom"
 	"playground/internal/maps"
+	"playground/internal/terrain"
 )
 
 func TestBombFallsBallistically(t *testing.T) {
@@ -132,5 +133,24 @@ func TestBombsGoWithOwnerAndRound(t *testing.T) {
 	w.ResetAll()
 	if len(w.Snapshot().Bombs) != 0 {
 		t.Fatal("a new round clears bombs")
+	}
+}
+
+// The attack jets carry their extra bombs on top of the room's sortie load;
+// outside base attack nobody carries any.
+func TestAttackJetsCarryExtraBombs(t *testing.T) {
+	w := NewWorld(Config{Seed: 1, Terrain: terrain.Generate(1), Bombs: 2})
+	w.AddPlane(1, TeamNATO, A10)
+	w.AddPlane(2, TeamSoviet, Su25)
+	w.AddPlane(3, TeamNATO, F16)
+	for id, want := range map[ID]int{1: 4, 2: 4, 3: 2} {
+		if p, _ := w.Plane(id); p.Bombs != want || !w.needsRearm(&Plane{Kind: p.Kind, HP: SpecOf(p.Kind).MaxHP, Flares: SpecOf(p.Kind).Flares, Bombs: want - 1}) {
+			t.Fatalf("plane %d (%v): %d bombs, want %d and a rearm below it", id, p.Kind, p.Bombs, want)
+		}
+	}
+	ffa := NewWorld(Config{Seed: 1, Terrain: terrain.Generate(1)})
+	ffa.AddPlane(1, TeamNone, A10)
+	if p, _ := ffa.Plane(1); p.Bombs != 0 {
+		t.Fatalf("FFA A-10 carries %d bombs", p.Bombs)
 	}
 }

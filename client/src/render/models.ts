@@ -15,7 +15,8 @@ const rawLength = new Map<string, number>(); // builder key → unscaled nose + 
 const builders: Record<string, (p: Palette) => Model> = { f16: buildF16, f15: buildF15, mig29: buildMig29, su27: buildSu27 };
 
 /**
- * Procedural model of kind, nose toward -Z, scaled to the kind's true length
+ * Procedural model of kind (the F-16's shape for a kind without a builder),
+ * nose toward -Z, scaled to the kind's true length
  * (the .glb's), so a model that fails to load does not change the jet's size.
  * Children named "ab" (afterburner flame) and "idle" (nozzle glow) sit at each
  * engine exit; "gear" is the landing gear (hidden; PlaneView shows it). own
@@ -32,7 +33,7 @@ export function buildModel(kind: string, team: Team, own = false): THREE.Group {
     raw = s.nose + s.tail;
     rawLength.set(key, raw);
   }
-  const scale = raw > 0 ? airframe(key).length / raw : 1;
+  const scale = raw > 0 ? airframe(kind).length / raw : 1; // a kind without a builder: the F-16 shape at its own length
   g.scale.setScalar(scale);
   // Gear lives outside the airframe so a .glb body swap keeps it, and is
   // scaled back to true meters: the wheels must reach y = -2.5 on every kind.

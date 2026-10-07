@@ -120,7 +120,7 @@ func (w *World) fresh(p *Plane) Plane {
 	s := SpecOf(p.NextKind)
 	ir, radar := LoadoutCounts(p.NextKind, p.NextLoadout)
 	return Plane{ID: p.ID, Kind: p.NextKind, NextKind: p.NextKind, Team: p.Team, HP: s.MaxHP, Alive: true,
-		Missiles: ir, Radars: radar, Flares: s.Flares, Life: p.Life + 1, Bombs: w.cfg.Bombs,
+		Missiles: ir, Radars: radar, Flares: s.Flares, Life: p.Life + 1, Bombs: w.sortieBombs(p.NextKind),
 		Loadout: p.NextLoadout, NextLoadout: p.NextLoadout}
 }
 

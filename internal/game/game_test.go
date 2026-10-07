@@ -41,6 +41,38 @@ func TestPickRespectsTeam(t *testing.T) {
 	}
 }
 
+// Every kind of the own side is pickable, every enemy kind refused; the
+// sides split the seventeen 9 NATO / 8 Soviet, and a team's bots fly each
+// kind of their side in turn.
+func TestTeamKindsSplitAndPickable(t *testing.T) {
+	if n, s := len(teamKinds(sim.TeamNATO)), len(teamKinds(sim.TeamSoviet)); n != 9 || s != 8 || n+s != len(sim.Kinds()) {
+		t.Fatalf("NATO %d, Soviet %d kinds of %d", n, s, len(sim.Kinds()))
+	}
+	g := New(Settings{Mode: mode.Team, Size: 1, Difficulty: bot.Easy, Seed: 1})
+	id, _ := g.AddHuman("a")
+	team := player(t, g, id).Team
+	for _, k := range sim.Kinds() {
+		err := g.Pick(id, k)
+		if own := sim.SpecOf(k).Team == team; own != (err == nil) {
+			t.Fatalf("%v pick by %v: %v", k, team, err)
+		}
+	}
+	tg := New(Settings{Mode: mode.Team, Size: 6, Difficulty: bot.Easy, Seed: 3})
+	seen := map[sim.Team]map[sim.Kind]bool{sim.TeamNATO: {}, sim.TeamSoviet: {}}
+	for range 3 { // replace every bot a few times: each side's rotation goes round
+		for _, p := range tg.Players() {
+			seen[p.Team][p.Kind] = true
+			tg.remove(p.ID)
+			tg.addBot(p.Team)
+		}
+	}
+	for team, kinds := range seen {
+		if len(kinds) != len(teamKinds(team)) {
+			t.Fatalf("%v bots flew %d of %d kinds", team, len(kinds), len(teamKinds(team)))
+		}
+	}
+}
+
 func player(t *testing.T, g *Game, id sim.ID) Player {
 	t.Helper()
 	for _, p := range g.Players() {
@@ -84,7 +116,7 @@ func TestBotsAreNamedAndCycleKinds(t *testing.T) {
 		}
 		kinds[p.Kind]++
 	}
-	if len(kinds) != 4 {
+	if len(kinds) != 5 {
 		t.Fatalf("ffa bots must cycle all kinds: %v", kinds)
 	}
 	tg := New(Settings{Mode: mode.Team, Size: 2, Difficulty: bot.Easy, Seed: 3})
