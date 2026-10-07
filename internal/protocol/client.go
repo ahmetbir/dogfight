@@ -51,6 +51,7 @@ type ClientMsg struct {
 	Code  string  `json:"code,omitempty"`  // join
 	Kind  string  `json:"kind,omitempty"`  // pick
 	Lo    string  `json:"lo,omitempty"`    // pick: ir|radar|mixed (missing keeps the current loadout)
+	Skin  string  `json:"skin,omitempty"`  // pick: paint scheme id (missing or unknown: standard)
 	Team  string  `json:"team,omitempty"`  // team: nato|soviet|auto
 	Seq   uint32  `json:"seq,omitempty"`   // in; starts at 1
 	P     float64 `json:"p,omitempty"`

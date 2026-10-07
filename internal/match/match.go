@@ -129,6 +129,7 @@ func (m *Match) Handle(id room.PlayerID, msg protocol.ClientMsg, out room.Outbox
 		if k, ok := sim.ParseKind(msg.Kind); ok {
 			_ = m.g.Pick(sid, k) // a kind the team may not fly is ignored
 		}
+		m.g.SetSkin(sid, msg.Skin) // checked against the aircraft now picked; missing or unknown: standard
 	case protocol.TTeam:
 		m.team(id, msg.Team, out)
 	}

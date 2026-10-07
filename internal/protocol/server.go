@@ -148,6 +148,7 @@ type PlayerJSON struct {
 	Team string `json:"team"`
 	Kind string `json:"kind"`
 	Bot  bool   `json:"bot"`
+	Skin string `json:"skin,omitempty"` // paint scheme; omitted: standard
 }
 
 // The core message types, under their old names.
@@ -252,7 +253,11 @@ func NewRound(r game.Round) RoundMsg {
 func NewPlayers(ps []game.Player) PlayersMsg {
 	list := make([]PlayerJSON, 0, len(ps))
 	for _, p := range ps {
-		list = append(list, PlayerJSON{ID: p.ID, Name: p.Name, Team: TeamName(p.Team), Kind: p.Kind.String(), Bot: p.Bot})
+		j := PlayerJSON{ID: p.ID, Name: p.Name, Team: TeamName(p.Team), Kind: p.Kind.String(), Bot: p.Bot}
+		if p.Skin != game.StandardSkin {
+			j.Skin = p.Skin
+		}
+		list = append(list, j)
 	}
 	return PlayersMsg{T: "players", List: list}
 }

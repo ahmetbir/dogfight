@@ -354,3 +354,29 @@ func TestHeadLatchAndWithAck(t *testing.T) {
 		t.Fatalf("withAck %+v", a)
 	}
 }
+
+// The skin rides on pick as an optional field; the roster carries it only
+// when it is not the standard paint, so old clients and goldens see no change
+// for standard players.
+func TestPickSkinAndRosterSkin(t *testing.T) {
+	m, err := DecodeClient([]byte(`{"t":"pick","kind":"su27","skin":"flanker"}`))
+	if err != nil || m.Skin != "flanker" {
+		t.Fatalf("decode %+v %v", m, err)
+	}
+	m, err = DecodeClient([]byte(`{"t":"pick","kind":"su27"}`))
+	if err != nil || m.Skin != "" {
+		t.Fatalf("decode without skin %+v %v", m, err)
+	}
+	msg := NewPlayers([]game.Player{
+		{ID: 1, Name: "a", Kind: sim.Su27, Skin: "flanker"},
+		{ID: 2, Name: "b", Kind: sim.F16, Skin: game.StandardSkin},
+	})
+	b, err := json.Marshal(msg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"t":"players","list":[{"id":1,"name":"a","team":"none","kind":"su27","bot":false,"skin":"flanker"},{"id":2,"name":"b","team":"none","kind":"f16","bot":false}]}`
+	if string(b) != want {
+		t.Fatalf("roster\n got %s\nwant %s", b, want)
+	}
+}
