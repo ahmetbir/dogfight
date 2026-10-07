@@ -51,6 +51,11 @@ export class Gauges {
       h("div", { class: "g-row ammo" }, label("g.missiles"), this.ms, label("g.flares"), this.fl), this.dmgRow);
   }
 
+  /** Whether the runway-spawn parking brake holds, as of the last update. */
+  parked(): boolean {
+    return this.lights.parked();
+  }
+
   update(v: HudView): void {
     text(this.speed, v.alive ? String(Math.round(v.speed * 3.6)) : "—");
     text(this.alt, v.alive ? String(Math.max(0, Math.round(v.alt))) : "—");

@@ -12,14 +12,16 @@
 // warnings) are restyled by CSS.
 import type { HudView } from "../game/events.ts";
 import { regionLuma } from "../render/luma.ts";
-import { add, cross, len, scale, sub, type V3 } from "../sim/vec.ts";
+import { cross, len, sub, type V3 } from "../sim/vec.ts";
 import { rangeFill, LOCK_HALF_ANGLE } from "./lockinfo.ts";
 import { ammoParts, ranges } from "./loadout.ts";
 import {
-  coneRing, dirOf, fpmDir, gText, headingDeg, headingText, inkFor, kmText, ladderHeading, ladderPitches, machText, MIL_PALETTE,
-  pitchDeg, rangeArc, rung, rungFade, rungLabel, speedIn, tapeMarks, vsText, type Ink, type MilColor, type SpeedUnit,
+  coneRing, dirOf, fpmDir, gText, headingText, inkFor, kmText, ladderHeading, ladderPitches, machText, MIL_PALETTE,
+  pitchDeg, rangeArc, rung, rungFade, rungLabel, speedIn, steadyHeading, tapeMarks, vsText,
+  type Ink, type MilColor, type Rung, type SpeedUnit, type TapeMark,
 } from "./milmath.ts";
 import { boxSize, leadMark, noseMark, type Pt, type ReticleView } from "./reticle.ts";
+import type { Body } from "./reticle.ts";
 
 export type { MilColor };
 
@@ -27,11 +29,16 @@ export type { MilColor };
 export const MIL_COLORS: Record<MilColor, string> = MIL_PALETTE;
 
 const R = 500;            // m: every projected mark sits this far out, as the classic nose cross does
+const HOLE_MIN_HALF = 9;   // m: least half-span of the clear ellipse around my plane
 const TAPE_HALF = 25;     // deg either side of the heading tape's centre
 const LADDER_SPAN = 12;   // deg: the ladder's window either side of the flight path (it fades out at the edge)
 const LADDER_ALPHA = 0.8; // the ladder is secondary: a touch dimmer than the readouts
 const GUN_REACH = 2000;   // m: the pipper's range arc is full here (the HUD's gun range)
 const TEXT_MS = 100;      // readouts refresh at 10 Hz so the digits do not shimmer
+const INK_STEPS = 64;     // backdrop luma is quantised to 1/64 for the ink cache (the ink changes slowly over 0.4..0.65)
+const CONE_N = 32;
+const CONE_DASH = [3, 6];
+const NEG_DASH = [5, 4];
 const FONT = "ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace";
 
 /** glow: the faint glow over dark backdrops (off in performance mode). */
@@ -53,6 +60,17 @@ export class MilHud {
   private texts: Texts | null = null;
   private textAt = 0;
   private drawn = false;
+  // Reused every frame (no per-frame garbage): the pen, the layout, the inks, the scratch geometry.
+  private pen: Pen | null = null;
+  private lay: Layout | null = null;
+  private layTouch = false;
+  private grid: Float32Array | null = null;
+  private readonly inks = new Map<number, Ink>();
+  private marks: TapeMark[] = [];
+  private readonly rungBuf: Rung = rung(0, 0);
+  private readonly ringDirs: V3[] = [];
+  private readonly ringPts: (Pt | null)[] = [];
+  private readonly aim: V3 = { x: 0, y: 0, z: 0 };
 
   constructor() {
     this.el = document.createElement("canvas");
@@ -76,6 +94,20 @@ export class MilHud {
   setStyle(s: MilStyle): void {
     this.style = s;
     this.texts = null;
+    this.inks.clear();
+  }
+
+  /** The ink for what lies behind a screen region (CSS px). */
+  private inkAt(x0: number, y0: number, x1: number, y1: number): Ink {
+    const grid = this.grid;
+    const luma = grid ? regionLuma(grid, x0 / this.w, y0 / this.h, x1 / this.w, y1 / this.h) : null;
+    const k = luma === null ? -1 : Math.round(luma * INK_STEPS);
+    let ink = this.inks.get(k);
+    if (!ink) {
+      ink = inkFor(this.style.color, luma === null ? null : k / INK_STEPS);
+      this.inks.set(k, ink);
+    }
+    return ink;
   }
 
   /** Clears the canvas (style switched off, waiting, down). */
@@ -86,7 +118,8 @@ export class MilHud {
     this.drawn = false;
   }
 
-  draw(v: HudView, rv: ReticleView, now = performance.now()): void {
+  /** parked: the runway-spawn parking brake holds (the BRAKE row shows it like the wheel brake). */
+  draw(v: HudView, rv: ReticleView, parked = false, now = performance.now()): void {
     const g = this.g;
     if (!g || this.w === 0 || this.h === 0) return;
     if (!v.alive) {
@@ -101,17 +134,21 @@ export class MilHud {
       this.dpr = dpr;
     }
     if (!this.texts || now - this.textAt >= TEXT_MS) {
-      this.texts = readouts(v, this.style.unit);
+      this.texts = readouts(v, this.style.unit, parked);
       this.textAt = now;
     }
-    const L = layout(this.w, this.h, v.scheme === "touch");
+    const touch = v.scheme === "touch";
+    if (!this.lay || this.lay.w !== this.w || this.lay.h !== this.h || this.layTouch !== touch) {
+      this.lay = layout(this.w, this.h, touch);
+      this.layTouch = touch;
+    }
+    const L = this.lay;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, this.w, this.h);
     g.lineJoin = g.lineCap = "round";
-    const grid = v.backdrop;
-    const W = this.w, H = this.h;
-    const pen = new Pen(g, L.fs, dpr, this.style.glow, (x0, y0, x1, y1) =>
-      inkFor(this.style.color, grid ? regionLuma(grid, x0 / W, y0 / H, x1 / W, y1 / H) : null));
+    this.grid = v.backdrop;
+    const pen = (this.pen ??= new Pen(g, (x0, y0, x1, y1) => this.inkAt(x0, y0, x1, y1)));
+    pen.begin(L.fs, dpr, this.style.glow);
     const blink = Math.floor(now / 250) % 2 === 0;
 
     this.tape(pen, L, v);
@@ -119,23 +156,36 @@ export class MilHud {
     this.weapons(pen, L, this.texts, blink);
 
     // Projected symbology, clipped to the HUD's field between the boxes and kept off my own plane.
-    const proj = (d: V3): Pt | null => v.project(add(v.pos, scale(d, R)));
-    const nose = v.project(noseMark(v.pos, v.fwd));
-    const upPt = v.project(add(noseMark(v.pos, v.fwd), scale(v.up, 20)));
+    const at = this.aim; // v.project reads its argument at once, so one scratch point serves every mark
+    const proj = (d: V3): Pt | null => {
+      at.x = v.pos.x + d.x * R; at.y = v.pos.y + d.y * R; at.z = v.pos.z + d.z * R;
+      return v.project(at);
+    };
+    const nm = noseMark(v.pos, v.fwd);
+    const nose = v.project(nm);
+    const upPt = v.project({ x: nm.x + v.up.x * 20, y: nm.y + v.up.y * 20, z: nm.z + v.up.z * 20 });
     const upS = nose && upPt ? unit2(upPt.x - nose.x, upPt.y - nose.y) : { x: 0, y: -1 };
     const fd = fpmDir(v.vel);
     const fpm = fd ? proj(fd) : null;
     g.save();
     g.beginPath();
     g.rect(L.clip.x, L.clip.y, L.clip.w, L.clip.h);
+    g.clip();
     const own = planeHole(v, upS, L.fs);
-    if (own) g.ellipse(own.x, own.y, own.rx, own.ry, own.rot, 0, Math.PI * 2);
-    g.clip("evenodd");
+    if (own) { // a second clip cuts my plane out of the first: the hole never reaches past the box
+      g.beginPath();
+      g.rect(0, 0, this.w, this.h);
+      g.ellipse(own.x, own.y, own.rx, own.ry, own.rot, 0, Math.PI * 2);
+      g.clip("evenodd");
+    }
     this.ladder(pen, v, proj);
     if (rv.lock && !rv.lock.locked && nose) { // the seeker's cone while a lock builds
       pen.around(nose, L.fs * 8);
       g.globalAlpha = 0.45;
-      pen.polyline(coneRing(v.fwd, LOCK_HALF_ANGLE).map(proj), true, [3, 6]);
+      const dirs = coneRing(v.fwd, LOCK_HALF_ANGLE, CONE_N, this.ringDirs);
+      for (let i = 0; i < dirs.length; i++) this.ringPts[i] = proj(dirs[i]);
+      this.ringPts.length = dirs.length;
+      pen.polyline(this.ringPts, true, CONE_DASH);
       g.globalAlpha = 1;
     }
     g.restore();
@@ -164,7 +214,7 @@ export class MilHud {
   }
 
   private tape(p: Pen, L: Layout, v: HudView): void {
-    const hdg = headingDeg(v.fwd);
+    const hdg = steadyHeading(v.fwd, v.up);
     const ppd = L.tapeHalf / TAPE_HALF;
     const yTick = L.tapeY + p.fs + 3;
     const yc = yTick + 10;
@@ -172,7 +222,7 @@ export class MilHud {
     p.region(L.cx - L.tapeHalf, L.tapeY, L.cx + L.tapeHalf, yc + 8 + bh);
     p.backing(L.cx - L.tapeHalf - 8, L.tapeY - 4, L.tapeHalf * 2 + 16, yTick + 10 - L.tapeY);
     p.backing(L.cx - bw / 2 - 3, yc + 5, bw + 6, bh + 6);
-    const marks = tapeMarks(hdg, TAPE_HALF);
+    const marks = (this.marks = tapeMarks(hdg, TAPE_HALF, 5, this.marks));
     p.stroke((g) => {
       for (const m of marks) {
         const x = L.cx + m.off * ppd;
@@ -229,7 +279,7 @@ export class MilHud {
     for (const pitch of ladderPitches(centre, LADDER_SPAN)) {
       const fade = rungFade(pitch, centre, LADDER_SPAN);
       if (fade <= 0.05) continue;
-      const r = rung(az, pitch);
+      const r = rung(az, pitch, this.rungBuf);
       const li = proj(r.left[0]), lo = proj(r.left[1]), ri = proj(r.right[0]), ro = proj(r.right[1]);
       const mid = proj(dirOf(az, pitch));
       if (!li || !lo || !ri || !ro || !mid) continue;
@@ -239,7 +289,7 @@ export class MilHud {
       p.stroke((c) => {
         c.moveTo(li.x, li.y); c.lineTo(lo.x, lo.y);
         c.moveTo(ri.x, ri.y); c.lineTo(ro.x, ro.y);
-      }, 1, pitch < 0 ? [5, 4] : undefined);
+      }, 1, pitch < 0 ? NEG_DASH : undefined);
       if (tl || tr) {
         p.stroke((c) => {
           if (tl) { c.moveTo(lo.x, lo.y); c.lineTo(tl.x, tl.y); }
@@ -257,7 +307,7 @@ export class MilHud {
   /** Gun pipper: a ring with a centre dot on the lead point, its range arc unwinding as the target nears. */
   private pipper(p: Pen, v: HudView, rv: ReticleView): void {
     if (!rv.lead) return;
-    const mark = leadMark({ pos: v.pos, vel: v.vel }, rv.lead);
+    const mark = pipperMark(v, rv);
     const at = mark ? v.project(mark) : null;
     if (!at) return;
     const r = p.fs * 1.6;
@@ -301,6 +351,15 @@ export class MilHud {
   }
 }
 
+/** One frame of the centre symbology: the military canvas or the classic reticle, never both (Classic does no military work). */
+export function drawSymbology(
+  military: boolean, mil: { draw(v: HudView, rv: ReticleView, parked: boolean): void }, classic: { update(rv: ReticleView): void },
+  v: HudView, rv: ReticleView, parked: boolean,
+): void {
+  if (military) mil.draw(v, rv, parked);
+  else classic.update(rv);
+}
+
 /** Pixel layout for a viewport; touch keeps the classic touch areas clear. */
 type Layout = {
   w: number; h: number; fs: number; cx: number;
@@ -331,14 +390,14 @@ export function layout(w: number, h: number, touch: boolean): Layout {
 }
 
 /** The readouts for a view, in the display unit. */
-export function readouts(v: HudView, unit: SpeedUnit): Texts {
+export function readouts(v: HudView, unit: SpeedUnit, parked = false): Texts {
   const pad = (label: string, value: string) => `${label.padEnd(3)}${value.padStart(5)}`;
   const left = [pad("G", gText(v.gLoad)), pad("M", machText(v.speed, v.alt)), pad("THR", String(Math.round(v.th * 100)))];
   if (v.abLocked) left.push("AB HOT");
   else if (v.ab) left.push(`AB ${String(Math.round(v.abHeat * 100)).padStart(3)}%`);
   const right = [pad("VS", vsText(v.vel.y))];
   if (v.gear || v.gearWanted) right.push(v.gear === v.gearWanted ? "GEAR" : "GEAR ..");
-  if (v.brake) right.push("BRAKE");
+  if (v.brake || parked) right.push("BRAKE");
   const weapons: Texts["weapons"] = [];
   const parts = ammoParts(v.missiles, v.radars, v.loadout, v.fires);
   weapons.push({ text: parts.map((x) => (x.on && parts.length > 1 ? `[${short(x.text)}]` : short(x.text))).join(" ") });
@@ -356,7 +415,7 @@ export function readouts(v: HudView, unit: SpeedUnit): Texts {
   return {
     speed: String(speedIn(v.speed, unit)),
     alt: String(Math.max(0, Math.round(v.alt))),
-    heading: headingText(headingDeg(v.fwd)),
+    heading: headingText(steadyHeading(v.fwd, v.up)),
     left, right, weapons,
   };
 }
@@ -377,13 +436,21 @@ function rangeKm(v: HudView): string {
   return kmText(r.ir);
 }
 
+/** Where the gun pipper sits: the lead mark for my aircraft's own muzzle, as the Classic lead circle has it; null without a target. */
+export function pipperMark(v: Pick<HudView, "pos" | "vel">, rv: Pick<ReticleView, "lead" | "muzzle">): V3 | null {
+  return rv.lead ? leadMark({ pos: v.pos, vel: v.vel } satisfies Body, rv.lead, rv.muzzle) : null;
+}
+
 /**
  * The ellipse my own plane covers on screen in the chase view (its centre,
  * radii and rotation by the wings' screen angle); null when off screen.
  */
-function planeHole(v: HudView, upS: Pt, fs: number): { x: number; y: number; rx: number; ry: number; rot: number } | null {
+export function planeHole(v: HudView, upS: Pt, fs: number): { x: number; y: number; rx: number; ry: number; rot: number } | null {
   const c = v.project(v.pos);
-  const wing = v.project(add(v.pos, scale(cross(v.fwd, v.up), 9)));
+  // My airframe's real half-span, never smaller than the 9 m the approved look was tuned on
+  // (a smaller hole lets the ladder crowd the plane again).
+  const w = cross(v.fwd, v.up), half = Math.max(v.span / 2, HOLE_MIN_HALF);
+  const wing = v.project({ x: v.pos.x + w.x * half, y: v.pos.y + w.y * half, z: v.pos.z + w.z * half });
   if (!c || !wing) return null;
   const rx = Math.hypot(wing.x - c.x, wing.y - c.y) * 1.25 + fs;
   return { x: c.x, y: c.y, rx, ry: rx * 0.6, rot: Math.atan2(-upS.x, upS.y) };
@@ -400,23 +467,32 @@ type InkAt = (x0: number, y0: number, x1: number, y1: number) => Ink;
 /**
  * Drawing primitives in the HUD's look: thin luminous lines and glyphs with a
  * soft shadow, in the ink of the region last named by region() / around().
+ * One pen serves every frame (begin() re-arms it).
  */
 class Pen {
   readonly g: CanvasRenderingContext2D;
-  readonly fs: number;
-  private readonly dpr: number;
-  private readonly soft: boolean;
+  fs = 12;
+  private dpr = 1;
+  private soft = true;
   private readonly inkAt: InkAt;
   private ink: Ink;
+  private readonly fonts = new Map<number, string>();
+  private readonly backings = new WeakMap<Ink, string>();
+  private font = "";
 
-  /** soft: draw the shadows (off in performance mode). */
-  constructor(g: CanvasRenderingContext2D, fs: number, dpr: number, soft: boolean, inkAt: InkAt) {
+  constructor(g: CanvasRenderingContext2D, inkAt: InkAt) {
     this.g = g;
+    this.inkAt = inkAt;
+    this.ink = inkAt(0, 0, 0, 0);
+  }
+
+  /** Starts a frame. soft: draw the shadows (off in performance mode). */
+  begin(fs: number, dpr: number, soft: boolean): void {
     this.fs = fs;
     this.dpr = dpr;
     this.soft = soft;
-    this.inkAt = inkAt;
-    this.ink = inkAt(0, 0, 0, 0);
+    this.font = ""; // a resized canvas has lost its font
+    this.ink = this.inkAt(0, 0, 0, 0);
   }
 
   /** The ink for what lies behind this rectangle. */
@@ -434,7 +510,9 @@ class Pen {
     if (this.ink.backing <= 0) return;
     const g = this.g;
     this.shadow(false);
-    g.fillStyle = `rgba(0,10,4,${this.ink.backing.toFixed(2)})`;
+    let style = this.backings.get(this.ink);
+    if (!style) this.backings.set(this.ink, (style = `rgba(0,10,4,${this.ink.backing.toFixed(2)})`));
+    g.fillStyle = style;
     g.beginPath();
     g.roundRect(x, y, w, h, 3);
     g.fill();
@@ -473,7 +551,13 @@ class Pen {
   /** Text, size as a share of the HUD's font size (the numeric readouts are larger, not heavier). */
   text(s: string, x: number, y: number, align: CanvasTextAlign, base: CanvasTextBaseline, size = 1): void {
     const g = this.g;
-    g.font = `${Math.round(this.fs * size)}px ${FONT}`;
+    const px = Math.round(this.fs * size);
+    let font = this.fonts.get(px);
+    if (!font) this.fonts.set(px, (font = `${px}px ${FONT}`));
+    if (font !== this.font) {
+      g.font = font;
+      this.font = font;
+    }
     g.textAlign = align;
     g.textBaseline = base;
     g.fillStyle = this.ink.core;
@@ -490,7 +574,9 @@ class Pen {
   polyline(pts: (Pt | null)[], closed: boolean, dash?: number[]): void {
     this.stroke((g) => {
       let down = false;
-      for (const p of closed ? [...pts, pts[0]] : pts) {
+      const n = closed ? pts.length + 1 : pts.length;
+      for (let i = 0; i < n; i++) {
+        const p = pts[i % pts.length];
         if (!p) { down = false; continue; }
         if (down) g.lineTo(p.x, p.y);
         else g.moveTo(p.x, p.y);

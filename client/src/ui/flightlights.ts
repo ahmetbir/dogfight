@@ -49,17 +49,24 @@ export class FlightLights {
   private readonly rearmFill = h("div", { class: "bar-fill" });
   private readonly rearmLabel = h("span", { class: "g-label rearm-label" });
   private readonly park = new ParkBrake();
+  private parkHeld = false;
   private readonly rearm = h("div", { class: "g-row rearm", hidden: true }, this.rearmLabel, h("div", { class: "bar rearm-bar" }, this.rearmFill));
 
   constructor() {
     this.el = h("div", { class: "flight-lights" }, h("div", { class: "g-row lamps" }, this.gear, this.brake, this.bombs), this.rearm);
   }
 
+  /** Whether the runway-spawn parking brake holds, as of the last update. */
+  parked(): boolean {
+    return this.parkHeld;
+  }
+
   update(v: HudView): void {
     const g = gearLight(v.gear, v.gearWanted);
     this.gear.classList.toggle("on", g === "on");
     this.gear.classList.toggle("blink", g === "blink");
-    this.brake.classList.toggle("on", v.brake || this.park.update(v.alive, v.onGround, v.th, v.ab));
+    this.parkHeld = this.park.update(v.alive, v.onGround, v.th, v.ab);
+    this.brake.classList.toggle("on", v.brake || this.parkHeld);
     this.bombs.hidden = !v.baseMode;
     if (v.baseMode) {
       text(this.bombs, t("lamp.bombs", { n: v.bombs }));

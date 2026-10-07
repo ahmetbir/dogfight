@@ -85,8 +85,11 @@ export const field: Field = {
       [b("Hedef"), ": kilit kurulurken hedefin çevresinde daralan bir baklava ve arayıcı konisi; kilitlenince baklava dolar ve LOCK yazar (radar kilidinde kesikli). ",
         "Yanında füze türü ve mesafe (km), altında menzil çubuğu. Top hedefinde öndelik halkası; çevresindeki yay mesafeyle kısalır."],
       [b("Sağ altta"), " (dokunmatikte sağ üstte): füzeler, menzil (RNG), flare (FLR), top ısısı (GUN), can (HP), hasar (ENG, CTL, AVN)."]),
-    p("Radar, skor, uyarılar ve olay akışı aynı yerlerinde, aynı renkte kalır. Açık gökyüzünde semboller arkalarındaki görüntüye göre hafif bir gölge, ",
-      "göstergeler de çok soluk bir zemin alır."),
+    p("HUD'un geri kalanı aynı rengi alır ve yer değiştirir: masaüstünde radar sol alta, görev metni ile skor sol üste, ",
+      "uyarılar pusula şeridinin altına, orta mesajlar alt ortaya gider; dokunmatikte görev metni ile skor üst ortadadır. ",
+      "Açık gökyüzünde semboller arkalarındaki görüntüye göre hafif bir gölge, göstergeler de çok soluk bir zemin alır."),
+    p(b("Radar"), ": tek renk olduğu için kontakları şekiller ayırır. İçi boş daire dost, dolu baklava düşman, artı güç takviyesi, ",
+      "içi boş kare üs hedefi, küçük soluk nokta füzedir; çevresinde yanıp sönen halka olan nokta sana kilitlenmiş füzedir."),
   ],
 
   tips: () => [

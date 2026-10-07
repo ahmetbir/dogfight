@@ -12,6 +12,17 @@ export function headingDeg(d: V3): number {
   return h < 0 ? h + 360 : h;
 }
 
+/**
+ * The heading of a direction that may point (nearly) straight up or down,
+ * where atan2 of a vanishing horizontal part jumps arbitrarily: there the
+ * heading the plane pulled through (behind its canopy when climbing, ahead
+ * of it diving), which moves steadily with the body's up axis.
+ */
+export function steadyHeading(d: V3, up: V3): number {
+  if (Math.hypot(d.x, d.z) > 1e-3) return headingDeg(d);
+  return headingDeg(d.y > 0 ? scale(up, -1) : up);
+}
+
 /** Elevation of a direction above the horizon in degrees, −90..90. */
 export function pitchDeg(d: V3): number {
   const l = len(d);
@@ -31,18 +42,27 @@ export type TapeMark = { deg: number; off: number; major: boolean; label: string
 /**
  * The heading tape's marks within ±half degrees of heading, every step
  * degrees, left to right. Majors fall on tens and carry the heading in tens
- * of degrees, two digits ("00", "09", "35"), as a fighter's tape does.
+ * of degrees, two digits ("00", "09", "35"), as a fighter's tape does. With
+ * out the marks are written into it (and its objects reused) every frame.
  */
-export function tapeMarks(heading: number, half: number, step = 5): TapeMark[] {
-  const out: TapeMark[] = [];
+export function tapeMarks(heading: number, half: number, step = 5, out: TapeMark[] = []): TapeMark[] {
+  let n = 0;
   const first = Math.ceil((heading - half) / step) * step;
   for (let a = first; a <= heading + half + 1e-9; a += step) {
     const deg = ((a % 360) + 360) % 360;
     const major = deg % 10 === 0;
-    out.push({ deg, off: a - heading, major, label: major ? String(deg / 10).padStart(2, "0") : "" });
+    const m = (out[n] ??= { deg: 0, off: 0, major: false, label: "" });
+    m.deg = deg;
+    m.off = a - heading;
+    m.major = major;
+    m.label = major ? TENS[deg / 10] : "";
+    n++;
   }
+  out.length = n;
   return out;
 }
+
+const TENS = Array.from({ length: 36 }, (_, i) => String(i).padStart(2, "0"));
 
 /** "087": the boxed heading under the tape. */
 export function headingText(heading: number): string {
@@ -63,9 +83,7 @@ export function fpmDir(vel: V3): V3 | null {
  * plane pulled through: behind its canopy when climbing, ahead of it diving.
  */
 export function ladderHeading(vel: V3, fwd: V3, up: V3): number {
-  const d = fpmDir(vel) ?? fwd;
-  if (Math.hypot(d.x, d.z) > 1e-3) return headingDeg(d);
-  return headingDeg(d.y > 0 ? scale(up, -1) : up);
+  return steadyHeading(fpmDir(vel) ?? fwd, up);
 }
 
 /** One rung: two bars either side of the gap, each from its inner to its outer end, and the end ticks toward the horizon. */
@@ -83,23 +101,34 @@ export const RUNG = { half: 3.6, gap: 1.6, tick: 0.6, horizonHalf: 7 };
 /**
  * Rung at pitch (deg) on azimuth heading (deg): unit directions of its bar
  * ends. A bar is a great circle through the rung's centre, square to the
- * azimuth, so it keeps its angular width at any pitch.
+ * azimuth, so it keeps its angular width at any pitch. With out the result
+ * is written into it (and its vectors reused) every frame.
  */
-export function rung(heading: number, pitch: number): Rung {
-  const c = dirOf(heading, pitch);
-  const right = dirOf(heading + 90, 0); // level, square to the azimuth
+export function rung(heading: number, pitch: number, out?: Rung): Rung {
+  const r = out ?? { pitch, left: [v0(), v0()], right: [v0(), v0()], tickL: v0(), tickR: v0() };
+  r.pitch = pitch;
+  const h = heading * DEG;
+  const rx = Math.cos(h), rz = Math.sin(h); // level, square to the azimuth (dirOf(heading + 90, 0))
   const half = pitch === 0 ? RUNG.horizonHalf : RUNG.half;
-  const at = (deg: number) => norm(add(c, scale(right, Math.tan(deg * DEG))));
   const toward = pitch > 0 ? -RUNG.tick : RUNG.tick;
-  const tickAt = (deg: number) => norm(add(dirOf(heading, pitch + toward), scale(right, Math.tan(deg * DEG))));
-  return {
-    pitch,
-    left: [at(-RUNG.gap), at(-half)],
-    right: [at(RUNG.gap), at(half)],
-    tickL: tickAt(-half),
-    tickR: tickAt(half),
+  const p = pitch * DEG, q = (pitch + toward) * DEG;
+  // centre c = dirOf(heading, pitch); a bar end is norm(c + right·tan(deg))
+  const put = (o: V3, pr: number, deg: number) => {
+    const t = Math.tan(deg * DEG);
+    const x = Math.sin(h) * Math.cos(pr) + rx * t, y = Math.sin(pr), z = -Math.cos(h) * Math.cos(pr) + rz * t;
+    const l = Math.sqrt(x * x + y * y + z * z);
+    o.x = x / l; o.y = y / l; o.z = z / l;
   };
+  put(r.left[0], p, -RUNG.gap);
+  put(r.left[1], p, -half);
+  put(r.right[0], p, RUNG.gap);
+  put(r.right[1], p, half);
+  put(r.tickL, q, -half);
+  put(r.tickR, q, half);
+  return r;
 }
+
+const v0 = (): V3 => ({ x: 0, y: 0, z: 0 });
 
 /** Rung spacing: 5° within NEAR_HORIZON of the horizon, 10° beyond (a calm ladder away from level flight). */
 export const NEAR_HORIZON = 10;
@@ -129,18 +158,22 @@ export function rungLabel(pitch: number): string {
   return String(Math.round(pitch));
 }
 
-/** n unit directions on a cone of half angle rad around axis (the missile seeker's field). */
-export function coneRing(axis: V3, rad: number, n = 32): V3[] {
+/** n unit directions on a cone of half angle rad around axis (the missile seeker's field); with out, written into it (its vectors reused). */
+export function coneRing(axis: V3, rad: number, n = 32, out: V3[] = []): V3[] {
   const a = norm(axis);
   const ref = Math.abs(a.y) < 0.9 ? UP : { x: 1, y: 0, z: 0 };
   const u = norm(cross(a, ref));
   const w = cross(u, a);
-  const out: V3[] = [];
   const t = Math.tan(rad);
   for (let i = 0; i < n; i++) {
     const th = (i / n) * Math.PI * 2;
-    out.push(norm(add(a, add(scale(u, t * Math.cos(th)), scale(w, t * Math.sin(th))))));
+    const c = t * Math.cos(th), s = t * Math.sin(th);
+    const x = a.x + u.x * c + w.x * s, y = a.y + u.y * c + w.y * s, z = a.z + u.z * c + w.z * s;
+    const l = Math.sqrt(x * x + y * y + z * z);
+    const o = (out[i] ??= v0());
+    o.x = x / l; o.y = y / l; o.z = z / l;
   }
+  out.length = n;
   return out;
 }
 
