@@ -101,9 +101,9 @@ test("pings go out at most once per second, and only when written", () => {
   ok = true;
   l.ping(100, send);
   l.pong(100, 130);
-  l.ping(100 + PING_MS - 1, send);
-  l.ping(100 + PING_MS, send);
-  assert.deepEqual(sent, [100, 100 + PING_MS]);
+  l.ping(100 + PING_MS, send); // a second after the ping, but not after its pong
+  l.ping(130 + PING_MS, send);
+  assert.deepEqual(sent, [100, 130 + PING_MS], "the next one a second after the pong");
 });
 
 test("a bogus pong (from the future, not finite) is ignored", () => {
@@ -119,7 +119,7 @@ test("an unanswered ping raises the shown RTT: a silent link does not keep showi
   assert.equal(l.view(2030).rttMs, 40, "younger than the RTT: no news");
   assert.equal(l.view(2900).rttMs, 900);
   l.pong(2000, 3100);
-  assert.equal(l.view(3100).rttMs, Math.round(40 + (1100 - 40) * 0.3), "answered (no stall): a slow sample counts");
+  assert.equal(l.view(3100).rttMs, 40, "answered after 1.1 s with the downlink flowing: an uplink stall, not a sample");
 });
 
 test("one ping in flight at most: a 10 s stall sends one, a 30 s one two (the server kicks over 4 at once)", () => {
@@ -159,8 +159,93 @@ test("after a stall the RTT reads the link again within about a second", () => {
 test("RTT falls faster than it rises", () => {
   const l = new LinkMonitor(0);
   l.pong(0, 100);
-  l.pong(1000, 2000); // an uplink hiccup with the downlink flowing: a real slow sample
-  assert.equal(l.view(2000).rttMs, Math.round(100 + 900 * 0.3));
+  l.pong(1000, 1600); // a slow sample (under a second: not a stall)
+  assert.equal(l.view(1600).rttMs, Math.round(100 + 500 * 0.3));
   l.pong(2000, 2100);
-  assert.equal(l.view(2100).rttMs, Math.round(370 + (100 - 370) * 0.6));
+  assert.equal(l.view(2100).rttMs, Math.round(250 + (100 - 250) * 0.6));
+});
+
+/**
+ * The server's ping guard (roomkit server/guard.go: 2/s, burst 4, kick when
+ * empty) against LinkMonitor on the 100 ms UI timer plus the socket's 15 s
+ * keepalive, through an uplink-only blackhole of T ms (the downlink keeps
+ * flowing). Returns whether the server would kick.
+ */
+function kicked(T: number, phase: number, rtt: number): boolean {
+  const l = new LinkMonitor(0);
+  const from = 60000, to = from + T, end = to + 10000;
+  const up: { at: number; ts: number }[] = [];
+  const down: { at: number; ts: number }[] = [];
+  let tokens = 4, refilled = 0;
+  const send = (now: number, ts: number) => {
+    up.push({ at: (now >= from && now < to ? to : now) + rtt / 2, ts });
+    return true;
+  };
+  for (let now = 0; now <= end; now += 5) {
+    up.sort((a, b) => a.at - b.at);
+    while (up.length && up[0].at <= now) {
+      const m = up.shift()!;
+      tokens = Math.min(4, tokens + ((now - refilled) / 1000) * 2);
+      refilled = now;
+      if (tokens < 1) return true;
+      tokens--;
+      down.push({ at: now + rtt / 2, ts: m.ts });
+    }
+    while (down.length && down[0].at <= now) {
+      const m = down.shift()!;
+      l.received(now);
+      l.pong(m.ts, now);
+    }
+    if (now % 35 === 0) l.received(now); // snapshots keep coming
+    if (now >= phase && (now - phase) % 15000 === 0) send(now, now); // keepalive
+    if (now % 100 === 0) l.ping(now, (ts) => send(now, ts));
+  }
+  return false;
+}
+
+test("no uplink stall the server survives (under its 30 s idle close) ends in a ping kick", () => {
+  for (const rtt of [40, 100, 200, 400, 600]) {
+    const bad: string[] = [];
+    for (let T = 1000; T < 30000; T += 500) for (let phase = 0; phase < 15000; phase += 1000) if (kicked(T, phase, rtt)) bad.push(`${T}/${phase}`);
+    assert.deepEqual(bad, [], `rtt ${rtt} ms: stall/keepalive phase that kicked`);
+  }
+});
+
+test("after an uplink-only stall the RTT reads the link again within about a second", () => {
+  const l = new LinkMonitor(0);
+  let t = 0;
+  const up: number[] = [];
+  const down: { at: number; ts: number }[] = [];
+  const step = (dark: boolean) => {
+    t += 50;
+    l.received(t); // the downlink flows throughout
+    if (!dark) for (const ts of up.splice(0)) down.push({ at: t + 50, ts });
+    while (down.length && down[0].at <= t) l.pong(down.shift()!.ts, t);
+    l.ping(t, (ts) => { up.push(ts); return true; });
+  };
+  for (let i = 0; i < 100; i++) step(false);
+  assert.equal(l.view(t).rttMs, 100);
+  for (let i = 0; i < 200; i++) step(true); // 10 s: the ping in flight waits
+  assert.ok(l.view(t).rttMs! > 5000, "the ping out shows the stall while it lasts");
+  const back = t;
+  while (t < back + 1300) step(false);
+  const v = l.view(t);
+  assert.equal(v.rttMs, 100, JSON.stringify(v));
+  assert.equal(v.quality, "good");
+});
+
+test("a link that really is slow is believed on the second slow ping", () => {
+  const l = new LinkMonitor(0);
+  const flow = (from: number, to: number) => { for (let t = from; t <= to; t += 50) l.received(t); }; // snapshots keep coming
+  l.ping(0, () => true);
+  flow(0, 100);
+  l.pong(0, 100);
+  l.ping(1100, () => true);
+  flow(1100, 2600);
+  l.pong(1100, 2600); // 1.5 s: doubted
+  assert.equal(l.view(2600).rttMs, 100);
+  l.ping(3600, () => true);
+  flow(3600, 5100);
+  l.pong(3600, 5100); // again: believed
+  assert.equal(l.view(5100).rttMs, Math.round(100 + 1400 * 0.3));
 });

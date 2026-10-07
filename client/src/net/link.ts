@@ -12,11 +12,12 @@ export const PING_MS = 1000;
 /**
  * A ping without a pong blocks the next one for this long. The server kicks
  * a connection whose pings come faster than 2/s beyond a burst of 4, and
- * pings held up by a stall arrive back to back: with one in flight, a stall
- * up to the server's 30 s idle close releases at most 2 of these plus 2
- * keepalives.
+ * pings held up by a stall arrive back to back. With one in flight and this
+ * at the server's 30 s idle close, any stall the connection survives
+ * releases at most 1 of these plus 2 keepalives (3 of 4 tokens), and the
+ * next one waits PING_MS after the pong, when 2 more tokens are back.
  */
-export const PING_TIMEOUT_MS = 20000;
+export const PING_TIMEOUT_MS = 30000;
 /** Silence (snapshots come at 30 Hz) after which the "connection unstable" banner shows. */
 export const UNSTABLE_MS = 1000;
 /** The banner stays this long after traffic resumes, so a stuttering link does not blink it. */
@@ -35,7 +36,8 @@ export class LinkMonitor {
   private lastPing = -Infinity;
   private rtt: number | null = null;
   private out: number | null = null;  // send time of my ping in flight
-  private staleBefore = -Infinity;    // pings sent before the last long silence ended: their RTT is the stall's
+  private staleBefore = -Infinity;    // pings sent before the last stall ended: their RTT is the stall's
+  private doubted = false;            // my last pong was dropped as a stall's
   private lastTick: number | null = null;
   private window: number[] = []; // per expected snapshot: 1 lost, 0 arrived
   private unstableUntil = -Infinity;
@@ -49,6 +51,7 @@ export class LinkMonitor {
     this.lastRecv = now;
     this.lastTick = null;
     this.out = null;
+    this.doubted = false;
     this.lastPing = -Infinity;
     this.window = [];
     this.unstableUntil = -Infinity;
@@ -78,8 +81,21 @@ export class LinkMonitor {
   pong(ts: number, now: number): void {
     const sample = now - ts;
     if (!Number.isFinite(sample) || sample < 0) return;
-    if (this.out !== null && ts >= this.out) this.out = null;
+    const mine = this.out !== null && ts >= this.out;
+    if (mine) {
+      this.out = null;
+      this.lastPing = now; // the next one PING_MS after this pong: the server's bucket refills after a burst
+    }
     if (ts < this.staleBefore) return; // queued behind a stall: measures the stall, not the link
+    // A sudden wait of a second or more with the downlink flowing is an uplink
+    // stall: this ping and everything sent before it waited for the uplink,
+    // not for the link. If my next ping is that slow too, the link is.
+    if (this.rtt !== null && sample >= UNSTABLE_MS && sample > 2 * this.rtt && !(mine && this.doubted)) {
+      this.staleBefore = now - this.rtt;
+      if (mine) this.doubted = true;
+      return;
+    }
+    if (mine) this.doubted = false;
     const w = this.rtt === null ? 1 : sample > this.rtt ? RTT_UP : RTT_DOWN;
     this.rtt = this.rtt === null ? sample : this.rtt + (sample - this.rtt) * w;
   }
