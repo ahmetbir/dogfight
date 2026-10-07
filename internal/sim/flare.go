@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	FlareCooldown = 60          // ticks between drops
+	FlareCooldown = 15          // ticks between drops (0.25 s: three in half a second)
 	FlareLife     = 150         // ticks a flare burns (2.5 s)
 	FlareRange    = 900.0       // m: a missile this close to a burning flare gets its decoy roll
 	FlareChance   = 0.65        // decoy probability per (missile, flare) pair

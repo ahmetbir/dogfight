@@ -47,7 +47,7 @@ export const RULES = {
   missileGroundLoseS: 1.5,
   missileRegenS: 45,
   flareRegenS: 20,
-  flareCooldownS: 1,
+  flareCooldownS: 0.25,
   flareBurnS: 2.5,
   flareRange: 900,
   flareChance: 0.65,
