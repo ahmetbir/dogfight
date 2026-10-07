@@ -247,5 +247,5 @@ func (b *Brain) rearm(self sim.Plane, base maps.Base, env *Env) sim.Input {
 func needsAmmo(p sim.Plane, env *Env) bool {
 	s := sim.SpecOf(p.Kind)
 	ir, radar := sim.LoadoutCounts(p.Kind, p.Loadout)
-	return p.HP < s.MaxHP || p.Missiles < ir || p.Radars < radar || env.Mode == mode.Base && p.Bombs < 2+s.ExtraBombs
+	return p.HP < s.MaxHP || p.Missiles < ir || p.Radars < radar || env.Mode == mode.Base && p.Bombs < sim.SortieBombs(env.Bombs, p.Kind)
 }

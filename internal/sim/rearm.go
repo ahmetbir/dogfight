@@ -46,11 +46,15 @@ func weaponClocks(p *Plane) [4]int {
 	return [4]int{p.GunReadyTick, p.MissileReadyTick, p.FlareReadyTick, p.BombReadyTick}
 }
 
-// sortieBombs is a full bomb load of kind: none outside base attack, else the
-// room's bombs per sortie plus the kind's extra (the attack jets).
-func (w *World) sortieBombs(k Kind) int {
-	if w.cfg.Bombs <= 0 {
+// sortieBombs is a full bomb load of kind in this world (SortieBombs).
+func (w *World) sortieBombs(k Kind) int { return SortieBombs(w.cfg.Bombs, k) }
+
+// SortieBombs is a full bomb load of kind in a room that loads roomBombs per
+// sortie (Config.Bombs): none outside base attack, else the room's load plus
+// the kind's extra (the attack jets). Bots wait on the pad for exactly this.
+func SortieBombs(roomBombs int, k Kind) int {
+	if roomBombs <= 0 {
 		return 0
 	}
-	return w.cfg.Bombs + SpecOf(k).ExtraBombs
+	return roomBombs + SpecOf(k).ExtraBombs
 }
