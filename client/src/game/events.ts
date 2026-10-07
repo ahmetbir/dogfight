@@ -12,6 +12,7 @@ export type HudView = {
   lockProgress: number; locked: boolean; oobS: number; scheme: Settings["scheme"]; pointerLocked: boolean;
   invertY: boolean; rotateSpeed: number; // settings; my aircraft's lift-off speed (m/s)
   muzzle: number;                // m ahead of my origin where my rounds leave (my aircraft's)
+  span: number;                  // my aircraft's wingspan (m)
   gLoad: number; gfx: boolean;           // my signed load factor; G effects setting
   protected: boolean;            // spawn protection
   lockTarget: number;            // id my lock is on (0: none)
@@ -28,6 +29,8 @@ export type HudView = {
   baseMode: boolean;                  // base attack room
   pos: V3; vel: V3; fwd: V3; up: V3; // my drawn state (up: my body's up axis)
   aimDir: V3 | null;             // mouse aim direction
+  /** Luma grid of the frame behind the HUD (render/luma.ts), sampled for the military style; null otherwise or before the first read. */
+  backdrop: Float32Array | null;
   /** World point → CSS px on the canvas; null when behind the camera. */
   project(p: V3): { x: number; y: number } | null;
   /** A remote plane as drawn this frame; null if unknown or dead. */

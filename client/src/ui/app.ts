@@ -58,6 +58,7 @@ export function play(o: PlayOpts): void {
     changed: (s) => {
       extra.changed?.(s);
       renderer.setPerf(s.perf);
+      hud.setStyle(s);
       syncTouch();
     },
     resume: () => closeMenus(true),
@@ -85,6 +86,7 @@ export function play(o: PlayOpts): void {
   });
   const blocked = () => pick.isOpen() || menu.isOpen() || book.isOpen();
   const hud = new Hud(state, blocked);
+  hud.setStyle(settings);
   const board = new Scoreboard();
   const roundEnd = new RoundEnd();
   const extra: Extra = o.extra?.({ state, settings, blocked }) ?? { hooks: {} };

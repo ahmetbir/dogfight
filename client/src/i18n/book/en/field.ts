@@ -73,6 +73,23 @@ export const field: Field = {
       "and one red bar when the server has gone quiet. Hover or tap them for the round trip in ms; when the link isn't good, the ms shows by itself. After ",
       sec(UNSTABLE_MS / 1000), " without a word from the server, ", b(t("conn.unstable")), " appears under the score. Your plane then flies on with the last input the server got; ",
       "when the link is back it glides to where the server has it instead of jumping."),
+    sub("Military HUD style"),
+    p("Settings → ", b("HUD style"), " → ", b("Military"), ": one colour and thin lines, like a real fighter's HUD. The browser remembers the choice; ",
+      "the colour (green or amber) and the speed unit (km/h or kt) are picked there too. Altitude is in metres, vertical speed in m/s."),
+    list(
+      [b("Top"), ": the heading tape (every 10°: 01, 02 …) and the heading in a box."],
+      [b("Left"), ": the speed box; under it G, Mach (M), throttle (THR) and, while the AB burns, its heat."],
+      [b("Right"), ": the altitude box; under it vertical speed (VS), gear (GEAR) and brake (BRAKE)."],
+      [b("Centre"), ": the flight path marker (the winged circle: where the plane is really going) and, in a narrow window round it, the pitch ladder: ",
+        "5° rungs near the horizon, 10° beyond; the ones below the horizon are dashed. The nose (—\\/\\/—) and the mouse aim are drawn only when they part from the flight path."],
+      [b("Target"), ": while a lock builds, a diamond closes round the target and the seeker's cone shows; locked, the diamond fills and reads LOCK (dashed for radar). ",
+        "Beside it the missile kind and the distance (km), under it the range bar. On a gun target, the lead ring; the arc round it shortens as the target closes."],
+      [b("Bottom right"), " (top right on touch): missiles, range (RNG), flares (FLR), gun heat (GUN), HP, damage (ENG, CTL, AVN)."]),
+    p("The rest of the HUD takes the same colour and moves: on desktop the radar goes to the bottom left, the mission text and score to the top left, ",
+      "the warnings under the heading tape and the centre messages to the bottom centre; on touch the mission text and score sit at the top centre. ",
+      "Over a bright sky the symbols get a soft shadow from what lies behind them, and the readouts a very faint backing."),
+    p(b("Radar"), ": one colour, so the shapes tell the contacts apart. A hollow circle is a friend, a filled diamond an enemy, a cross a power-up, ",
+      "a hollow square a base target, a small dim dot a missile; a dot with a blinking ring is a missile tracking you."),
   ],
 
   tips: () => [

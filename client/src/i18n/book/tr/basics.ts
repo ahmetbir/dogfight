@@ -73,7 +73,8 @@ export const basics: Basics = {
       [b("G efektleri"), ": yüksek G'de ekran kenarlarının kararması, eksi G'de kızarma (yalnız görsel)."],
       [b("Füze kamerası"), ": attığın füzeyi küçük bir pencerede izler."],
       [b("Performans modu"), ": daha az bulut, yağmur ve parçacık; zayıf cihazlarda akıcılık için."],
-      [b("Eğimle nişan"), ": dokunmatikte, çubuk boştayken cihazı eğerek nişan alırsın."]),
+      [b("Eğimle nişan"), ": dokunmatikte, çubuk boştayken cihazı eğerek nişan alırsın."],
+      [b("HUD stili"), ": Klasik (varsayılan) ya da Askerî: gerçek bir savaş uçağı HUD'u gibi tek renk, ince çizgi. Askerî'de renk (yeşil, kehribar) ve hız birimi (km/h, kt) de seçilir (HUD bölümüne bak)."]),
     note("tip", "Mac trackpad'de füze için iki parmakla tıkla ya da ctrl+tık kullan."),
   ],
 

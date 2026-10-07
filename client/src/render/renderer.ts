@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { V3 } from "../sim/vec.ts";
+import { Backdrop } from "./luma.ts";
 
 /** Owns the WebGL renderer, the scene and the main camera. */
 export class Renderer {
@@ -10,6 +11,7 @@ export class Renderer {
   private w = 0;
   private h = 0;
   private readonly tmp = new THREE.Vector3();
+  private readonly luma = new Backdrop(() => this.gl.getContext() as WebGL2RenderingContext);
 
   /** perf: performance mode, pixel ratio 1. */
   constructor(canvas: HTMLCanvasElement, perf = false) {
@@ -17,6 +19,9 @@ export class Renderer {
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.gl.toneMapping = THREE.ACESFilmicToneMapping;
     this.setPerf(perf);
+    // three keeps the lost context restorable; the probe's GPU objects do not survive it.
+    canvas.addEventListener("webglcontextlost", () => this.luma.forget());
+    canvas.addEventListener("webglcontextrestored", () => this.luma.forget());
   }
 
   /** Pixel ratio 1 in performance mode, else the device's up to 2; applied on the next render. */
@@ -61,6 +66,16 @@ export class Renderer {
     g.render(this.scene, cam);
     g.setViewport(0, 0, this.w, this.h);
     g.setScissorTest(false);
+  }
+
+  /**
+   * The luma grid of what was drawn (render/luma.ts), sampled a few times a
+   * second without waiting on the GPU; call right after the scene is
+   * rendered. null until the first read lands, and while on is false (which
+   * also frees the probe's GPU buffers).
+   */
+  backdrop(now: number, on: boolean): Float32Array | null {
+    return this.luma.sample(now, on);
   }
 
   /** World point → CSS px on the canvas as of the last render; null when behind the camera. */

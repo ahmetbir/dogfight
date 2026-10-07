@@ -161,7 +161,8 @@ test("settings round-trip through storage and survive garbage", () => {
   const mem = new Map<string, string>();
   const store = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v) };
   assert.deepEqual(loadSettings(store), DEFAULT_SETTINGS);
-  const custom = { scheme: "keyboard", sensitivity: 2, invertY: true, volume: 0.3, gfx: false, missileCam: false, perf: true, tilt: true, lever: true } as const;
+  const custom = { scheme: "keyboard", sensitivity: 2, invertY: true, volume: 0.3, gfx: false, missileCam: false, perf: true, tilt: true, lever: true,
+    hud: "military", hudColor: "amber", speedUnit: "kt" } as const;
   saveSettings(custom, store);
   assert.deepEqual(loadSettings(store), custom);
   mem.set("dogfight.settings", JSON.stringify({ scheme: "mouse" })); // saved before G effects existed
@@ -186,6 +187,16 @@ test("defaults follow the pointer type", () => {
   assert.equal(s.scheme, "touch");
   assert.equal(s.missileCam, true, "invalid value falls back to the default");
   assert.equal(s.tilt, true);
+});
+
+test("the HUD style defaults to classic; unknown styles, colours and units fall back", () => {
+  const saved = (v: object) => ({ getItem: () => JSON.stringify(v) });
+  const d = loadSettings({ getItem: () => null }, false);
+  assert.deepEqual([d.hud, d.hudColor, d.speedUnit], ["classic", "green", "kmh"]);
+  const s = loadSettings(saved({ hud: "military", hudColor: "amber", speedUnit: "kt" }), false);
+  assert.deepEqual([s.hud, s.hudColor, s.speedUnit], ["military", "amber", "kt"]);
+  const bad = loadSettings(saved({ hud: "fancy", hudColor: 3, speedUnit: "mph" }), false);
+  assert.deepEqual([bad.hud, bad.hudColor, bad.speedUnit], ["classic", "green", "kmh"]);
 });
 
 test("the touch scheme without a touch state holds the plane's throttle and fires nothing", () => {

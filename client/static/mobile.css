@@ -84,6 +84,24 @@ body.touch .hud-mid { top: 36%; }
 body.touch .hud-watch { bottom: 52px; font-size: 14px; }
 .tp-replay { color: var(--amber); border-color: rgba(255, 201, 77, 0.7); }
 
+/* military HUD style on small screens and touch: the mission text goes under the heading tape (the radar keeps
+   the top left on touch, the throttle its strip), warnings under that */
+@media (max-width: 700px), (max-height: 500px) {
+  .hud.mil .hud-mission { left: 50%; top: 66px; transform: translateX(-50%); align-items: center; gap: 2px; }
+  .hud.mil .hud-alerts { top: 104px; }
+  .hud.mil .hud-score, .hud.mil .kf-line { font-size: 10px; }
+  .hud.mil .hud-warn { font-size: 13px; letter-spacing: 0.08em; white-space: nowrap; }
+  .hud.mil .hud-flarecue { font-size: 12px; }
+  body:not(.touch) .hud.mil .radar { bottom: 26px; left: 10px; }
+}
+body.touch .hud.mil .hud-mission { left: 50%; top: 86px; transform: translateX(-50%); align-items: center; }
+body.touch .hud.mil .hud-alerts { top: 130px; }
+body.touch .hud.mil .hud-mid { top: auto; bottom: 64px; }
+@media (max-width: 700px), (max-height: 500px) {
+  body.touch .hud.mil .hud-mission { top: 66px; }
+  body.touch .hud.mil .hud-alerts { top: 104px; }
+}
+
 /* hangar picker on a phone: the panel fills the screen and scrolls; the preview column stays in view beside the cards */
 @media (max-height: 500px), (max-width: 700px) {
   .panel.wide.pick-panel { width: calc(100vw - 12px); height: auto; max-height: calc(100vh - 12px); overflow-y: auto; padding: 10px 12px; gap: 8px; }

@@ -201,6 +201,7 @@ export function startGame(ctx: GameCtx): Game {
     fx.update(dt);
     world.update(dt, r.camera.position);
     r.render();
+    const backdrop = r.backdrop(now, ctx.settings.hud === "military"); // before the inset, which is not the world behind the HUD
     cams.inset(now);
     if (me && fs) {
       hooks.hud?.({
@@ -213,7 +214,7 @@ export function startGame(ctx: GameCtx): Game {
         flares: me.fl, respawnS: (me.rs ?? 0) / 60,
         lockProgress: me.lp ?? 0, locked: !!me.ld, oobS: me.oob ?? 0,
         scheme: ctx.settings.scheme, pointerLocked: input.locked(),
-        invertY: ctx.settings.invertY, rotateSpeed: state.aircraft.get(me.k)?.rotateSpeed ?? 0, muzzle: airframe(me.k).muzzle,
+        invertY: ctx.settings.invertY, rotateSpeed: state.aircraft.get(me.k)?.rotateSpeed ?? 0, muzzle: airframe(me.k).muzzle, span: airframe(me.k).span,
         gLoad: own.gLoad(), gfx: ctx.settings.gfx,
         protected: !!me.pr, lockTarget: me.lk ?? 0,
         lockRange: effectiveRange(state.aircraft.get(me.k)?.lockRange ?? 0, state.weather?.lockMul ?? 1),
@@ -222,6 +223,7 @@ export function startGame(ctx: GameCtx): Game {
         abHeat: fs.abh ?? 0, abLocked: !!fs.abl,
         pos: fs.pos, vel: fs.vel, fwd: qForward(fs.rot), up: qRotate(fs.rot, { x: 0, y: 1, z: 0 }), aimDir: mine ? ctl?.aimDir ?? null : null,
         project: (p) => r.project(p),
+        backdrop,
         planeAt: (id) => {
           const p = state.planes.get(id);
           const s = p?.a ? state.interp.get(id)?.sample(rt) : null;
