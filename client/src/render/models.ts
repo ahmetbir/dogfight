@@ -55,25 +55,67 @@ export function imgTextures(parser: GLTFParser): { name: string } {
   return { name: "dogfight_img_textures" };
 }
 
-/**
- * Loads /models/<kind>.glb when the build listed it in
- * /models/manifest.json; null otherwise (never fetches a missing file).
- */
-export async function tryLoadGlb(kind: string): Promise<THREE.Group | null> {
-  let listed = false;
-  try {
+/** Fetches a URL's JSON or the parsed .glb scene; the browser's by default, fakes in tests. */
+export type GlbIo = { manifest(): Promise<unknown>; scene(url: string): Promise<THREE.Group> };
+
+const browserIo: GlbIo = {
+  async manifest() {
     const res = await fetch("/models/manifest.json");
-    if (!res.ok) return null;
-    const kinds: unknown = await res.json();
-    if (!Array.isArray(kinds) || !kinds.includes(kind)) return null;
-    listed = true;
+    return res.ok ? res.json() : null;
+  },
+  async scene(url) {
     const loader = new GLTFLoader();
     loader.register(imgTextures);
-    const gltf = await loader.loadAsync(`/models/${kind}.glb`);
-    return gltf.scene;
-  } catch (e) {
-    // A listed model that fails to load falls back to the built-in one, loudly.
-    if (listed) console.warn(`models/${kind}.glb could not be loaded; using the built-in model`, e);
-    return null;
+    return (await loader.loadAsync(url)).scene;
+  },
+};
+
+/**
+ * The .glb models of a page: /models/manifest.json is fetched once, each
+ * listed kind's scene loaded once and shared (callers clone it: dressGlb).
+ * A kind the manifest does not list is never fetched.
+ */
+export class GlbLibrary {
+  private readonly io: GlbIo;
+  private listed: Promise<readonly string[]> | null = null;
+  private readonly scenes = new Map<string, Promise<THREE.Group | null>>();
+
+  constructor(io: GlbIo = browserIo) {
+    this.io = io;
   }
+
+  /** The loaded scene of kind, or null when it is not listed or fails to load. */
+  load(kind: string): Promise<THREE.Group | null> {
+    let p = this.scenes.get(kind);
+    if (!p) {
+      p = this.fetch(kind);
+      this.scenes.set(kind, p);
+    }
+    return p;
+  }
+
+  private async fetch(kind: string): Promise<THREE.Group | null> {
+    this.listed ??= this.io.manifest().then((k) => (Array.isArray(k) ? k.filter((x): x is string => typeof x === "string") : []), () => []);
+    if (!(await this.listed).includes(kind)) return null;
+    try {
+      return await this.io.scene(`/models/${kind}.glb`);
+    } catch (e) {
+      // A listed model that fails to load falls back to the built-in one, loudly.
+      console.warn(`models/${kind}.glb could not be loaded; using the built-in model`, e);
+      return null;
+    }
+  }
+}
+
+let pageGlbs: GlbLibrary | null = null;
+
+/** The page's one GlbLibrary (the game's planes and the hangar share its scenes). */
+export function glbLibrary(): GlbLibrary {
+  pageGlbs ??= new GlbLibrary();
+  return pageGlbs;
+}
+
+/** Loads /models/<kind>.glb through the page's library; null when not listed. */
+export function tryLoadGlb(kind: string): Promise<THREE.Group | null> {
+  return glbLibrary().load(kind);
 }

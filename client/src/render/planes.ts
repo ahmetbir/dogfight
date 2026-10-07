@@ -295,7 +295,6 @@ class PlaneView {
 /** Keeps one PlaneView per aircraft id in sync with the render states. */
 export class PlaneViews {
   private readonly views = new Map<number, PlaneView>();
-  private readonly glbs = new Map<string, Promise<THREE.Group | null>>();
   private readonly scene: THREE.Scene;
   private readonly camera: THREE.Camera;
   private readonly effects: Effects;
@@ -351,12 +350,7 @@ export class PlaneViews {
   }
 
   private attachGlb(id: number, v: PlaneView, kind: string): void {
-    let req = this.glbs.get(kind);
-    if (!req) {
-      req = tryLoadGlb(kind);
-      this.glbs.set(kind, req);
-    }
-    void req.then((g) => {
+    void tryLoadGlb(kind).then((g) => { // the page's library loads each kind once
       if (g && this.views.get(id) === v) v.useGlb(g);
     });
   }
