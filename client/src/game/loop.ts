@@ -222,6 +222,7 @@ export function startGame(ctx: GameCtx): Game {
         abHeat: fs.abh ?? 0, abLocked: !!fs.abl,
         pos: fs.pos, vel: fs.vel, fwd: qForward(fs.rot), up: qRotate(fs.rot, { x: 0, y: 1, z: 0 }), aimDir: mine ? ctl?.aimDir ?? null : null,
         project: (p) => r.project(p),
+        backdrop: ctx.settings.hud === "military" ? r.backdrop(now) : null,
         planeAt: (id) => {
           const p = state.planes.get(id);
           const s = p?.a ? state.interp.get(id)?.sample(rt) : null;
