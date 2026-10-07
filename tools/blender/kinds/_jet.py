@@ -273,8 +273,9 @@ def nozzles(part, xs, z0, z1, r0, r1, cy, seg=16):
 
 def swing(pivot, sweep):
     """The pivot of a swing wing (wing_r; mirror it for wing_l). The panel is
-    modelled at mid sweep; sweep = [forward, aft] radians from that pose, a
-    positive turn about axis swinging the tip forward."""
+    modelled at mid sweep; sweep = [lo, hi] is the turn range in radians about
+    axis from that pose, positive swinging the tip forward (hi: fully
+    spread, lo: fully swept). Its flap and aileron nodes are its children."""
     return Part("wing_r", pivot, {"role": "sweep", "axis": [0.0, 1.0, 0.0], "sweep": [round(a, 4) for a in sweep]})
 
 
