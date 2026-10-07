@@ -63,4 +63,12 @@ export const hud = {
   "coach.nose": "Burnu kaldır ({k})",
   "coach.gearUp": "Tekeri topla ({k})",
   "coach.close": "İpucunu kapat",
+  "conn.unstable": "BAĞLANTI DENGESİZ",
+  "conn.good": "Bağlantı iyi",
+  "conn.fair": "Bağlantı orta",
+  "conn.poor": "Bağlantı zayıf",
+  "conn.lost": "Sunucu sessiz",
+  "conn.rtt": "{ms} ms",
+  "conn.rttNone": "— ms",
+  "conn.loss": "%{n} kayıp",
 } as const;

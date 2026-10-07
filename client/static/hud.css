@@ -44,6 +44,18 @@
 .radar-n { position: absolute; top: 3px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 700; color: var(--hud); }
 .radar-r { position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #c7d3df; }
 
+/* Connection: signal bars under the radar, the RTT on hover or tap; the banner under the score line. */
+.hud-conn { position: absolute; top: 206px; left: 16px; display: flex; align-items: flex-end; gap: 6px; padding: 4px 7px; border-radius: 7px; background: rgba(6, 12, 18, 0.42); pointer-events: auto; cursor: default; }
+.conn-bars { display: flex; align-items: flex-end; gap: 2px; height: 14px; }
+.conn-bar { width: 4px; border-radius: 1px; background: rgba(255, 255, 255, 0.22); }
+.conn-bar.b1 { height: 4px; } .conn-bar.b2 { height: 7px; } .conn-bar.b3 { height: 10px; } .conn-bar.b4 { height: 14px; }
+.hud-conn.good .conn-bar.on { background: var(--hud); }
+.hud-conn.fair .conn-bar.on { background: #d8e86a; }
+.hud-conn.poor .conn-bar.on { background: var(--amber); }
+.hud-conn.lost .conn-bar.on { background: var(--danger); }
+.conn-ms { display: none; font-size: 12px; font-weight: 700; line-height: 14px; color: #e4ecf4; }
+.hud-conn:hover .conn-ms, .hud-conn.open .conn-ms { display: inline; }
+.hud-conn-warn { font-size: 15px; font-weight: 800; letter-spacing: 0.12em; color: #1a1200; background: var(--amber); padding: 4px 14px; border-radius: 8px; text-shadow: none; }
 .killfeed { position: absolute; top: 16px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; max-width: 46vw; }
 .kf-line { display: flex; gap: 8px; align-items: center; font-size: 14px; font-weight: 600; background: rgba(6, 12, 18, 0.5); padding: 4px 10px; border-radius: 7px; white-space: nowrap; }
 .kf-name { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }

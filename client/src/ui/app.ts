@@ -50,6 +50,7 @@ export function play(o: PlayOpts): void {
   }
   const state = new GameState();
   const link = new LinkMonitor(performance.now());
+  let online = false; // the socket is open (between welcome and a drop)
   const feed = new Feed();
   const pick = new PickScreen((k) => choose(k), () => closeMenus(true), (c) => teams.choose(c, performance.now()), (lo) => chooseLoadout(lo));
   const teams = new TeamFlow((team) => socket.send({ t: "team", team }), state);
@@ -239,6 +240,9 @@ export function play(o: PlayOpts): void {
     }
     if (pick.isOpen()) pick.show(pickView());
     hud.waiting(waiting(), waitLeft(welcomeAt, performance.now()), settings.scheme === "touch");
+    const now = performance.now();
+    if (online) link.ping(now, (ts) => socket.send({ t: "ping", ts }));
+    hud.link(online ? link.view(now) : null);
     pad?.sync();
   };
   const uiTimer = setInterval(tick, UI_MS);
@@ -293,7 +297,10 @@ export function play(o: PlayOpts): void {
 
   const socket: Socket = openSocket(socketURL(location), o.name, o.entry, {
     onMsg,
-    onStatus: (s) => banner.status(s),
+    onStatus: (s) => {
+      online = s === "open";
+      banner.status(s);
+    },
     onFatal: (code, raw) => {
       const msg = errorText(code, raw);
       clearInterval(uiTimer);

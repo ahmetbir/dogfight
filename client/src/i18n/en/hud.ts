@@ -65,4 +65,12 @@ export const hud: Area<typeof tr> = {
   "coach.nose": "Raise the nose ({k})",
   "coach.gearUp": "Gear up ({k})",
   "coach.close": "Close the hint",
+  "conn.unstable": "CONNECTION UNSTABLE",
+  "conn.good": "Connection good",
+  "conn.fair": "Connection fair",
+  "conn.poor": "Connection poor",
+  "conn.lost": "Server silent",
+  "conn.rtt": "{ms} ms",
+  "conn.rttNone": "— ms",
+  "conn.loss": "{n}% loss",
 };
