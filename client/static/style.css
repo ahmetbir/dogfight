@@ -162,6 +162,40 @@ p { margin: 0; line-height: 1.5; }
 .team-tag.soviet { color: var(--soviet); background: rgba(255, 95, 87, 0.12); }
 .plane-flag { font-size: 12px; color: var(--hud); font-weight: 600; }
 .stat { display: grid; grid-template-columns: 52px 1fr 68px; align-items: center; gap: 10px; font-size: 13px; }
+
+/* hangar picker (ui/hangar.ts): the turning preview and stats left, the side's cards right */
+.panel.wide.pick-panel { width: min(1220px, calc(100vw - 32px)); height: calc(100vh - 32px); max-height: 760px; overflow: hidden; gap: 12px; padding: 16px 20px; }
+.pick-opts { display: flex; flex-wrap: wrap; gap: 4px 28px; }
+.pick-opts .team-pick { margin-bottom: 0; }
+.pick-opts .loadout-pick { flex: 1 1 520px; }
+.hangar { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(300px, 0.85fr) 2fr; gap: 16px; }
+.hangar-show { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.hangar-stage { flex: 1; min-height: 150px; width: 100%; border-radius: 12px; touch-action: none; cursor: grab;
+  background: radial-gradient(ellipse at 50% 85%, rgba(124, 255, 178, 0.10), rgba(255, 255, 255, 0.02) 60%), rgba(0, 0, 0, 0.25); border: 1px solid var(--line); }
+.hangar-stage:active { cursor: grabbing; }
+.hangar-info { display: flex; flex-direction: column; gap: 7px; }
+.hangar-info .plane-head { gap: 10px; justify-content: flex-start; flex-wrap: wrap; margin: 0; }
+.hangar-role { font-size: 13px; color: var(--text); min-height: 2.9em; }
+.hangar-stats { display: flex; flex-direction: column; gap: 5px; }
+.hangar-stats .stat { grid-template-columns: 96px 1fr 70px; font-size: 12px; }
+.hangar-fly { align-self: stretch; }
+.role-tag { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.hangar-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: minmax(124px, 1fr); gap: 10px; overflow-y: auto; align-content: start; padding: 2px; }
+.hangar-card { appearance: none; font: inherit; color: var(--text); text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 4px;
+  padding: 7px 8px 8px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(255, 255, 255, 0.04); transition: border-color 0.15s, background 0.15s; }
+.hangar-card:hover { border-color: rgba(124, 255, 178, 0.5); background: rgba(124, 255, 178, 0.05); }
+.hangar-card[aria-selected="true"] { border-color: var(--hud); background: rgba(124, 255, 178, 0.10); box-shadow: 0 0 0 1px var(--hud) inset; }
+.hangar-card:focus-visible { outline: 2px solid var(--hud); outline-offset: 2px; }
+.card-pic { width: 100%; flex: 1; min-height: 0; border-radius: 7px; background: radial-gradient(ellipse at 50% 80%, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.25)); overflow: hidden; }
+.hangar-thumb { display: block; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity 0.25s; }
+.hangar-card.drawn .hangar-thumb { opacity: 1; }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.card-name { font-size: 16px; font-weight: 800; }
+.card-head .plane-flag { font-size: 11px; }
+.card-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; font-size: 12px; }
+.card-ms-wrap { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.card-ms { color: var(--text); }
+@media (prefers-reduced-motion: reduce) { .hangar-thumb, .hangar-card { transition: none; } }
 .stat-label { color: var(--muted); }
 .stat-value { text-align: right; font-variant-numeric: tabular-nums; }
 

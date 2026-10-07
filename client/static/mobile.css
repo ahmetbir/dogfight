@@ -83,3 +83,26 @@ body.touch .hud-mid { top: 36%; }
 /* the watching / replay label clears the MENÜ · UÇAK · SKOR · TEKRAR row */
 body.touch .hud-watch { bottom: 52px; font-size: 14px; }
 .tp-replay { color: var(--amber); border-color: rgba(255, 201, 77, 0.7); }
+
+/* hangar picker on a phone: the panel fills the screen and scrolls; the preview column stays in view beside the cards */
+@media (max-height: 500px), (max-width: 700px) {
+  .panel.wide.pick-panel { width: calc(100vw - 12px); height: auto; max-height: calc(100vh - 12px); overflow-y: auto; padding: 10px 12px; gap: 8px; }
+  .pick-panel .panel-head h2 { font-size: 17px; }
+  .hangar { display: grid; grid-template-columns: minmax(220px, 0.75fr) 1.5fr; gap: 10px; flex: none; }
+  .hangar-show { position: sticky; top: 0; align-self: start; gap: 6px; }
+  .hangar-stage { flex: none; height: 92px; min-height: 0; }
+  .hangar-info { gap: 4px; }
+  .hangar-info .plane-name { font-size: 17px; }
+  .hangar-role { min-height: 0; font-size: 11px; line-height: 1.35; }
+  .hangar-stats { gap: 2px; }
+  .hangar-stats .stat { grid-template-columns: 70px 1fr 56px; font-size: 10.5px; gap: 6px; }
+  .hangar-stats .bar { height: 5px; }
+  .hangar-fly { padding: 7px 12px; font-size: 14px; }
+  .hangar-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); grid-auto-rows: auto; overflow: visible; gap: 8px; }
+  .card-pic { flex: none; aspect-ratio: 5 / 2; }
+  .card-name { font-size: 14px; }
+}
+@media (max-width: 520px) {
+  .hangar { grid-template-columns: 1fr; }
+  .hangar-show { position: static; }
+}
