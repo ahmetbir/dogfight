@@ -26,10 +26,12 @@ func (Kit) Settings(m protocol.ClientMsg, now time.Time) (game.Settings, bool) {
 func (Kit) QuickSettings(now time.Time) game.Settings { return quickSettings(now) }
 
 // Class: a team choice opens the pick screen, so pick and team share the
-// choice bucket; the lobby's side and start are choices too.
+// choice bucket (its refusal kicks). The lobby's side and start only move a
+// seat or are refused (not host, not lobby): cheap, so a burst of clicks is
+// answered with notices, not a kick; they take the shared bucket only.
 func (Kit) Class(t string) server.Class {
 	switch t {
-	case protocol.TPick, protocol.TTeam, protocol.TSide, protocol.TStart:
+	case protocol.TPick, protocol.TTeam:
 		return server.ClassChoice
 	}
 	return server.ClassAll

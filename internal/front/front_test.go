@@ -18,7 +18,7 @@ var _ server.Kit[game.Settings, protocol.ClientMsg, match.Info] = Kit{}
 func TestKitClassesAndInRoom(t *testing.T) {
 	k := Kit{}
 	if k.Class(protocol.TPick) != server.ClassChoice || k.Class(protocol.TTeam) != server.ClassChoice ||
-		k.Class(protocol.TSide) != server.ClassChoice || k.Class(protocol.TStart) != server.ClassChoice || k.Class(protocol.TChat) != server.ClassAll {
+		k.Class(protocol.TSide) != server.ClassAll || k.Class(protocol.TStart) != server.ClassAll || k.Class(protocol.TChat) != server.ClassAll {
 		t.Fatal("classes")
 	}
 	for m, want := range map[protocol.ClientMsg]bool{
