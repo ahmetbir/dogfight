@@ -176,4 +176,4 @@ export function engine(x: number, y: number, z: number, r: number): THREE.Group 
   return g;
 }
 
-export type Model = { body: THREE.Group; engines: THREE.Group[]; span: number };
+export type Model = { body: THREE.Group; engines: THREE.Group[] };

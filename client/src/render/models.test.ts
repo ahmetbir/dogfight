@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
+import { airframe } from "../game/airframe.ts";
 import { buildModel } from "./models.ts";
+import { measure } from "./shape.ts";
 
 const KINDS = ["f16", "f15", "mig29", "su27"];
 
@@ -27,13 +29,14 @@ for (const kind of KINDS) {
       assert.ok(triangles(g) <= 600, `${kind}: ${triangles(g)} triangles`);
       const bb = new THREE.Box3().setFromObject(g.children[0]); // airframe, without flames
       const len = bb.max.z - bb.min.z;
-      assert.ok(len >= 14 && len <= 18, `${kind}: length ${len}`);
-      // Nose toward -Z: the long nose cone reaches well past -6.5 m.
-      assert.ok(bb.min.z < -6.5, `${kind}: nose at ${bb.min.z}`);
+      // A failed .glb leaves the jet its true size.
+      assert.ok(Math.abs(len - airframe(kind).length) < 1e-3, `${kind}: length ${len}, want ${airframe(kind).length}`);
+      // Nose toward -Z: the nose reaches well ahead of the middle.
+      assert.ok(bb.min.z < -0.4 * len, `${kind}: nose at ${bb.min.z}`);
       assert.ok(Math.abs(bb.max.x + bb.min.x) < 1e-6, `${kind}: not symmetric`);
       assert.ok(g.getObjectsByProperty("name", "ab").length >= 1);
       assert.ok(g.getObjectsByProperty("name", "idle").length >= 1);
-      assert.ok(g.userData.span > 4);
+      assert.ok(measure(g).tip.x > 4, `${kind}: wingtip`);
       const gear = g.getObjectByName("gear");
       assert.ok(gear, `${kind}: gear group`);
       const gb = new THREE.Box3().setFromObject(gear!);

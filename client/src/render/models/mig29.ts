@@ -24,5 +24,5 @@ export function buildMig29(p: Palette): Model {
     .mirror(fin([[0.2, 3.6], [3.1, 5.8], [3.1, 6.7], [0.2, 6.8]], 0.13, CANT).translate(1.15, 0.1, 0), p.body)
     .mirror(fin([[2.3, 5.2], [3.1, 5.8], [3.1, 6.7], [2.3, 6.77]], 0.17, CANT).translate(1.15, 0.1, 0), p.stripe);
   const body = parts.merge();
-  return { body, engines: [engine(1.05, -0.35, 7.6, 0.48), engine(-1.05, -0.35, 7.6, 0.48)], span: 5.85 };
+  return { body, engines: [engine(1.05, -0.35, 7.6, 0.48), engine(-1.05, -0.35, 7.6, 0.48)] };
 }

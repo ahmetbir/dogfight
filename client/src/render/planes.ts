@@ -7,6 +7,7 @@ import type { Effects } from "./effects.ts";
 import { dressGlb, NEUTRAL, type Controls, type Dressed, type Rig } from "./glb.ts";
 import { buildModel, tryLoadGlb } from "./models.ts";
 import type { Team } from "./models/common.ts";
+import { measure } from "./shape.ts";
 
 export type PlaneRender = {
   id: number; kind: string; team: string; pos: V3; rot: Q; alive: boolean;
@@ -18,10 +19,11 @@ export type PlaneRender = {
 
 const LABEL_RANGE = 3000; // m: friendly tags (enemies: game/sight.ts)
 const SMOKE_HP = 0.4;     // fraction of maxHP below which the plane smokes
-const SMOKE_MS = 50;
+const SMOKE_MS = 50;      // one puff per interval, engines taking turns
 const TRAIL_G = 9;
 const TRAIL_MS = 500;
 const TRAIL_CAP = 64;
+const TAG_GAP = 5.7;      // m above the fin top (the F-16's tag stays where it was)
 const GEAR_S = 0.8;       // gear travel time, s
 const SURFACE_RATE = 4;   // control surface travel, full scale per s
 const ENEMY = "#ff5a5a";
@@ -109,6 +111,12 @@ function disposeTree(o: THREE.Object3D): void {
   });
 }
 
+/** Where a model's effects attach, in the plane's frame: wingtip (trails) and name tag height. */
+export function places(model: THREE.Object3D): { tip: THREE.Vector3; tagUp: number } {
+  const s = measure(model);
+  return { tip: s.tip, tagUp: s.top + TAG_GAP };
+}
+
 class PlaneView {
   readonly key: string;
   readonly root = new THREE.Group();
@@ -116,7 +124,9 @@ class PlaneView {
   private ab: THREE.Object3D[];
   private idle: THREE.Object3D[];
   private readonly trails = [new Trail(), new Trail()];
-  private readonly span: number;
+  private tip: THREE.Vector3;  // right wingtip's trailing edge (model's measure)
+  private tagUp: number;       // name tag height above the origin
+  private puff = 0;            // engine the next smoke puff leaves
   private gear: THREE.Object3D | null; // null if a model ever comes without one
   private readonly model: THREE.Group;
   private readonly team: Team;
@@ -139,7 +149,7 @@ class PlaneView {
     const model = buildModel(p.kind, this.team, this.own);
     this.model = model;
     this.body = model.children[0];
-    this.span = model.userData.span as number;
+    ({ tip: this.tip, tagUp: this.tagUp } = places(model));
     this.ab = model.getObjectsByProperty("name", "ab");
     this.idle = model.getObjectsByProperty("name", "idle");
     this.gear = model.getObjectByName("gear") ?? null;
@@ -169,6 +179,7 @@ class PlaneView {
     this.ab = d.ab;
     this.idle = d.idle;
     this.gear = d.rig.gear;
+    ({ tip: this.tip, tagUp: this.tagUp } = places(this.model));
   }
 
   update(p: PlaneRender, now: number, showLabel: boolean, fx: Effects, labelK = 1): void {
@@ -185,19 +196,20 @@ class PlaneView {
     this.updateSurfaces(p.alive ? p.ctl ?? NEUTRAL : NEUTRAL);
     this.rig?.missiles(p.msl ?? Infinity);
     if (this.label) {
-      this.label.position.set(p.pos.x, p.pos.y + 9, p.pos.z);
+      this.label.position.set(p.pos.x, p.pos.y + this.tagUp, p.pos.z);
       this.label.visible = p.alive && showLabel;
       this.label.scale.set(LABEL_W * labelK, LABEL_H * labelK, 1);
     }
     const pulling = p.alive && p.gForce > TRAIL_G;
     this.root.updateMatrixWorld();
     for (let i = 0; i < 2; i++) {
-      const tip = pulling ? this.root.localToWorld(new THREE.Vector3(i ? this.span : -this.span, 0, 2.5)) : null;
+      const tip = pulling ? this.root.localToWorld(new THREE.Vector3(i ? this.tip.x : -this.tip.x, this.tip.y, this.tip.z)) : null;
       this.trails[i].step(now, tip);
     }
-    if (p.alive && p.hp < SMOKE_HP * p.maxHP && now - this.lastSmoke >= SMOKE_MS) {
+    if (p.alive && p.hp < SMOKE_HP * p.maxHP && now - this.lastSmoke >= SMOKE_MS && this.ab.length > 0) {
       this.lastSmoke = now;
-      fx.smoke(this.root.localToWorld(new THREE.Vector3(0, 0.5, 6)));
+      this.puff = (this.puff + 1) % this.ab.length;
+      fx.smoke(this.ab[this.puff].getWorldPosition(new THREE.Vector3()));
     }
   }
 

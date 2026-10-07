@@ -18,5 +18,5 @@ export function buildF16(p: Palette): Model {
     .add(fin([[0.4, 3.4], [3.3, 5.9], [3.3, 6.8], [0.4, 6.6]], 0.14), p.body)
     .add(fin([[2.5, 5.2], [3.3, 5.9], [3.3, 6.8], [2.5, 6.73]], 0.18), p.stripe);
   const body = parts.merge();
-  return { body, engines: [engine(0, 0, 7.3, 0.48)], span: 4.95 };
+  return { body, engines: [engine(0, 0, 7.3, 0.48)] };
 }
