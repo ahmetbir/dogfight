@@ -1,9 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import * as THREE from "three";
 import { deflection, dressGlb, NEUTRAL, Rig, roleColor } from "./glb.ts";
 import { ratesToControls } from "../game/view.ts";
+import { RULES } from "../book/rules.ts";
+import { contract } from "./testglb.ts";
 
 test("roll right raises the right trailing edges and lowers the left", () => {
   const c = { p: 0, r: 1, y: 0 };
@@ -123,16 +125,20 @@ test("a rig ignores malformed axes", () => {
   assert.ok(bad.quaternion.equals(new THREE.Quaternion()));
 });
 
-// The committed models honour the node contract and the budgets (spec Phase 3);
-// one msl_i node per missile of the sim load (internal/sim/aircraft.go).
-const KINDS: Record<string, { missiles: number; twin: boolean }> = {
-  f16: { missiles: 5, twin: false }, f15: { missiles: 6, twin: true },
-  mig29: { missiles: 4, twin: true }, su27: { missiles: 5, twin: true },
-};
+// The committed models honour the node contract and the budgets (spec Phase 3).
+// tools/blender/contract.json is the one list of nodes and missile counts (build.py
+// enforces it too); the counts must equal the sim's load, and every kind needs its .glb.
+test("contract.json lists exactly the kinds of the rules, with the sim's missile counts", () => {
+  const ruled = Object.keys(RULES).flatMap((k) => (k.endsWith("Missiles") ? [k.slice(0, -"Missiles".length)] : []));
+  assert.deepEqual(Object.keys(contract.kinds).sort(), ruled.sort());
+  for (const [kind, want] of Object.entries(contract.kinds)) {
+    assert.equal(want.missiles, (RULES as Record<string, number>)[`${kind}Missiles`], `${kind}: sim.Spec.Missiles`);
+  }
+});
 
-for (const [kind, want] of Object.entries(KINDS)) {
+for (const [kind, want] of Object.entries(contract.kinds)) {
   const file = new URL(`../../static/models/${kind}.glb`, import.meta.url);
-  test(`${kind}.glb: nodes, materials, budgets`, { skip: !existsSync(file) }, () => {
+  test(`${kind}.glb: nodes, materials, budgets`, () => {
     const buf = readFileSync(file);
     assert.ok(statSync(file).size <= 150 * 1024, `size ${statSync(file).size}`);
     assert.equal(buf.toString("ascii", 0, 4), "glTF");
@@ -145,12 +151,8 @@ for (const [kind, want] of Object.entries(KINDS)) {
       samplers?: { magFilter?: number }[];
     };
     const names = new Set(json.nodes.map((n) => n.name));
-    const rudders = want.twin ? ["rudder_l", "rudder_r"] : ["rudder"];
-    for (const n of ["airframe", "canopy", "aileron_l", "aileron_r", "flap_l", "flap_r", "stab_l", "stab_r", ...rudders,
-      "gear", "gear_nose", "gear_main_l", "gear_main_r", "ab_0", "idle_0"]) {
-      assert.ok(names.has(n), `node ${n}`);
-    }
-    if (want.twin) assert.ok(names.has("ab_1") && names.has("idle_1"), "two engines");
+    const nodes = [...contract.nodes, ...(want.twin ? contract.twin : contract.single)];
+    for (const n of nodes) assert.ok(names.has(n), `node ${n}`);
     for (let i = 0; i < want.missiles; i++) assert.ok(names.has(`msl_${i}`), `msl_${i}`);
     assert.ok(!names.has(`msl_${want.missiles}`), `${want.missiles} missiles: sim.Spec.Missiles`);
     for (const n of json.nodes) {

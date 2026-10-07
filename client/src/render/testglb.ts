@@ -49,3 +49,10 @@ export function readGlb(file: URL | string): THREE.Group {
   for (const i of json.scenes[json.scene ?? 0].nodes) root.add(build(i));
   return root;
 }
+
+/** tools/blender/contract.json: the node names and missile counts build.py enforces. */
+export type Contract = {
+  nodes: string[]; single: string[]; twin: string[];
+  kinds: Record<string, { missiles: number; twin: boolean }>;
+};
+export const contract: Contract = JSON.parse(readFileSync(new URL("../../../tools/blender/contract.json", import.meta.url), "utf8"));

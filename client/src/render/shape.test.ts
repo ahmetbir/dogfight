@@ -1,14 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
 import * as THREE from "three";
 import { airframe } from "../game/airframe.ts";
 import { buildModel } from "./models.ts";
 import { places } from "./planes.ts";
 import { measure } from "./shape.ts";
-import { readGlb } from "./testglb.ts";
+import { contract, readGlb } from "./testglb.ts";
 
-const KINDS = ["f16", "f15", "mig29", "su27"];
+const KINDS = Object.keys(contract.kinds);
 const near = (a: number, b: number, eps: number) => Math.abs(a - b) <= eps;
 
 test("measure: nose, tail, top and the wingtip's trailing edge; flames left out", () => {
@@ -29,7 +28,7 @@ test("measure: nose, tail, top and the wingtip's trailing edge; flames left out"
 // The sim's airframe numbers are the committed models' (sim.Spec via RULES).
 for (const kind of KINDS) {
   const file = new URL(`../../static/models/${kind}.glb`, import.meta.url);
-  test(`${kind}.glb measures as its airframe`, { skip: !existsSync(file) }, () => {
+  test(`${kind}.glb measures as its airframe`, () => {
     const s = measure(readGlb(file));
     const a = airframe(kind);
     assert.ok(near(s.nose + s.tail, a.length, 0.01), `${kind}: length ${s.nose + s.tail}, sim ${a.length}`);
@@ -51,7 +50,7 @@ test("the procedural fallback keeps each jet's true length and puts effects on i
   }
 });
 
-test("name tags ride above each model's fin; the F-16's stays at v1's 9 m", { skip: !existsSync(new URL("../../static/models/f16.glb", import.meta.url)) }, () => {
+test("name tags ride above each model's fin; the F-16's stays at v1's 9 m", () => {
   const tag = (kind: string) => places(readGlb(new URL(`../../static/models/${kind}.glb`, import.meta.url))).tagUp;
   assert.ok(near(tag("f16"), 9, 0.1), `f16 tag ${tag("f16")}`);
   for (const kind of KINDS) assert.ok(tag(kind) > 7, `${kind} tag ${tag(kind)}`);
