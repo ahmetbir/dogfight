@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { enemyTagVisible } from "../game/sight.ts";
 import { dist, qForward, type Q, type V3 } from "../sim/vec.ts";
 import type { Effects } from "./effects.ts";
-import { dressGlb, NEUTRAL, type Controls, type Dressed, type Rig } from "./glb.ts";
+import { dressGlb, NEUTRAL, sweepTarget, type Controls, type Dressed, type Rig } from "./glb.ts";
 import { buildModel, tryLoadGlb } from "./models.ts";
 import type { Team } from "./models/common.ts";
 import { measure } from "./shape.ts";
@@ -26,6 +26,7 @@ const TRAIL_CAP = 64;
 const TAG_GAP = 5.7;      // m above the fin top (the F-16's tag stays where it was)
 const GEAR_S = 0.8;       // gear travel time, s
 const SURFACE_RATE = 4;   // control surface travel, full scale per s
+const SWEEP_RATE = 0.3;   // swing wing travel, full range per s (about 15°/s on the F-14)
 const ENEMY = "#ff5a5a";
 const FRIEND = "#6aa8ff";
 
@@ -150,6 +151,8 @@ class PlaneView {
   private gearT: number;      // 0 retracted .. 1 down
   private lastAt = -1;        // ms of the previous update
   private dt = 0;             // s since the previous update
+  private sweepT = -1;        // swing wings: 0 forward .. 1 back; -1 not placed yet
+  private readonly lastPos = new THREE.Vector3();
   private body: THREE.Object3D;
   private lastSmoke = -Infinity;
   private readonly scene: THREE.Scene;
@@ -208,6 +211,7 @@ class PlaneView {
     for (const o of this.idle) o.visible = !p.ab;
     this.updateGear(p, now);
     this.updateSurfaces(p.alive ? p.ctl ?? NEUTRAL : NEUTRAL);
+    this.updateSweep(p);
     this.rig?.missiles(p.msl ?? Infinity);
     if (this.label) {
       this.label.position.set(p.pos.x, p.pos.y + this.tagUp, p.pos.z);
@@ -251,6 +255,24 @@ class PlaneView {
       this.ctl[k] += Math.max(-step, Math.min(step, want - this.ctl[k]));
     }
     this.rig.pose(this.ctl, this.gearT);
+  }
+
+  /**
+   * Swing wings follow the speed measured from the drawn positions (no wire
+   * field), at SWEEP_RATE; a dead or newly seen plane snaps to its target.
+   */
+  private updateSweep(p: PlaneRender): void {
+    const pos = this.root.position;
+    const speed = this.dt > 0 ? pos.distanceTo(this.lastPos) / this.dt : NaN;
+    this.lastPos.copy(pos);
+    if (!this.rig?.swings) return;
+    const want = sweepTarget(Number.isFinite(speed) ? speed : p.gear ? 0 : 200, p.gear);
+    if (this.sweepT < 0 || !p.alive) this.sweepT = want;
+    else {
+      const step = Math.max(0, this.dt) * SWEEP_RATE;
+      this.sweepT += Math.max(-step, Math.min(step, want - this.sweepT));
+    }
+    this.rig.sweep(this.sweepT);
   }
 
   dispose(): void {
