@@ -2,7 +2,24 @@
 .rotate-prompt { display: none; position: fixed; inset: 0; z-index: 50; align-items: center; justify-content: center; flex-direction: column; gap: 14px; background: #070c14; color: var(--hud); font-size: 22px; font-weight: 800; letter-spacing: 0.04em; text-align: center; padding: 24px; }
 .rotate-prompt::before { content: ""; width: 46px; height: 76px; border: 3px solid var(--hud); border-radius: 9px; animation: tilt-phone 1.6s ease-in-out infinite; }
 @keyframes tilt-phone { 50% { transform: rotate(-90deg); } }
-@media (orientation: portrait) and (pointer: coarse) { body.in-game .rotate-prompt { display: flex; } }
+@media (orientation: portrait) and (pointer: coarse) { body.in-game .rotate-prompt { display: flex; } body.in-game.in-lobby .rotate-prompt { display: none; } }
+
+/* the lobby on phones: sides stacked, compact rows, Start full width */
+@media (max-width: 700px) {
+  .lobby-panel { width: calc(100vw - 24px); max-height: calc(100vh - 24px); padding: 16px 14px; gap: 12px; }
+  .lobby-cols.two { grid-template-columns: 1fr; }
+  .lobby-panel .room-link { flex-wrap: wrap; }
+  .lobby-panel .room-link .input.link { flex: 1 1 100%; width: auto; min-width: 0; order: 3; }
+  .lobby-panel .panel-foot { flex-direction: column-reverse; align-items: stretch; text-align: center; }
+  .lobby-start { width: 100%; }
+  .lobby-tools { margin-left: 0; width: 100%; }
+  .lobby-tools .btn { flex: 1; }
+}
+@media (max-height: 500px) and (min-width: 701px) {
+  .lobby-panel { max-height: calc(100vh - 16px); padding: 12px 16px; gap: 10px; }
+  .lobby-hint { display: none; }
+  .lobby-row { padding: 5px 8px; }
+}
 
 /* settings: the room link wraps instead of clipping */
 @media (max-width: 520px) {

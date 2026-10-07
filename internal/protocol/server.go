@@ -119,7 +119,7 @@ type PowerupJSON struct {
 
 type RoundMsg struct {
 	T         string     `json:"t"`     // "round"
-	Phase     string     `json:"phase"` // playing|ended
+	Phase     string     `json:"phase"` // playing|ended|lobby
 	TicksLeft int        `json:"left"`
 	Winner    string     `json:"winner,omitempty"`
 	NATO      int        `json:"nato"`
@@ -152,6 +152,36 @@ type PlayerJSON struct {
 	// Paint of the jet in the air when it is another kind than kind (a pick
 	// for the next spawn); omitted when it is the same paint or kind.
 	FlySkin string `json:"fskin,omitempty"`
+}
+
+// LobbyMsg is a lobby room's state, sent to everyone when it changes (and
+// with every welcome): the phase, the host, the seats per side (FFA: the
+// whole room) and the humans with their side and aircraft, in join order.
+// Bots are not listed: the lobby shows empty seats as bots.
+type LobbyMsg struct {
+	T     string           `json:"t"` // "lobby"
+	Phase string           `json:"phase"`
+	Host  sim.ID           `json:"host"` // 0: no human seated
+	Seats int              `json:"seats"`
+	List  []LobbyEntryJSON `json:"list"`
+}
+
+type LobbyEntryJSON struct {
+	ID   sim.ID `json:"id"`
+	Name string `json:"name"`
+	Team string `json:"team"`
+	Kind string `json:"kind"`
+}
+
+// NewLobby builds the lobby message from the roster (ordered by ID).
+func NewLobby(phase game.Phase, host sim.ID, seats int, ps []game.Player) LobbyMsg {
+	list := make([]LobbyEntryJSON, 0, len(ps))
+	for _, p := range ps {
+		if !p.Bot {
+			list = append(list, LobbyEntryJSON{ID: p.ID, Name: p.Name, Team: TeamName(p.Team), Kind: p.Kind.String()})
+		}
+	}
+	return LobbyMsg{T: "lobby", Phase: PhaseName(phase), Host: host, Seats: seats, List: list}
 }
 
 // The core message types, under their old names.
@@ -233,11 +263,19 @@ func newPlane(p sim.Plane, tick int) PlaneJSON {
 	return j
 }
 
-func NewRound(r game.Round) RoundMsg {
-	phase := "playing"
-	if r.Phase == game.Ended {
-		phase = "ended"
+// PhaseName is a phase on the wire: playing|ended|lobby.
+func PhaseName(p game.Phase) string {
+	switch p {
+	case game.Ended:
+		return "ended"
+	case game.Lobby:
+		return "lobby"
 	}
+	return "playing"
+}
+
+func NewRound(r game.Round) RoundMsg {
+	phase := PhaseName(r.Phase)
 	board := make([]LineJSON, 0, len(r.Board))
 	for _, l := range r.Board {
 		board = append(board, LineJSON{ID: l.ID, Kills: l.Kills, Deaths: l.Deaths, Score: l.Score})

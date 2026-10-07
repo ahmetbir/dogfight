@@ -17,11 +17,14 @@ var _ server.Kit[game.Settings, protocol.ClientMsg, match.Info] = Kit{}
 
 func TestKitClassesAndInRoom(t *testing.T) {
 	k := Kit{}
-	if k.Class(protocol.TPick) != server.ClassChoice || k.Class(protocol.TTeam) != server.ClassChoice || k.Class(protocol.TChat) != server.ClassAll {
+	if k.Class(protocol.TPick) != server.ClassChoice || k.Class(protocol.TTeam) != server.ClassChoice ||
+		k.Class(protocol.TSide) != server.ClassAll || k.Class(protocol.TStart) != server.ClassAll || k.Class(protocol.TChat) != server.ClassAll {
 		t.Fatal("classes")
 	}
 	for m, want := range map[protocol.ClientMsg]bool{
 		{T: protocol.TTeam, Team: "nato"}: true,
+		{T: protocol.TSide, Team: "nato"}: true,
+		{T: protocol.TStart}:              true,
 		{T: protocol.TPick, Kind: "su27"}: true,
 		{T: protocol.TPick, Kind: "x"}:    false,
 		{T: protocol.TQuick}:              false,
@@ -31,7 +34,7 @@ func TestKitClassesAndInRoom(t *testing.T) {
 			t.Errorf("InRoom(%+v) != %v", m, want)
 		}
 	}
-	if k.Version() != 2 {
+	if k.Version() != protocol.Version {
 		t.Fatal("version")
 	}
 }
@@ -53,9 +56,11 @@ func TestPickOfEveryKindPassesUnknownIsRefused(t *testing.T) {
 	}
 }
 
+// The row's seats are the room's (match.Info.Seats), not the core's
+// Summary.Seats, which a created room sets to its humans to keep quick play out.
 func TestRowBytes(t *testing.T) {
-	team := room.Summary[match.Info]{Code: "ABCD", Info: room.Info[match.Info]{Humans: 1, Seats: 4,
-		Game: match.Info{Mode: "team", Map: "ada", Weather: "acik", Phase: "playing", LeftS: 42, NATO: 1}}}
+	team := room.Summary[match.Info]{Code: "ABCD", Info: room.Info[match.Info]{Humans: 1, Seats: 1,
+		Game: match.Info{Mode: "team", Map: "ada", Weather: "acik", Phase: "playing", LeftS: 42, NATO: 1, Seats: 4}}}
 	b, _ := json.Marshal(Kit{}.Row(team))
 	if string(b) != `{"code":"ABCD","mode":"team","map":"ada","wx":"acik","humans":1,"seats":4,"phase":"playing","left":42,"teams":[1,0]}` {
 		t.Fatal(string(b))

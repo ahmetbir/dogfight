@@ -85,6 +85,7 @@ export type HangarView = {
   waiting: boolean;                 // no plane yet
   loadout: Loadout;
   skins?: Readonly<Record<string, string>>; // each jet's chosen skin (missing: its default)
+  lobby?: boolean;                  // pre-match lobby: the button chooses the match's jet
 };
 
 type Card = { el: HTMLButtonElement; ms: HTMLElement; flag: HTMLElement; info: AircraftInfo };
@@ -137,6 +138,8 @@ export class Hangar {
 
   /** Builds the cards when the side or its kinds change, else updates them in place. */
   update(v: HangarView): void {
+    const label = v.lobby ? "hangar.choose" : "hangar.fly";
+    if (this.v === null || !!this.v.lobby !== !!v.lobby) for (const b of [this.fly, this.footFly]) b.replaceChildren(lt(label));
     this.v = v;
     if (v.skins) this.local = {}; // the owner's choices are current again
     const key = JSON.stringify([v.team, v.kinds.map((a) => a.kind)]);

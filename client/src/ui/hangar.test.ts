@@ -96,3 +96,14 @@ test("stepSkin: the paint row's arrows wrap, Home and End jump", () => {
   assert.equal(stepSkin(3, "Enter", 7), null);
   assert.equal(stepSkin(0, "ArrowRight", 0), null);
 });
+
+test("in the lobby the picker chooses the match's jet: Done keeps the selection, no spawn wording", async () => {
+  const { pickOnLeave, unpickedName, pickNote } = await import("./pick.ts");
+  const { setLang, t } = await import("../i18n/index.ts");
+  setLang("en");
+  assert.equal(pickOnLeave({ waiting: false, lobby: true }, "f15"), "f15");
+  assert.equal(unpickedName({ waiting: false, lobby: true, chosen: "f16", current: null, aircraft: ALL }, "a10"), "");
+  const v = { code: "K7QX", team: "nato" as const, aircraft: ALL, current: null, chosen: null, protectedNow: false, waiting: false, waitLeft: 0, lobby: true };
+  assert.equal(pickNote(v), t("pick.noteLobby"));
+  assert.notEqual(pickNote({ ...v, lobby: false }), t("pick.noteLobby"));
+});

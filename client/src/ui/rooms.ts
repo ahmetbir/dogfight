@@ -108,7 +108,7 @@ export class RoomList {
       h("span", { class: "code-tag" }, r.code),
       h("span", { class: "room-seats" }, seatsText(r)),
       h("span", { class: "room-label", title: roomLabel(r) }, settingsText(r)),
-      h("span", { class: "room-left muted" }, r.phase === "ended" ? t("rooms.break") : clock(r.left)),
+      h("span", { class: "room-left muted" }, r.phase === "ended" ? t("rooms.break") : r.phase === "lobby" ? t("rooms.lobby") : clock(r.left)),
       join);
   }
 }

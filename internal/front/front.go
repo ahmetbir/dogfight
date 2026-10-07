@@ -26,18 +26,22 @@ func (Kit) Settings(m protocol.ClientMsg, now time.Time) (game.Settings, bool) {
 func (Kit) QuickSettings(now time.Time) game.Settings { return quickSettings(now) }
 
 // Class: a team choice opens the pick screen, so pick and team share the
-// choice bucket.
+// choice bucket (its refusal kicks). The lobby's side and start only move a
+// seat or are refused (not host, not lobby): cheap, so a burst of clicks is
+// answered with notices, not a kick; they take the shared bucket only.
 func (Kit) Class(t string) server.Class {
-	if t == protocol.TPick || t == protocol.TTeam {
+	switch t {
+	case protocol.TPick, protocol.TTeam:
 		return server.ClassChoice
 	}
 	return server.ClassAll
 }
 
-// InRoom: team (DecodeClient whitelisted its value) and pick of a known kind.
+// InRoom: team and side (DecodeClient whitelisted their value), start, and
+// pick of a known kind.
 func (Kit) InRoom(m protocol.ClientMsg) bool {
 	switch m.T {
-	case protocol.TTeam:
+	case protocol.TTeam, protocol.TSide, protocol.TStart:
 		return true
 	case protocol.TPick:
 		_, ok := sim.ParseKind(m.Kind)
@@ -53,14 +57,14 @@ type roomJSON struct {
 	Wx     string  `json:"wx"`
 	Humans int     `json:"humans"`
 	Seats  int     `json:"seats"`
-	Phase  string  `json:"phase"`
+	Phase  string  `json:"phase"`           // playing|ended|lobby
 	Left   int     `json:"left"`            // seconds left in the round
 	Teams  *[2]int `json:"teams,omitempty"` // humans on NATO, Soviet (team and base modes)
 }
 
 func (Kit) Row(x room.Summary[match.Info]) any {
 	g := x.Game
-	row := roomJSON{x.Code, g.Mode, g.Map, g.Weather, x.Humans, x.Seats, g.Phase, g.LeftS, nil}
+	row := roomJSON{x.Code, g.Mode, g.Map, g.Weather, x.Humans, g.Seats, g.Phase, g.LeftS, nil} // g.Seats: Summary.Seats hides a lobby room from quick play
 	if g.Mode != "ffa" {
 		row.Teams = &[2]int{g.NATO, g.Soviet}
 	}

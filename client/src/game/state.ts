@@ -1,6 +1,6 @@
 // Pure data mirrored from server messages.
 import type {
-  AircraftInfo, BombJSON, EventJSON, MapInfo, MissileJSON, PlaneJSON, PlayerJSON, PowerupJSON, RoundMsg, ServerMsg,
+  AircraftInfo, BombJSON, EventJSON, LobbyMsg, MapInfo, MissileJSON, PlaneJSON, PlayerJSON, PowerupJSON, RoundMsg, ServerMsg,
   TerrainInfo, WeatherInfo,
 } from "../net/protocol.ts";
 import { InterpBuffer, ServerClock } from "../predict/interp.ts";
@@ -44,6 +44,7 @@ export class GameState {
   weather: WeatherInfo | null = null;  // null: calm
   players = new Map<number, PlayerJSON>();
   round: RoundMsg | null = null;
+  lobby: LobbyMsg | null = null; // a created room's lobby state (null: quick play)
   planes = new Map<number, PlaneJSON>(); // latest snapshot
   interp = new Map<number, InterpBuffer>(); // remote planes
   missiles: MissileJSON[] = [];
@@ -57,6 +58,11 @@ export class GameState {
   wt = 0;     // world tick of the latest snapshot (wind clock)
   ack = 0;    // last input seq the server applied to us
   snapAt = 0; // local ms the latest snapshot arrived
+
+  /** The room waits in its pre-match lobby (no world, no clock). */
+  inLobby(): boolean {
+    return this.round?.phase === "lobby";
+  }
 
   /** Applies m received at local time nowMs; returns the snapshot's events. */
   apply(m: ServerMsg, nowMs: number): ServerEvent[] {
@@ -73,6 +79,7 @@ export class GameState {
         this.weather = m.weather ?? null;
         this.players = new Map();
         this.round = null;
+        this.lobby = null;
         this.planes = new Map();
         this.interp = new Map();
         this.missiles = [];
@@ -101,6 +108,9 @@ export class GameState {
         return [];
       case "round":
         this.round = m;
+        return [];
+      case "lobby":
+        this.lobby = m;
         return [];
       default:
         return [];

@@ -94,6 +94,9 @@ func (g *Game) add(name string, team sim.Team, kind sim.Kind, isBot bool) sim.ID
 }
 
 func (g *Game) remove(id sim.ID) {
+	if g.hostPin == id {
+		g.hostPin = 0
+	}
 	delete(g.pending, id)
 	delete(g.players, id)
 	delete(g.bots, id)
@@ -128,8 +131,13 @@ func (g *Game) addBot(team sim.Team) {
 // AddHuman seats a human on the team the rules pick from the human counts,
 // replacing the newest bot there at once (team balance holds from the join).
 // The human is in the roster and on the scoreboard but has no plane until
-// the first Pick, or until PickTimeoutTicks pass (default kind).
+// the first Pick, or until PickTimeoutTicks pass (default kind). In the
+// Lobby there are no bots: the human takes a free seat on the balanced side
+// and waits for Start.
 func (g *Game) AddHuman(name string) (sim.ID, error) {
+	if g.phase == Lobby {
+		return g.addLobbyHuman(name)
+	}
 	humans := map[sim.Team]int{}
 	for _, p := range g.players {
 		if !p.Bot {
@@ -191,7 +199,8 @@ func (g *Game) Waiting(id sim.ID) bool {
 	return ok
 }
 
-// RemoveHuman frees a human's seat and puts a bot back on that team.
+// RemoveHuman frees a human's seat and puts a bot back on that team (in the
+// Lobby the seat stays empty until Start).
 func (g *Game) RemoveHuman(id sim.ID) {
 	p, ok := g.players[id]
 	if !ok || p.Bot {
@@ -199,7 +208,9 @@ func (g *Game) RemoveHuman(id sim.ID) {
 	}
 	team := p.Team
 	g.remove(id)
-	g.addBot(team)
+	if g.phase != Lobby {
+		g.addBot(team)
+	}
 }
 
 // Pick chooses the aircraft for id. A plane still in untouched spawn
@@ -208,7 +219,8 @@ func (g *Game) RemoveHuman(id sim.ID) {
 // re-arms it in place with the chosen loadout (SetLoadout), so a loadout and
 // an aircraft change both apply in either order. Otherwise it applies at the
 // next spawn. A waiting
-// human spawns now, or with the next round while the scoreboard shows.
+// human spawns now, or with the next round while the scoreboard shows. In
+// the Lobby the pick is only recorded: the plane comes with Start.
 func (g *Game) Pick(id sim.ID, k sim.Kind) error {
 	p, ok := g.players[id]
 	if !ok {
@@ -223,6 +235,9 @@ func (g *Game) Pick(id sim.ID, k sim.Kind) error {
 	}
 	p.Kind = k
 	g.rosterVer++
+	if g.phase == Lobby {
+		return nil
+	}
 	if g.Waiting(id) { // first pick: the human enters the world now
 		if g.phase == Ended { // or with the next round, not into the frozen world
 			g.pending[id] = g.tick

@@ -21,6 +21,9 @@ func TestSettingsDefaultsAndParsing(t *testing.T) {
 	if !ok || s.Map != maps.Dag || s.Weather != weather.Night || s.Start != sim.StartRunway || s.Listed || s.Seed != 7 {
 		t.Fatalf("explicit: %+v %v", s, ok)
 	}
+	if !s.Lobby || quickSettings(now).Lobby { // created rooms wait in the lobby, quick play starts at once
+		t.Fatalf("lobby: created %v, quick %v", s.Lobby, quickSettings(now).Lobby)
+	}
 	for _, bad := range []protocol.ClientMsg{
 		{T: "create", Mode: "team", Diff: "normal", Map: "mars"},
 		{T: "create", Mode: "team", Diff: "normal", Wx: "kar"},

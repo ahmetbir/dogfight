@@ -20,7 +20,7 @@ func TestStatsSinkReachesRooms(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		sk := &countSink{}
-		l := NewLobby(ctx, 0, nil, sk)
+		l := NewLobby(ctx, 0, nil, sk, nil)
 		r, err := l.Create(ffa4)
 		if err != nil {
 			t.Fatal(err)
@@ -59,7 +59,7 @@ func TestLobbyRoomsCarryProtocolChatMax(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
-		r, err := NewLobby(ctx, 0, nil, nil).Create(ffa4)
+		r, err := NewLobby(ctx, 0, nil, nil, nil).Create(ffa4)
 		if err != nil {
 			t.Fatal(err)
 		}

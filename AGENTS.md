@@ -218,6 +218,35 @@ dependencies to this repo.
 - Goldens and vectors depend on all of this. Float results differ between arm64 and amd64 (FMA),
   which is why goldens are per-architecture.
 
+### Room phases
+
+- `game.Phase`: **Lobby** (created rooms only, `game.Settings.Lobby`, set by `front.settings`),
+  **Playing**, **Ended** (10 s scoreboard). Quick play rooms never see the Lobby. In the Lobby
+  there are no bots and no planes, the world does not step and the round clock does not run;
+  only the game tick advances, and the room keeps sending (empty) snapshots so the client's
+  link monitor does not read the lobby as a stall.
+- The host is the lowest human ID still seated (IDs only grow: the earliest joiner), unless a
+  host reconnected: the same pilot token back within `match.ReturnTicks` (or already
+  seated again when the old socket times out) gets the role back (`game.SetHost`), and in the
+  Lobby any returning pilot gets its side and jet back (`internal/match/session.go`). `start`
+  is host-only and Lobby-only; it spawns the humans per the start mode, then fills each side
+  with bots. After the scoreboard a lobby room goes back to the Lobby with a fresh world (same
+  seed); sides and picks stay. Late joiners while Playing take the old path (a bot's seat).
+- Lobby side rule (`game.sideBalanced`, mirrored by `client/src/ui/lobby.ts` `sideOpen`):
+  everyone on one side is allowed; otherwise a side may be at most one human ahead (or the
+  move narrows the gap). The in-round `team` switch keeps its own stricter rule.
+- Drain: `cmd/dogfight` passes the drain state to the rooms (`match.Drain`). A room still in
+  its Lobby `match.LobbyDrainTicks` after a drain starts sends `lobby_closed` to everyone; the
+  clients show a card and leave, so a lobby does not hold the old server until `-drain-max`.
+  Rooms that play keep playing as before.
+- The lobby message goes out in the Lobby on every roster or host change, otherwise only when
+  the phase changes; a joiner gets it with its welcome.
+- Quick Play never seats anyone in a created room: `match.Info` reports such a room's human
+  count as the core's `Summary.Seats` (only `lobby.Quick` reads it), and the room list takes
+  the real seats from `match.Info.Seats`. Link and room-list joins are unaffected.
+- The room goldens (`room_*.golden`) are built from quick-play settings and do not cover the
+  Lobby; `internal/match/prematch_test.go` and `internal/game/lobby_test.go` do.
+
 ### Netcode
 
 - The server is authoritative; the client sends only input (clamped, NaN/Inf neutralized
@@ -263,7 +292,7 @@ Server (`roomkit/server/guard.go`, `inbound.go`, defaults in `server.go`):
 - Inputs (`in`) have their own bucket (90/s, burst 120) and are only ever **dropped** over rate,
   never kicked; a dropped input's one-shot presses carry over to the next one.
 - `ping`: 2/s, burst 4, then the shared bucket. Game types with `ClassChoice` (Dogfight's
-  `pick` and `team`): 2/s, burst 4, then the shared bucket. Everything else but `in`: the shared bucket
+  `pick` and `team`; the lobby's `side` and `start` are `ClassAll`, refused or ignored without a kick): 2/s, burst 4, then the shared bucket. Everything else but `in`: the shared bucket
   (90/s, burst 120). Refusal by any of these closes the connection with code `flood`.
 - Hard ceiling before decoding: more than 300 messages/s or 64 KB/s averaged over 5 s ends the
   connection. Inbound frames are capped at 2048 bytes (`wsconn` read limit).

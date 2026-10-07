@@ -40,6 +40,8 @@ func typeOf(v any) string {
 		return "players"
 	case protocol.RoundMsg:
 		return "round"
+	case protocol.LobbyMsg:
+		return "lobby"
 	case netproto.Pong:
 		return "pong"
 	case netproto.ChatMsg:

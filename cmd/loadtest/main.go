@@ -134,7 +134,7 @@ func main() {
 	err = loadtest.Run(ctx, loadtest.Config{URL: c.url, Players: c.players, Rooms: c.rooms,
 		InputHz: inputHz, SnapEvery: match.SnapEvery,
 		Duration: c.duration, Ramp: c.ramp, Settle: c.settle, Every: c.every},
-		dogfight{create: create, picked: make([]atomic.Bool, c.players)})
+		dogfight{create: create, picked: make([]atomic.Bool, c.players), host: make([]atomic.Bool, c.players)})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)

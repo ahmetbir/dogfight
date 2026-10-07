@@ -85,3 +85,21 @@ func TestChatFloodClosedWithPolicyViolation(t *testing.T) {
 		t.Fatalf("close status %v, want policy violation", got)
 	}
 }
+
+// The lobby's start and side are refused or ignored, never kicked: a burst
+// of clicks (twelve starts and sides at once, past the choice bucket's 4)
+// keeps the connection, and the room starts.
+func TestLobbyClickBurstDoesNotKick(t *testing.T) {
+	srv := newServer(t, server.Options{Web: web, Limits: tight(func(*server.Limits) {})})
+	c := joined(t, srv.URL) // a created room: the host in its lobby
+	for i := range 12 {
+		if i%2 == 0 {
+			c.writeRaw(`{"t":"side","team":"auto"}`)
+		} else {
+			c.writeRaw(`{"t":"start"}`)
+		}
+	}
+	c.writeRaw(`{"t":"ping","ts":7}`)
+	c.until("pong", 3*time.Second, nil)
+	c.until("round", 3*time.Second, func(b []byte) bool { return strings.Contains(string(b), `"phase":"playing"`) })
+}
