@@ -74,6 +74,8 @@ const (
 	msgNotHost  = "Raundu yalnızca oda sahibi başlatır"
 	msgNotLobby = "Raund zaten başladı"
 	msgSideFull = "Bu tarafta boş yer yok"
+	// The server is being updated: the lobby closes (create a new room).
+	msgLobbyClosed = "Sunucu güncelleniyor, bekleme odası kapandı. Yeni bir oda kur."
 )
 
 // side applies a lobby side choice; a refusal is a notice to that player.

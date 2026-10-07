@@ -62,18 +62,14 @@ type Match struct {
 	rosterVer int
 	round     roundKey
 	lobby     lobbyKey // last lobby state sent (lobby rooms only)
-	// The pilot (token hash) of a host who left, and the game tick it left:
-	// back within HostReturnTicks under a new seat, it is the host again.
-	hostPilot string
-	hostLeft  int
+	back      returns  // seats of pilots who dropped, kept for their return (session.go)
+	drain     *Drain   // the server's drain state (nil: never drains)
+	drainAt   int      // game tick the drain was first seen in the lobby (-1: not draining)
+	closed    bool     // lobby_closed went out for this drain
 }
 
-// HostReturnTicks is how long a host who dropped keeps the right to the
-// host role: the client's reconnect backoff (0.5, 1, 2, 4, 8, 8 … s)
-// rejoins within it, and the server idle-closes a silent socket at 30 s.
-const HostReturnTicks = 60 * tickRate
-
-// lobbyKey is what a lobby message carries, as a change detector.
+// lobbyKey is what a lobby message carries, as a change detector: outside
+// the Lobby only the phase counts (the players message carries the roster).
 type lobbyKey struct {
 	phase     game.Phase
 	host      sim.ID
@@ -93,13 +89,16 @@ var (
 func New(s game.Settings, sink StatsSink) *Match {
 	g := game.New(s)
 	return &Match{g: g, static: protocol.NewStatic(g), stats: sink, seats: g.Seats(),
-		humans: map[sim.ID]*human{}, rosterVer: g.RosterVersion()}
+		humans: map[sim.ID]*human{}, rosterVer: g.RosterVersion(), back: returns{}, drainAt: -1}
 }
 
-// Factory is the lobby's room factory for Dogfight.
-func Factory(sink StatsSink) func(game.Settings) (room.Game[protocol.ClientMsg, sim.Input, Info], error) {
+// Factory is the lobby's room factory for Dogfight; every room watches d
+// (nil: no drain signal).
+func Factory(sink StatsSink, d *Drain) func(game.Settings) (room.Game[protocol.ClientMsg, sim.Input, Info], error) {
 	return func(s game.Settings) (room.Game[protocol.ClientMsg, sim.Input, Info], error) {
-		return New(s, sink), nil
+		m := New(s, sink)
+		m.drain = d
+		return m, nil
 	}
 }
 
@@ -118,10 +117,7 @@ func (m *Match) Join(who room.Who) (room.PlayerID, error) {
 		}
 	}
 	m.humans[id] = h
-	if who.Pilot != "" && who.Pilot == m.hostPilot && m.g.Tick()-m.hostLeft <= HostReturnTicks {
-		m.g.SetHost(id) // the host is back (a reconnect)
-		m.hostPilot = ""
-	}
+	m.returned(id, who.Pilot)
 	return room.PlayerID(id), nil
 }
 
@@ -131,36 +127,25 @@ func (m *Match) Welcome(id room.PlayerID, code, newToken string, out room.Outbox
 	out.To(id, w)
 	m.broadcastPlayers(out)
 	out.To(id, protocol.NewRound(m.g.Round()))
-	if m.g.Settings().Lobby {
-		m.broadcastLobby(out)
+	if m.g.Settings().Lobby { // the others hear of the new seat with the next Step (in the Lobby)
+		out.To(id, m.lobbyMsg())
 	}
 }
 
-// Leave frees id's seat. A leaving host's pilot keeps the host role: at
-// once when the same pilot already sits again (it reconnected before the
-// old socket timed out), else when it rejoins within HostReturnTicks.
+// Leave frees id's seat; a lobby room keeps what the pilot had (session.go).
 func (m *Match) Leave(id room.PlayerID) {
 	sid := sim.ID(id)
-	wasHost := m.g.Host() == sid
 	h, ok := m.humans[sid]
+	var kept seatMemo
 	if ok {
+		kept = m.memo(sid)
 		m.leaveCount(sid, h)
 		delete(m.humans, sid)
 	}
 	m.g.RemoveHuman(sid)
-	if !wasHost || !ok || h.pilot == "" {
-		return
+	if ok {
+		m.dropped(h.pilot, kept)
 	}
-	var again sim.ID // the earliest seat of the same pilot (map order is not defined)
-	for oid, o := range m.humans {
-		if o.pilot == h.pilot && (again == 0 || oid < again) {
-			again = oid
-		}
-	}
-	if again != 0 && m.g.SetHost(again) {
-		return
-	}
-	m.hostPilot, m.hostLeft = h.pilot, m.g.Tick()
 }
 
 func (m *Match) Handle(id room.PlayerID, msg protocol.ClientMsg, out room.Outbox) {
@@ -204,6 +189,7 @@ func (m *Match) Step(inputs map[room.PlayerID]sim.Input, out room.Outbox) {
 	if m.g.Settings().Lobby && m.lobbyKey() != m.lobby {
 		m.broadcastLobby(out)
 	}
+	m.drainLobby(out)
 	key := roundKey{phase: rd.Phase, nato: rd.NATO, soviet: rd.Soviet,
 		objNATO: int(math.Ceil(rd.ObjNATO / 10)), objSoviet: int(math.Ceil(rd.ObjSoviet / 10))}
 	for _, l := range rd.Board {
@@ -226,13 +212,20 @@ func (m *Match) Step(inputs map[room.PlayerID]sim.Input, out room.Outbox) {
 }
 
 func (m *Match) lobbyKey() lobbyKey {
-	return lobbyKey{phase: m.g.Round().Phase, host: m.g.Host(), rosterVer: m.g.RosterVersion()}
+	if !m.g.InLobby() {
+		return lobbyKey{phase: m.g.Round().Phase}
+	}
+	return lobbyKey{phase: game.Lobby, host: m.g.Host(), rosterVer: m.g.RosterVersion()}
 }
 
 // broadcastLobby sends the lobby state to everyone (lobby rooms only).
 func (m *Match) broadcastLobby(out room.Outbox) {
 	m.lobby = m.lobbyKey()
-	out.All(protocol.NewLobby(m.lobby.phase, m.lobby.host, m.g.SideSeats(), m.g.Players()))
+	out.All(m.lobbyMsg())
+}
+
+func (m *Match) lobbyMsg() protocol.LobbyMsg {
+	return protocol.NewLobby(m.g.Round().Phase, m.g.Host(), m.g.SideSeats(), m.g.Players())
 }
 
 func (m *Match) broadcastPlayers(out room.Outbox) {

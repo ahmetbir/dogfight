@@ -17,10 +17,12 @@ const (
 	CodeNotHost  = "not_host"  // start: only the host starts
 	CodeNotLobby = "not_lobby" // side, start: the round is already running
 	CodeSideFull = "side_full" // side: every seat of that side holds a human
+	// The server drains: a room waiting in its lobby closes (to everyone).
+	CodeLobbyClosed = "lobby_closed"
 )
 
 // NoticeCodes are the codes a "notice" message may carry, in the client's order.
 func NoticeCodes() []string {
 	return []string{CodeTeamUneven, CodeTeamFull, CodeTeamCooldown, CodeTeamLate, CodeTeamLocked, CodeTeamHurt, CodeTeamNone,
-		CodeNotHost, CodeNotLobby, CodeSideFull}
+		CodeNotHost, CodeNotLobby, CodeSideFull, CodeLobbyClosed}
 }

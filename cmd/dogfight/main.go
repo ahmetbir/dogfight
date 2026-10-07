@@ -95,7 +95,8 @@ func run(cfg config) error {
 	if err != nil {
 		return err
 	}
-	lb := match.NewLobby(ctx, cfg.maxRooms, reg, sink)
+	rooms := &match.Drain{} // what the rooms see of a drain (lobbies close)
+	lb := match.NewLobby(ctx, cfg.maxRooms, reg, sink, rooms)
 	o := cfg.server(sub, st)
 	o.Metrics = reg
 	h := front.NewServer(lb, o)
@@ -106,7 +107,7 @@ func run(cfg config) error {
 	if st != nil {
 		ho = statsHandoff{slot: st, dir: cfg.dataDir, retry: statsRetry, wait: cfg.statsWait}
 	}
-	d := drain.New(h, ho, quit, drain.Options{Every: drainEvery, Max: cfg.drainMax})
+	d := drain.New(drainSignal{Server: h, rooms: rooms}, ho, quit, drain.Options{Every: drainEvery, Max: cfg.drainMax})
 	drainDone := make(chan struct{})
 	go func() { defer close(drainDone); d.Run(ctx, sig) }()
 	srv := &http.Server{
@@ -234,4 +235,17 @@ func fetch(url string, w io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+// drainSignal is the server as the drain actor sees it; a drain also
+// reaches the rooms (match.Drain), so a room waiting in its lobby closes
+// instead of holding the old server until drain-max.
+type drainSignal struct {
+	drain.Server
+	rooms *match.Drain
+}
+
+func (d drainSignal) Drain(on bool) {
+	d.rooms.Set(on)
+	d.Server.Drain(on)
 }

@@ -25,4 +25,5 @@ export const errors = {
   "notice.not_host": "Raundu yalnızca oda sahibi başlatır",
   "notice.not_lobby": "Raund zaten başladı",
   "notice.side_full": "Bu tarafta boş yer yok",
+  "notice.lobby_closed": "Sunucu güncelleniyor, bekleme odası kapandı. Ana sayfadan yeni bir oda kur ve linki yeniden gönder.",
 } as const;

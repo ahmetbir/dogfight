@@ -331,3 +331,35 @@ func TestSetHost(t *testing.T) {
 		t.Fatalf("host %d after the named host left, want %d", g.Host(), a)
 	}
 }
+
+// Base attack: back in the lobby the objective and every target are whole
+// again, and the next round starts from them.
+func TestBaseLobbyResetsObjective(t *testing.T) {
+	g := New(Settings{Mode: mode.Base, Size: 1, Difficulty: bot.Easy, Seed: 11, Lobby: true})
+	a := seated(t, g, "a")
+	full := g.Round()
+	if err := g.Start(a); err != nil {
+		t.Fatal(err)
+	}
+	st := g.Snapshot().Structures
+	if len(st) == 0 || !full.Base {
+		t.Fatalf("base room: %d targets", len(st))
+	}
+	g.board.Apply(sim.Event{Kind: sim.EvStructHit, Plane: st[0].ID, Value: 50}, g.teamOf)
+	if hit := g.Round(); hit.ObjNATO+hit.ObjSoviet >= full.ObjNATO+full.ObjSoviet {
+		t.Fatal("the hit did not count")
+	}
+	g.finish("NATO")
+	for range EndedTicks {
+		g.Step(nil)
+	}
+	r := g.Round()
+	if r.Phase != Lobby || r.ObjNATO != full.ObjNATO || r.ObjSoviet != full.ObjSoviet {
+		t.Fatalf("objective after the round %+v, want %+v", r, full)
+	}
+	for i, s := range g.Snapshot().Structures {
+		if s.HP != st[i].HP || !s.Alive {
+			t.Fatalf("target %d at %v HP", s.ID, s.HP)
+		}
+	}
+}

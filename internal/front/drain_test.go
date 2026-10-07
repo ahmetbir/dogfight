@@ -21,7 +21,7 @@ import (
 func drainServer(t *testing.T) (*httptest.Server, *Server, *match.Lobby, context.CancelFunc) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	lb := match.NewLobby(ctx, 0, nil, nil)
+	lb := match.NewLobby(ctx, 0, nil, nil, nil)
 	s := NewServer(lb, server.Options{Web: web, Limits: server.Limits{MaxConnsIP: 1000, CreatePerMinIP: 1000, JoinFailPerMinIP: 1000, JoinPerMinIP: 1000}})
 	srv := httptest.NewServer(s)
 	t.Cleanup(func() { cancel(); srv.Close() })

@@ -184,7 +184,7 @@ func TestQuickPlaySkipsCreatedRooms(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
-		l := NewLobby(ctx, 0, nil, nil)
+		l := NewLobby(ctx, 0, nil, nil, nil)
 		created := lobby2
 		created.Listed = true
 		r, err := l.Create(created)
@@ -220,7 +220,7 @@ func TestQuickPlaySkipsCreatedRooms(t *testing.T) {
 }
 
 // A host who drops and rejoins under its pilot token within
-// HostReturnTicks is the host again; later, or another pilot, is not.
+// ReturnTicks is the host again; later, or another pilot, is not.
 func TestHostReturnsAfterReconnect(t *testing.T) {
 	m := New(lobby2, nil)
 	host, _ := m.Join(room.Who{Name: "host", Pilot: "ph"})
@@ -239,7 +239,7 @@ func TestHostReturnsAfterReconnect(t *testing.T) {
 	h, _ := late.Join(room.Who{Name: "host", Pilot: "ph"})
 	f, _ := late.Join(room.Who{Name: "friend", Pilot: "pf"})
 	late.Leave(h)
-	for range HostReturnTicks + 1 {
+	for range ReturnTicks + 1 {
 		late.g.Step(nil)
 	}
 	if b, _ := late.Join(room.Who{Name: "host", Pilot: "ph"}); late.g.Host() != sim.ID(f) || b == f {
@@ -258,4 +258,167 @@ func TestHostReconnectBeforeOldSeatLeaves(t *testing.T) {
 	if m.g.Host() != sim.ID(again) || again == friend {
 		t.Fatalf("host %d, want the new seat %d", m.g.Host(), again)
 	}
+}
+
+// A friend who drops in the lobby and returns within ReturnTicks gets its
+// side and jet back (not the auto-balanced side and its default); later,
+// it is seated as a newcomer.
+func TestLobbyReturnKeepsSideAndJet(t *testing.T) {
+	m := New(lobby2, nil)
+	m.Join(room.Who{Name: "host", Pilot: "ph"})
+	f, _ := m.Join(room.Who{Name: "friend", Pilot: "pf"})
+	if err := m.g.SetSide(sim.ID(f), sim.TeamNATO); err != nil {
+		t.Fatal(err)
+	}
+	m.g.SetLoadout(sim.ID(f), sim.LoadRadar)
+	if err := m.g.Pick(sim.ID(f), sim.F15); err != nil {
+		t.Fatal(err)
+	}
+	m.Leave(f)
+	back, _ := m.Join(room.Who{Name: "friend", Pilot: "pf"})
+	p := playerOf(t, m, back)
+	if p.Team != sim.TeamNATO || p.Kind != sim.F15 || p.Loadout != sim.LoadRadar {
+		t.Fatalf("back as %+v", p)
+	}
+
+	m.Leave(back)
+	for range ReturnTicks + 1 {
+		m.g.Step(nil)
+	}
+	late, _ := m.Join(room.Who{Name: "friend", Pilot: "pf"})
+	if p := playerOf(t, m, late); p.Team != sim.TeamSoviet {
+		t.Fatalf("after the window the newcomer is auto-balanced: %+v", p)
+	}
+}
+
+// The new seat arrived first (the old socket had not timed out yet): when
+// the old seat leaves, the new one takes its side and jet.
+func TestLobbyReturnBeforeOldSeatLeaves(t *testing.T) {
+	m := New(lobby2, nil)
+	m.Join(room.Who{Name: "host", Pilot: "ph"})
+	old, _ := m.Join(room.Who{Name: "friend", Pilot: "pf"})
+	_ = m.g.SetSide(sim.ID(old), sim.TeamNATO)
+	_ = m.g.Pick(sim.ID(old), sim.F15)
+	again, _ := m.Join(room.Who{Name: "friend", Pilot: "pf"}) // auto: Soviet
+	m.Leave(old)
+	if p := playerOf(t, m, again); p.Team != sim.TeamNATO || p.Kind != sim.F15 {
+		t.Fatalf("new seat %+v", p)
+	}
+}
+
+func playerOf(t *testing.T, m *Match, id room.PlayerID) game.Player {
+	t.Helper()
+	for _, p := range m.g.Players() {
+		if p.ID == sim.ID(id) {
+			return p
+		}
+	}
+	t.Fatalf("no player %d", id)
+	return game.Player{}
+}
+
+// A draining server closes a room waiting in its lobby after
+// LobbyDrainTicks (lobby_closed to everyone, once); a running room plays on;
+// an undrain before the grace keeps the lobby.
+func TestDrainClosesLobby(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		d := &Drain{}
+		mk, _ := Factory(nil, d)(lobby2)
+		r := room.New("ABCD", mk, room.Options{})
+		quick, _ := Factory(nil, d)(game.Settings{Mode: mode.Team, Size: 1, Difficulty: bot.Easy, Seed: 1})
+		q := room.New("QQQQ", quick, room.Options{})
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		go r.Run(ctx)
+		go q.Run(ctx)
+		a, b, c := &fakeSender{}, &fakeSender{}, &fakeSender{}
+		r.Join(ctx, room.Who{Name: "a"}, a)
+		r.Join(ctx, room.Who{Name: "b"}, b)
+		q.Join(ctx, room.Who{Name: "c"}, c)
+		d.Set(true)
+		time.Sleep(5 * time.Second)
+		d.Set(false) // rollback inside the grace
+		time.Sleep(10 * time.Second)
+		synctest.Wait()
+		if len(a.noticeCodes()) != 0 {
+			t.Fatal("closed after an undrain")
+		}
+		d.Set(true)
+		time.Sleep(time.Duration(LobbyDrainTicks/tickRate)*time.Second + time.Second)
+		time.Sleep(30 * time.Second)
+		synctest.Wait()
+		for _, s := range []*fakeSender{a, b} {
+			if n := s.noticeCodes(); len(n) != 1 || n[0] != protocol.CodeLobbyClosed {
+				t.Fatalf("lobby notices %v", n)
+			}
+		}
+		if len(c.noticeCodes()) != 0 {
+			t.Fatal("a running room was closed")
+		}
+	})
+}
+
+// A lobby room's whole round through the room actor: Start, the round runs
+// out, the scoreboard, back to the Lobby (lobby message phase "lobby", room
+// list phase "lobby", no bots), each pilot's match recorded exactly once;
+// then the host starts again.
+func TestLobbyRoundThroughTick(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		sk := &sink{}
+		s := lobby2
+		r, _, cancel := startMatch(t, s, sk)
+		defer cancel()
+		a, b := &fakeSender{}, &fakeSender{}
+		sa, _ := r.Join(t.Context(), room.Who{Name: "a", Pilot: "pa"}, a)
+		r.Join(t.Context(), room.Who{Name: "b", Pilot: "pb"}, b)
+		sa.Input(protocol.ClientMsg{T: protocol.TStart})
+		settle()
+		for range 120 { // up to 20 min of fake time
+			time.Sleep(10 * time.Second)
+			synctest.Wait()
+			if r.Summary().Game.Phase == "lobby" {
+				break
+			}
+		}
+		if s := r.Summary(); s.Game.Phase != "lobby" || s.Bots != 0 || s.Humans != 2 {
+			t.Fatalf("after the round %+v", s)
+		}
+		if l, _ := b.lastLobby(); l.Phase != "lobby" || len(l.List) != 2 {
+			t.Fatalf("lobby message %+v", l)
+		}
+		time.Sleep(time.Minute) // the lobby records nothing more
+		synctest.Wait()
+		got := map[string]int{}
+		for _, d := range sk.all() {
+			got[d.Pilot] += d.Matches
+		}
+		if got["pa"] != 1 || got["pb"] != 1 {
+			t.Fatalf("matches recorded %v (%+v)", got, sk.all())
+		}
+		sa.Input(protocol.ClientMsg{T: protocol.TStart})
+		settle()
+		if r.Summary().Game.Phase != "playing" {
+			t.Fatal("no second round")
+		}
+	})
+}
+
+// While a round runs the lobby message goes out only on a phase change:
+// picks and joins are in the players message already.
+func TestLobbyMessageQuietWhilePlaying(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		r, _, cancel := startMatch(t, lobby2, nil)
+		defer cancel()
+		a := &fakeSender{}
+		sa, _ := r.Join(t.Context(), room.Who{Name: "a"}, a)
+		sa.Input(protocol.ClientMsg{T: protocol.TStart})
+		settle()
+		n := a.count("lobby")
+		sa.Input(protocol.ClientMsg{T: protocol.TPick, Kind: "f15"})
+		r.Join(t.Context(), room.Who{Name: "late"}, &fakeSender{})
+		settle()
+		if a.count("lobby") != n || a.count("players") == 0 {
+			t.Fatalf("lobby messages %d → %d while playing", n, a.count("lobby"))
+		}
+	})
 }
