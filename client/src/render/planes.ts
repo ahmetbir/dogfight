@@ -117,8 +117,21 @@ export function places(model: THREE.Object3D): { tip: THREE.Vector3; tagUp: numb
   return { tip: s.tip, tagUp: s.top + TAG_GAP };
 }
 
+const placed = new Map<string, { tip: THREE.Vector3; tagUp: number }>(); // per kind and source
+
+/** places(model), measured once per key: every plane of a kind shares it. */
+function placesOf(key: string, model: THREE.Object3D): { tip: THREE.Vector3; tagUp: number } {
+  let at = placed.get(key);
+  if (!at) {
+    at = places(model);
+    placed.set(key, at);
+  }
+  return at;
+}
+
 class PlaneView {
   readonly key: string;
+  private readonly kind: string;
   readonly root = new THREE.Group();
   private readonly label: THREE.Sprite | null;
   private ab: THREE.Object3D[];
@@ -144,12 +157,13 @@ class PlaneView {
   constructor(scene: THREE.Scene, key: string, p: PlaneRender, labelColor: string) {
     this.scene = scene;
     this.key = key;
+    this.kind = p.kind;
     this.team = asTeam(p.team);
     this.own = p.isMe;
     const model = buildModel(p.kind, this.team, this.own);
     this.model = model;
     this.body = model.children[0];
-    ({ tip: this.tip, tagUp: this.tagUp } = places(model));
+    ({ tip: this.tip, tagUp: this.tagUp } = placesOf(`${p.kind}|built-in`, model));
     this.ab = model.getObjectsByProperty("name", "ab");
     this.idle = model.getObjectsByProperty("name", "idle");
     this.gear = model.getObjectByName("gear") ?? null;
@@ -179,7 +193,7 @@ class PlaneView {
     this.ab = d.ab;
     this.idle = d.idle;
     this.gear = d.rig.gear;
-    ({ tip: this.tip, tagUp: this.tagUp } = places(this.model));
+    ({ tip: this.tip, tagUp: this.tagUp } = placesOf(`${this.kind}|glb`, this.model));
   }
 
   update(p: PlaneRender, now: number, showLabel: boolean, fx: Effects, labelK = 1): void {

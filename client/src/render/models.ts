@@ -10,6 +10,8 @@ import { buildMig29 } from "./models/mig29.ts";
 import { buildSu27 } from "./models/su27.ts";
 import { measure } from "./shape.ts";
 
+const rawLength = new Map<string, number>(); // builder key → unscaled nose + tail, measured once
+
 const builders: Record<string, (p: Palette) => Model> = { f16: buildF16, f15: buildF15, mig29: buildMig29, su27: buildSu27 };
 
 /**
@@ -20,12 +22,17 @@ const builders: Record<string, (p: Palette) => Model> = { f16: buildF16, f15: bu
  * colors the local player's plane in FFA (team "none").
  */
 export function buildModel(kind: string, team: Team, own = false): THREE.Group {
-  const known = kind in builders;
-  const m = builders[known ? kind : "f16"](palette(team, own));
+  const key = kind in builders ? kind : "f16";
+  const m = builders[key](palette(team, own));
   const g = new THREE.Group();
   g.add(m.body, ...m.engines);
-  const s = measure(g);
-  const scale = s.nose + s.tail > 0 ? airframe(known ? kind : "f16").length / (s.nose + s.tail) : 1;
+  let raw = rawLength.get(key); // the builder's length depends on the kind alone, not the team
+  if (raw === undefined) {
+    const s = measure(g);
+    raw = s.nose + s.tail;
+    rawLength.set(key, raw);
+  }
+  const scale = raw > 0 ? airframe(key).length / raw : 1;
   g.scale.setScalar(scale);
   // Gear lives outside the airframe so a .glb body swap keeps it, and is
   // scaled back to true meters: the wheels must reach y = -2.5 on every kind.
