@@ -189,7 +189,7 @@ export type RoundMsg = {
 export type PlayerJSON = { id: number; name: string; team: Team; kind: AircraftKind; bot: boolean; skin?: string; fskin?: string };
 export type PlayersMsg = { t: "players"; list: PlayerJSON[] };
 /** A lobby room's humans (join order) with side and aircraft. */
-export type LobbyEntry = { id: number; name: string; team: Team; kind: AircraftKind };
+export type LobbyEntry = { id: number; name: string; team: Team; kind: AircraftKind; skin?: string }; // skin omitted: standard
 /** A lobby room's state: phase, host (0: none), seats per side (FFA: the room), humans. Created rooms only. */
 export type LobbyMsg = { t: "lobby"; phase: Phase; host: number; seats: number; list: LobbyEntry[] };
 export type Pong = { t: "pong"; ts: number };

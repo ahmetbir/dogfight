@@ -220,6 +220,7 @@ body.in-lobby .hud { visibility: hidden; } /* no flight readouts before Start */
 .paint-chip[aria-checked="true"] { border-color: var(--hud); background: rgba(124, 255, 178, 0.12); box-shadow: 0 0 0 1px var(--hud) inset; }
 .paint-chip:focus-visible { outline: 2px solid var(--hud); outline-offset: 2px; }
 .paint-swatch { display: block; width: 28px; height: 28px; border-radius: 5px; image-rendering: pixelated; }
+.lobby-swatch { width: 14px; height: 14px; border-radius: 3px; image-rendering: pixelated; vertical-align: -2px; margin-right: 6px; }
 .hangar-foot-fly { display: none; } /* the phone layout's sticky footer shows it */
 .pick-foot-btns { display: flex; gap: 10px; flex: none; }
 .pick-unpicked { color: var(--amber); }

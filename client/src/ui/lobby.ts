@@ -1,16 +1,17 @@
 // Pre-match lobby of a created room: the humans per side (FFA: one list)
-// with their aircraft, empty seats shown as bots, the host badge, side
+// with their aircraft and paint, empty seats shown as bots, the host badge, side
 // buttons, the room link, the aircraft button (opens the pick screen) and
 // the host's Start. The server decides (game.SetSide, game.Start); the model
 // mirrors its rules so a closed side says why before asking.
 import type { AircraftInfo, LobbyMsg, Team } from "../net/protocol.ts";
-import { lang, lt, t } from "../i18n/index.ts";
+import { lang, lt, t, type Key } from "../i18n/index.ts";
+import { swatchPixels, SWATCH_PX, validSkin, type SkinId } from "../render/skins.ts";
 import { fill, h, text } from "./dom.ts";
 import { roomLink } from "./link.ts";
 import { hasTeams, teamName, uneven, type Side } from "./team.ts";
 
 export type LobbyRow =
-  | { bot: false; id: number; name: string; plane: string; host: boolean; me: boolean }
+  | { bot: false; id: number; name: string; plane: string; skin: SkinId; team: Team; host: boolean; me: boolean }
   | { bot: true };
 
 export type LobbyColumn = {
@@ -54,11 +55,19 @@ export function sideOpen(others: Record<Side, number>, mine: Team, to: Side): bo
   return gap(after) <= 1 || gap(after) < gap(now);
 }
 
+/** A small paint swatch (the hangar chip's pixels) for a lobby row. */
+function swatch(skin: SkinId, team: Team): HTMLElement {
+  const c = h("canvas", { class: "lobby-swatch", width: String(SWATCH_PX), height: String(SWATCH_PX), "aria-hidden": "true" }) as HTMLCanvasElement;
+  const g = c.getContext("2d");
+  if (g) g.putImageData(new ImageData(swatchPixels(skin, team, false), SWATCH_PX, SWATCH_PX), 0, 0);
+  return c;
+}
+
 /** The lobby screen's content from the server's lobby message. */
 export function lobbyView(v: LobbyInput): LobbyView {
   const { msg, you, aircraft } = v;
   const row = (p: LobbyMsg["list"][number]): LobbyRow =>
-    ({ bot: false, id: p.id, name: p.name, plane: planeName(p.kind, aircraft), host: p.id === msg.host, me: p.id === you });
+    ({ bot: false, id: p.id, name: p.name, plane: planeName(p.kind, aircraft), skin: validSkin(p.kind, p.skin), team: p.team, host: p.id === msg.host, me: p.id === you });
   const me = msg.list.find((p) => p.id === you);
   const hostName = msg.list.find((p) => p.id === msg.host)?.name ?? "";
   const base = { code: v.code, host: msg.host !== 0 && msg.host === you, hostName, plane: me ? planeName(me.kind, aircraft) : "", note: v.note };
@@ -166,7 +175,7 @@ export class LobbyScreen {
         h("span", { class: "lobby-name" }, r.name),
         r.host ? h("span", { class: "lobby-badge host" }, t("lobby.host")) : null,
         r.me ? h("span", { class: "lobby-badge me" }, t("lobby.you")) : null,
-        h("span", { class: "lobby-kind muted" }, r.plane)));
+        h("span", { class: "lobby-kind muted" }, swatch(r.skin, r.team), r.plane, " · ", t(`skin.${r.skin}` as Key))));
     let action: HTMLElement | null = null;
     if (sides && c.side !== "none") {
       const side = c.side;

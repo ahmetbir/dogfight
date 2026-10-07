@@ -77,3 +77,10 @@ test("the room is in the lobby while the round phase says so", () => {
   s.apply(round("ended"), 0);
   assert.ok(!s.inLobby());
 });
+
+test("each lobby row carries its pilot's paint, checked for the jet", () => {
+  const list = [{ ...e(1, "soviet", "su27"), skin: "flanker" }, { ...e(2, "nato", "f16"), skin: "flanker" }, e(3, "nato", "f14")];
+  const v = lobbyView(input(msg(list), 1));
+  const rows = v.columns.flatMap((c) => c.rows).filter((r) => !r.bot);
+  assert.deepEqual(rows.map((r) => (r.bot ? "" : `${r.id}:${r.skin}:${r.team}`)).sort(), ["1:flanker:soviet", "2:standard:nato", "3:standard:nato"]);
+});
