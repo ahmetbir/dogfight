@@ -62,3 +62,22 @@ func TestDecoyEventWire(t *testing.T) {
 		t.Fatalf("decoy event on the wire: %+v", evs)
 	}
 }
+
+// bp carries a radar missile's beam progress toward a broken track; at 0 it is omitted.
+func TestMissileBeamProgressWire(t *testing.T) {
+	s := sim.Snapshot{Missiles: []sim.Missile{
+		{ID: 1, Target: 2, Kind: sim.MissileRadar, BeamTicks: sim.RadarBeamTicks / 2},
+		{ID: 2, Target: 2, Kind: sim.MissileRadar},
+	}}
+	b, err := json.Marshal(NewSnap(s, nil, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back Snap
+	if err := json.Unmarshal(b, &back); err != nil || back.Missiles[0].Beam != 0.5 || back.Missiles[1].Beam != 0 {
+		t.Fatalf("beam progress on the wire: %v %+v", err, back.Missiles)
+	}
+	if strings.Count(string(b), `"bp"`) != 1 {
+		t.Fatalf("bp must be omitted at 0: %s", b)
+	}
+}

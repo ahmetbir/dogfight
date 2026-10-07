@@ -210,7 +210,8 @@ export class Hud {
     const beam = !this.warn.hidden && beamCue(v.alive, s.missiles, s.you);
     const radar = beam ? threatSource(v.pos, s.you, s.missiles, [], "radar") : null;
     const turn = radar ? beamTurn(relBearing(v.pos, v.fwd, radar.pos)) : null;
-    this.flare.update(flareCue(v.alive, ir, me?.fl ?? 0, s.tick, s.myFlareTick), v.scheme, this.el.parentElement, now, beam, turn); // null while the warning is off
+    this.flare.update(flareCue(v.alive, ir, me?.fl ?? 0, s.tick, s.myFlareTick), v.scheme, this.el.parentElement, now, beam, turn,
+      radar?.beam ?? 0); // null while the warning is off
     const src = this.warn.hidden ? null : threatSource(v.pos, s.you, s.missiles, s.planes.values());
     this.arrow.hidden = !src;
     if (!src) return;

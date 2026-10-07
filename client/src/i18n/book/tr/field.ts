@@ -49,7 +49,7 @@ export const field: Field = {
       b("KİLİTLENDİN"), " yazar ve ok sarı olur. Kaç, dön, flare'e hazırlan."),
     item(4, "FLARE! / DİK UÇ!", "Seni izleyen IR füze ", b(dist(R.flareWarn)), " içinde ve flare'in hazır: şimdi at (yanında flare tuşu; dokunmatikte ",
       "FLARE düğmesi yanar). Flare füzeyi kandırınca ", b("FÜZE ATLATILDI!"), " yazar. Radar füzesinde mavi ", b("DİK UÇ!"),
-      ": flare işlemez, füzeye dik uç. Yanında hangi yöne döneceğin yazar (← SOLA DÖN / SAĞA DÖN →); füze saat 3 ya da 9'a gelince TUT."),
+      ": flare işlemez, füzeye dik uç. Yanında hangi yöne döneceğin yazar (← SOLA DÖN / SAĞA DÖN →); füze saat 3 ya da 9'a gelince TUT. Altındaki çubuk doğru açıda kaldıkça dolar, açı kaçınca sıfırlanır; dolunca iz kopar."),
     item(5, "Olay akışı", "Kim kimi neyle düşürdü; hızlı sohbet mesajları da burada görünür."),
     item(6, "Nişan halkası", "Fare ile nişanda gitmek istediğin yön. Otopilot burnu buraya çevirir."),
     item(7, "Burun artısı", "Uçağın burnu, yani topun ateş yönü."),

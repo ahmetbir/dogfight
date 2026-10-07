@@ -8,7 +8,8 @@ import { kindOf, type MissileKind } from "./loadout.ts";
 /** Beaming wants the missile at my 3 or 9 o'clock; within this of either the turn is done. */
 export const BEAM_HOLD = (15 * Math.PI) / 180;
 
-export type Threat = { pos: V3; dist: number; kind: MissileKind | "lock" };
+/** beam: a missile's beam progress toward a broken track, 0..1 (always 0 for a lock). */
+export type Threat = { pos: V3; dist: number; kind: MissileKind | "lock"; beam: number };
 
 /** The nearest missile tracking me, else a plane holding a lock on me; null when nothing threatens me. */
 export function threatSource(me: V3, you: number, missiles: readonly MissileJSON[], planes: Iterable<PlaneJSON>, only?: MissileKind): Threat | null {
@@ -17,14 +18,14 @@ export function threatSource(me: V3, you: number, missiles: readonly MissileJSON
     if (m.tg !== you || (only && kindOf(m.mk) !== only)) continue;
     const pos = v3(m.p[0], m.p[1], m.p[2]);
     const d = dist(me, pos);
-    if (!best || d < best.dist) best = { pos, dist: d, kind: kindOf(m.mk) };
+    if (!best || d < best.dist) best = { pos, dist: d, kind: kindOf(m.mk), beam: m.bp ?? 0 };
   }
   if (best || only) return best;
   for (const p of planes) {
     if (p.id === you || !p.a || p.lk !== you || !p.ld) continue;
     const pos = v3(p.p[0], p.p[1], p.p[2]);
     const d = dist(me, pos);
-    if (!best || d < best.dist) best = { pos, dist: d, kind: "lock" };
+    if (!best || d < best.dist) best = { pos, dist: d, kind: "lock", beam: 0 };
   }
   return best;
 }
