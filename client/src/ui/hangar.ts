@@ -8,6 +8,7 @@ import type { AircraftInfo, AircraftKind, Loadout, Team } from "../net/protocol.
 import { lt, t, type Key } from "../i18n/index.ts";
 import { dist } from "../i18n/format.ts";
 import { HangarModels, HangarStage } from "../render/hangar3d.ts";
+import { PreviewLife } from "./preview.ts";
 import { h, text } from "./dom.ts";
 import { loadoutCounts, missileText } from "./loadout.ts";
 import { roleLine, roleTag } from "./roles.ts";
@@ -77,16 +78,18 @@ const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(pre
 export class Hangar {
   readonly el = h("div", { class: "hangar" });
   private readonly onConfirm: (k: AircraftKind) => void;
-  private readonly models = new HangarModels(); // loaded jets and thumbnails outlive the renderer
-  private readonly stageCanvas = h("canvas", { class: "hangar-stage", "aria-hidden": "true" }) as HTMLCanvasElement;
+  private readonly models = new HangarModels(); // thumbnails outlive the renderer (one side's, freed by dispose)
+  private readonly stageBox = h("div", { class: "hangar-stage", "aria-hidden": "true" }); // a fresh canvas per open goes in here
+  private readonly preview: PreviewLife<HTMLCanvasElement>;
   private readonly name = h("span", { class: "plane-name" });
   private readonly tag = h("span", { class: "role-tag" });
   private readonly flag = h("span", { class: "plane-flag", hidden: true }, lt("pick.flying"));
   private readonly line = h("p", { class: "hangar-role" });
   private readonly stats = h("div", { class: "hangar-stats" });
   private readonly fly = h("button", { type: "button", class: "btn primary hangar-fly" }, lt("hangar.fly")) as HTMLButtonElement;
+  /** The same action for a footer that stays on screen (the phone layout shows it there). */
+  readonly footFly = h("button", { type: "button", class: "btn primary hangar-foot-fly" }, lt("hangar.fly")) as HTMLButtonElement;
   private readonly grid = h("div", { class: "hangar-grid", role: "listbox", "aria-label": t("pick.title") });
-  private stage: HangarStage | null = null;
   private cards = new Map<AircraftKind, Card>();
   private order: AircraftKind[] = [];
   private key = "";
@@ -95,9 +98,15 @@ export class Hangar {
 
   constructor(onConfirm: (k: AircraftKind) => void) {
     this.onConfirm = onConfirm;
-    this.fly.addEventListener("click", () => { if (this.sel) this.onConfirm(this.sel); });
+    for (const b of [this.fly, this.footFly]) b.addEventListener("click", () => { if (this.sel) this.onConfirm(this.sel); });
+    this.preview = new PreviewLife<HTMLCanvasElement>({
+      canvas: () => h("canvas", {}) as HTMLCanvasElement,
+      mount: (c) => this.stageBox.replaceChildren(...(c ? [c] : [])),
+      stage: (c) => new HangarStage(c, this.models, reducedMotion()),
+      drawn: (kind) => this.cards.get(kind as AircraftKind)?.el.classList.add("drawn"),
+    });
     this.el.append(
-      h("div", { class: "hangar-show" }, this.stageCanvas,
+      h("div", { class: "hangar-show" }, this.stageBox,
         h("div", { class: "hangar-info" },
           h("div", { class: "plane-head" }, this.name, this.tag, this.flag), this.line, this.stats, this.fly)),
       this.grid);
@@ -121,24 +130,28 @@ export class Hangar {
     this.select(this.sel, false);
   }
 
-  /** Starts the preview renderer (the screen became visible). */
+  /** Starts the preview on a new canvas (the screen became visible). */
   open(): void {
-    if (this.stage || !this.v) return;
-    try {
-      this.stage = new HangarStage(this.stageCanvas, this.models, reducedMotion());
-    } catch {
-      this.stage = null; // no WebGL: cards and stats still work
-      return;
-    }
-    const team = this.v.team;
-    this.stage.thumbnails(this.order, team, (kind) => this.cards.get(kind as AircraftKind)?.el.classList.add("drawn"));
-    if (this.sel) this.stage.show(this.sel, team);
+    if (this.v) this.preview.start(this.v.team, this.order, this.sel);
   }
 
-  /** Frees the renderer (the screen closed); thumbnails and loaded models stay. */
+  /** Frees the renderer and its canvas (the screen closed); thumbnails stay. */
   close(): void {
-    this.stage?.dispose();
-    this.stage = null;
+    this.preview.stop();
+  }
+
+  /** Frees everything, thumbnails too (leaving the match). */
+  dispose(): void {
+    this.preview.stop();
+    this.models.dispose();
+    this.grid.replaceChildren();
+    this.cards = new Map();
+    this.key = "";
+  }
+
+  /** The kind the cards have selected (null before the table arrives). */
+  selected(): AircraftKind | null {
+    return this.sel;
   }
 
   /** Moves the keyboard focus to the selected card. */
@@ -163,7 +176,7 @@ export class Hangar {
       return el;
     });
     this.grid.replaceChildren(...els);
-    if (this.stage) this.stage.thumbnails(this.order, v.team, (kind) => this.cards.get(kind as AircraftKind)?.el.classList.add("drawn"));
+    this.preview.cards(v.team, this.order);
   }
 
   private select(kind: AircraftKind | null, focus: boolean): void {
@@ -191,7 +204,7 @@ export class Hangar {
           h("span", { class: "stat-value" }, b.value));
       }));
     }
-    this.stage?.show(a.kind, this.v.team);
+    this.preview.select(a.kind, this.v.team);
     if (focus) card.el.focus({ preventScroll: false });
   }
 

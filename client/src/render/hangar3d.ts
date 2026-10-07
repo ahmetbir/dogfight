@@ -3,8 +3,9 @@
 // still thumbnail copied into a plain 2D canvas for its card. The jets are
 // the game's own .glb models dressed in team colours, gear down, every
 // missile on its rail; a kind without a .glb shows its procedural model.
-// The renderer lives only while the picker is open (dispose()); the
-// thumbnails and the loaded models outlive it, owned by the HangarModels.
+// A stage lives only while the picker is open, on a canvas of its own
+// (ui/preview.ts); the thumbnails outlive it in HangarModels, one side's at
+// a time. The loaded scenes are the page's (render/models.ts GlbLibrary).
 import * as THREE from "three";
 import { dressGlb, NEUTRAL, type Dressed } from "./glb.ts";
 import { buildModel, tryLoadGlb } from "./models.ts";
@@ -13,49 +14,57 @@ import type { Team } from "./models/common.ts";
 const TURN_RATE = 0.35;  // rad/s of the idle turn
 const DRAG_RATE = 0.01;  // rad per CSS px dragged
 const TILT_MAX = 0.6;    // rad, either way
-const THUMB_W = 250, THUMB_H = 100; // CSS px; drawn at 2x
+const THUMB_W = 250, THUMB_H = 100; // CSS px; drawn at the device pixel ratio, at most 2x
 const FOV = 30;
+const FRAME_MS = 1000 / 30; // the preview turns at 30 fps at most
 
 /** What a jet looks like on the hangar floor: its scene object and the parts to free. */
 type Shown = { root: THREE.Group; dressed: Dressed | null };
 
 /**
- * Loads each kind's .glb once and keeps the thumbnails, across picker opens.
- * Nothing here holds a GL resource.
+ * The card thumbnails: one canvas per kind of one side. Asking for another
+ * side frees the old side's (a team switch), so at most one side's set
+ * (17 in FFA) is held. Nothing here holds a GL resource.
  */
 export class HangarModels {
-  private readonly glbs = new Map<string, Promise<THREE.Group | null>>();
   private readonly thumbs = new Map<string, HTMLCanvasElement>();
-
-  glb(kind: string): Promise<THREE.Group | null> {
-    let p = this.glbs.get(kind);
-    if (!p) {
-      p = tryLoadGlb(kind);
-      this.glbs.set(kind, p);
-    }
-    return p;
-  }
+  private team: Team | null = null;
 
   /** The thumbnail canvas of kind for team, empty until a stage draws it. */
   thumb(kind: string, team: Team): { canvas: HTMLCanvasElement; drawn: boolean } {
-    const key = `${kind}|${team}`;
-    let c = this.thumbs.get(key);
+    if (team !== this.team) {
+      this.dispose();
+      this.team = team;
+    }
+    let c = this.thumbs.get(kind);
     const drawn = !!c && c.dataset.drawn === "1";
     if (!c) {
+      const k = Math.min(2, Math.max(1, typeof devicePixelRatio === "number" ? devicePixelRatio : 1));
       c = document.createElement("canvas");
-      c.width = THUMB_W * 2;
-      c.height = THUMB_H * 2;
+      c.width = Math.round(THUMB_W * k);
+      c.height = Math.round(THUMB_H * k);
       c.className = "hangar-thumb";
-      this.thumbs.set(key, c);
+      this.thumbs.set(kind, c);
     }
     return { canvas: c, drawn };
+  }
+
+  /** Frees every thumbnail's pixels. */
+  dispose(): void {
+    for (const c of this.thumbs.values()) {
+      c.width = 0; // releases the backing store even while a card still holds the element
+      c.height = 0;
+      delete c.dataset.drawn;
+    }
+    this.thumbs.clear();
+    this.team = null;
   }
 }
 
 /** A jet for the hangar: the dressed .glb if there is one, else the procedural model. */
-async function showJet(models: HangarModels, kind: string, team: Team): Promise<Shown> {
+async function showJet(kind: string, team: Team): Promise<Shown> {
   const root = new THREE.Group();
-  const g = await models.glb(kind);
+  const g = await tryLoadGlb(kind);
   if (g) {
     const d = dressGlb(g, team, false);
     d.rig.pose(NEUTRAL, 1);         // gear down, flaps lowered with it
@@ -111,6 +120,8 @@ export class HangarStage {
   private drag: { id: number; x: number; y: number } | null = null;
   private raf = 0;
   private last = -1;
+  private drawnAt = -Infinity;   // ms of the last preview render
+  private dirty = true;          // something changed that a still preview must show
   private alive = true;
   private readonly cleanup: (() => void)[] = [];
   private jobs: { kind: string; team: Team; done: (kind: string) => void; jet: Shown | null }[] = [];
@@ -139,6 +150,7 @@ export class HangarStage {
       if (!this.drag || e.pointerId !== this.drag.id) return;
       this.yaw += (e.clientX - this.drag.x) * DRAG_RATE;
       this.tilt = Math.max(-TILT_MAX, Math.min(TILT_MAX, this.tilt + (e.clientY - this.drag.y) * DRAG_RATE));
+      this.dirty = true;
       this.drag.x = e.clientX;
       this.drag.y = e.clientY;
     });
@@ -153,7 +165,7 @@ export class HangarStage {
     const key = `${kind}|${team}`;
     if (key === this.want) return;
     this.want = key;
-    void showJet(this.models, kind, team).then((s) => {
+    void showJet(kind, team).then((s) => {
       if (!this.alive || this.want !== key) {
         freeJet(s);
         return;
@@ -165,6 +177,7 @@ export class HangarStage {
       const c = box.getCenter(new THREE.Vector3());
       s.root.position.sub(c); // turn about the jet's middle
       this.radius = box.getSize(new THREE.Vector3()).length() / 2;
+      this.dirty = true;
     });
   }
 
@@ -178,7 +191,7 @@ export class HangarStage {
       if (this.models.thumb(kind, team).drawn) continue;
       const job = { kind, team, done, jet: null as Shown | null };
       this.jobs.push(job);
-      void showJet(this.models, kind, team).then((s) => {
+      void showJet(kind, team).then((s) => {
         if (this.alive) job.jet = s;
         else freeJet(s);
       });
@@ -212,15 +225,25 @@ export class HangarStage {
     }
     this.gl.setPixelRatio(ratio);
     this.gl.setSize(size.x, size.y, false);
+    this.dirty = true; // the canvas holds the thumbnail now
     holder.remove(s.root);
     s.root.position.set(0, 0, 0);
   }
 
+  /**
+   * One animation frame: at most one thumbnail, then the preview, drawn only
+   * when it moves (turning, dragged) or changed, at most 30 times a second,
+   * and only while the canvas is laid out (the picker visible).
+   */
   private readonly frame = (now: number): void => {
     if (!this.alive) return;
+    this.raf = requestAnimationFrame(this.frame);
     const dt = this.last < 0 ? 0 : Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
-    if (!this.still && !this.drag) this.yaw += TURN_RATE * dt;
+    const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
+    if (w <= 0 || h <= 0) return; // hidden: nothing to draw
+    const turning = !this.still && !this.drag && this.shown !== null;
+    if (turning) this.yaw += TURN_RATE * dt;
     const job = this.jobs[0];
     if (job?.jet) {
       this.jobs.shift();
@@ -229,19 +252,19 @@ export class HangarStage {
       freeJet(job.jet);
       job.done(job.kind);
     }
-    const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
-    if (w > 0 && h > 0) {
-      const size = this.gl.getSize(new THREE.Vector2());
-      if (size.x !== w || size.y !== h) this.gl.setSize(w, h, false);
-      this.camera.aspect = w / h;
-      this.camera.updateProjectionMatrix();
-      const d = fitDistance(this.radius * 0.74, this.camera.aspect); // room for the span as it turns
-      this.camera.position.set(0, Math.sin(this.tilt) * d, Math.cos(this.tilt) * d);
-      this.camera.lookAt(0, 0, 0);
-      this.turntable.rotation.y = this.yaw;
-      this.gl.render(this.scene, this.camera);
-    }
-    this.raf = requestAnimationFrame(this.frame);
+    if (!this.dirty && !turning) return;
+    if (!this.dirty && now - this.drawnAt < FRAME_MS) return;
+    this.dirty = false;
+    this.drawnAt = now;
+    const size = this.gl.getSize(new THREE.Vector2());
+    if (size.x !== w || size.y !== h) this.gl.setSize(w, h, false);
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+    const d = fitDistance(this.radius * 0.74, this.camera.aspect); // room for the span as it turns
+    this.camera.position.set(0, Math.sin(this.tilt) * d, Math.cos(this.tilt) * d);
+    this.camera.lookAt(0, 0, 0);
+    this.turntable.rotation.y = this.yaw;
+    this.gl.render(this.scene, this.camera);
   };
 
   /** Stops drawing and frees the renderer and the shown jet's own materials. */
@@ -254,6 +277,6 @@ export class HangarStage {
     for (const j of this.jobs) if (j.jet) freeJet(j.jet);
     this.jobs = [];
     this.gl.dispose();
-    this.gl.forceContextLoss();
+    this.gl.forceContextLoss(); // the canvas is dropped with the stage (ui/preview.ts): never reused
   }
 }
