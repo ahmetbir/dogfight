@@ -10,6 +10,7 @@ import * as THREE from "three";
 import { dressGlb, NEUTRAL, type Dressed } from "./glb.ts";
 import { buildModel, tryLoadGlb } from "./models.ts";
 import type { Team } from "./models/common.ts";
+import { ThumbQueue } from "./thumbqueue.ts";
 
 const TURN_RATE = 0.35;  // rad/s of the idle turn
 const DRAG_RATE = 0.01;  // rad per CSS px dragged
@@ -28,9 +29,18 @@ type Shown = { root: THREE.Group; dressed: Dressed | null };
  */
 export class HangarModels {
   private readonly thumbs = new Map<string, HTMLCanvasElement>();
+  private readonly makeCanvas: () => HTMLCanvasElement;
   private team: Team | null = null;
 
-  /** The thumbnail canvas of kind for team, empty until a stage draws it. */
+  constructor(makeCanvas: () => HTMLCanvasElement = () => document.createElement("canvas")) {
+    this.makeCanvas = makeCanvas;
+  }
+
+  /**
+   * The thumbnail canvas of kind for team, empty until a stage draws it. The
+   * cards ask with their side: another side than the one held frees the
+   * held side's thumbnails first (a team switch).
+   */
   thumb(kind: string, team: Team): { canvas: HTMLCanvasElement; drawn: boolean } {
     if (team !== this.team) {
       this.dispose();
@@ -40,13 +50,18 @@ export class HangarModels {
     const drawn = !!c && c.dataset.drawn === "1";
     if (!c) {
       const k = Math.min(2, Math.max(1, typeof devicePixelRatio === "number" ? devicePixelRatio : 1));
-      c = document.createElement("canvas");
+      c = this.makeCanvas();
       c.width = Math.round(THUMB_W * k);
       c.height = Math.round(THUMB_H * k);
       c.className = "hangar-thumb";
       this.thumbs.set(kind, c);
     }
     return { canvas: c, drawn };
+  }
+
+  /** The held thumbnail of kind, only if team is the side held (never evicts): what a stage draws into. */
+  held(kind: string, team: Team): HTMLCanvasElement | null {
+    return team === this.team ? this.thumbs.get(kind) ?? null : null;
   }
 
   /** Frees every thumbnail's pixels. */
@@ -59,6 +74,22 @@ export class HangarModels {
     this.thumbs.clear();
     this.team = null;
   }
+}
+
+/**
+ * One frame's thumbnail: the next ready job is drawn into its card's canvas
+ * if the cards still show that side (models.held), then its jet is freed.
+ */
+export function drawNextThumb<T>(jobs: ThumbQueue<T>, models: HangarModels, draw: (jet: T, out: HTMLCanvasElement) => void,
+  free: (jet: T) => void): void {
+  const job = jobs.next();
+  if (!job) return;
+  const out = models.held(job.kind, job.team as Team); // null: the cards moved on to another side
+  if (out && out.dataset.drawn !== "1") {
+    draw(job.jet, out);
+    job.done(job.kind);
+  }
+  free(job.jet);
 }
 
 /** A jet for the hangar: the dressed .glb if there is one, else the procedural model. */
@@ -124,7 +155,7 @@ export class HangarStage {
   private dirty = true;          // something changed that a still preview must show
   private alive = true;
   private readonly cleanup: (() => void)[] = [];
-  private jobs: { kind: string; team: Team; done: (kind: string) => void; jet: Shown | null }[] = [];
+  private readonly jobs = new ThumbQueue<Shown>(freeJet);
 
   constructor(canvas: HTMLCanvasElement, models: HangarModels, reducedMotion: boolean) {
     this.canvas = canvas;
@@ -187,15 +218,8 @@ export class HangarStage {
    * calling done(kind) after each.
    */
   thumbnails(kinds: readonly string[], team: Team, done: (kind: string) => void): void {
-    for (const kind of kinds) {
-      if (this.models.thumb(kind, team).drawn) continue;
-      const job = { kind, team, done, jet: null as Shown | null };
-      this.jobs.push(job);
-      void showJet(kind, team).then((s) => {
-        if (this.alive) job.jet = s;
-        else freeJet(s);
-      });
-    }
+    const todo = kinds.filter((k) => this.models.held(k, team)?.dataset.drawn !== "1");
+    this.jobs.request(todo, team, (kind) => showJet(kind, team), done); // another side cancels the pending ones
   }
 
   private drawThumb(s: Shown, out: HTMLCanvasElement): void {
@@ -244,14 +268,7 @@ export class HangarStage {
     if (w <= 0 || h <= 0) return; // hidden: nothing to draw
     const turning = !this.still && !this.drag && this.shown !== null;
     if (turning) this.yaw += TURN_RATE * dt;
-    const job = this.jobs[0];
-    if (job?.jet) {
-      this.jobs.shift();
-      const out = this.models.thumb(job.kind, job.team);
-      if (!out.drawn) this.drawThumb(job.jet, out.canvas);
-      freeJet(job.jet);
-      job.done(job.kind);
-    }
+    drawNextThumb(this.jobs, this.models, (jet, out) => this.drawThumb(jet, out), freeJet);
     if (!this.dirty && !turning) return;
     if (!this.dirty && now - this.drawnAt < FRAME_MS) return;
     this.dirty = false;
@@ -274,8 +291,7 @@ export class HangarStage {
     for (const f of this.cleanup) f();
     if (this.shown) freeJet(this.shown);
     this.shown = null;
-    for (const j of this.jobs) if (j.jet) freeJet(j.jet);
-    this.jobs = [];
+    this.jobs.cancel();
     this.gl.dispose();
     this.gl.forceContextLoss(); // the canvas is dropped with the stage (ui/preview.ts): never reused
   }
