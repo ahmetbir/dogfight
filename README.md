@@ -306,6 +306,8 @@ go run ./cmd/dogfight
 go build ./... && go vet ./... && go test ./... -race     # Go: all packages
 go test ./... -short                                        # skips the long match simulations
 go test ./internal/game/ -run TestBalance -v -balance       # balance: hard-bot round-robin over all 17 kinds, 200 duels per pair; every kind within ±15% of the mean win rate
+# The gate judges seeds 1000..1199; the specs were tuned on 0..199 (-balance-from 0 to tune). Phase 4:
+# tuning seeds 47.7-51.4 %, gate seeds 45.4-52.9 % (band 42.5-57.5 %).
 
 cd client && npm run check && npm test && npm run build     # TS type check, node --test, production build
 ```

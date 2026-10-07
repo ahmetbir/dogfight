@@ -13,13 +13,21 @@ import (
 	"playground/internal/terrain"
 )
 
-var strictBalance = flag.Bool("balance", false, "full bot round-robin; fail when a kind's win rate is outside ±15% of the mean")
+var (
+	strictBalance = flag.Bool("balance", false, "full bot round-robin; fail when a kind's win rate is outside ±15% of the mean")
+	balanceFrom   = flag.Int64("balance-from", balanceJudgeFrom, "first seed of the round-robin (tune on other seeds than the gate's)")
+)
 
 const (
 	balanceSeeds      = 200 // duels per pair with -balance
 	balanceShortSeeds = 2   // duels per pair otherwise: the harness runs, nothing is judged
 	balanceMaxTicks   = 90 * 60
 	balanceBand       = 0.15 // relative to the mean win rate
+	// The specs were tuned on seeds 0..199 (Phase 4); the gate judges seeds
+	// 1000..1199, which the tuning never saw. Tune with -balance-from 0 (or
+	// any range clear of the gate's) and leave these out of sample.
+	balanceTuneFrom  = 0
+	balanceJudgeFrom = 1000
 )
 
 // duel flies a 1v1 Hard-bot FFA duel, both on the Karışık loadout (missile
@@ -66,7 +74,7 @@ type roundRobin struct {
 
 // playRoundRobin flies seeds duels per pair, spread over the CPUs. Each duel
 // is its own world, so the result does not depend on the scheduling.
-func playRoundRobin(kinds []sim.Kind, seeds int) *roundRobin {
+func playRoundRobin(kinds []sim.Kind, from int64, seeds int) *roundRobin {
 	n := len(kinds)
 	rr := &roundRobin{kinds: kinds, wins: make([][]int, n), games: make([][]int, n)}
 	for i := range n {
@@ -82,7 +90,7 @@ func playRoundRobin(kinds []sim.Kind, seeds int) *roundRobin {
 			defer wg.Done()
 			for jb := range jobs {
 				wi, wj := 0, 0
-				for seed := range int64(seeds) {
+				for seed := from; seed < from+int64(seeds); seed++ {
 					switch duel(kinds[jb.i], kinds[jb.j], seed) {
 					case kinds[jb.i]:
 						wi++
@@ -185,8 +193,14 @@ func TestBalance(t *testing.T) {
 	} else if testing.Short() {
 		t.Skip("round-robin sample: not in -short")
 	}
-	rr := playRoundRobin(sim.Kinds(), seeds)
-	t.Logf("%d duels per pair, win %% of the decided ones (row beats column):\n%s", seeds, rr.matrix())
+	from := *balanceFrom
+	rr := playRoundRobin(sim.Kinds(), from, seeds)
+	sample := "out of sample: the specs were tuned on other seeds"
+	if from < balanceTuneFrom+balanceSeeds && from+int64(seeds) > balanceTuneFrom {
+		sample = "IN SAMPLE: these seeds overlap the ones the specs were tuned on"
+	}
+	t.Logf("seeds %d..%d (%s), %d duels per pair, win %% of the decided ones (row beats column):\n%s",
+		from, from+int64(seeds)-1, sample, seeds, rr.matrix())
 	for i := range rr.kinds {
 		for j := range rr.kinds {
 			if i != j && rr.games[i][j] != seeds {

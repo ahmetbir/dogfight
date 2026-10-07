@@ -365,6 +365,8 @@ bucket; otherwise players get kicked with `flood`. Core types (`hello`, `create`
 - **Balance:** Hard-bot duels are decided mostly by lock range (+150 m took the F-16 from 31 % to
   64 % of its duels), then HP; speed, agility and flares move it little. Keep lock ranges close
   and carry roles with HP and flight numbers; re-run `TestBalance -balance` after any Spec change.
+  Tune on seeds the gate does not judge (`-balance-from 0`; the gate uses 1000..1199, out of
+  sample): fitted to 0..199 the spread was 47.7-51.4 %, on the gate's seeds it is 45.4-52.9 %.
   The induced-drag test (`TestInducedDragBleedsSustainedTurn`) bounds corner speed and thrust.
 - Teammates do not ram each other unless the room has friendly fire on.
 
