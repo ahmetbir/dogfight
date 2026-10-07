@@ -46,7 +46,8 @@ export type Chat = { t: "chat"; id: number };
 export type Loadout = "ir" | "radar" | "mixed";
 export const LOADOUTS: readonly Loadout[] = ["ir", "radar", "mixed"];
 /** lo: the loadout from the next spawn (or at once with a respawning pick); missing keeps the current one. */
-export type Pick = { t: "pick"; kind: AircraftKind; lo?: Loadout };
+/** skin: the paint scheme id (render/skins.ts); missing or unknown: standard. */
+export type Pick = { t: "pick"; kind: AircraftKind; lo?: Loadout; skin?: string };
 /** Team choice (team and base modes); "auto" lets the server balance. */
 export type TeamChoice = "nato" | "soviet" | "auto";
 export type TeamMsg = { t: "team"; team: TeamChoice };
@@ -181,10 +182,14 @@ export type RoundMsg = {
   obj?: { nato: number; soviet: number }; // base attack: remaining target HP per side
 };
 
-export type PlayerJSON = { id: number; name: string; team: Team; kind: AircraftKind; bot: boolean };
+/**
+ * skin: the paint of kind (omitted: standard); fskin: the paint of the jet
+ * still in the air when it is another kind (a pick for the next spawn).
+ */
+export type PlayerJSON = { id: number; name: string; team: Team; kind: AircraftKind; bot: boolean; skin?: string; fskin?: string };
 export type PlayersMsg = { t: "players"; list: PlayerJSON[] };
 /** A lobby room's humans (join order) with side and aircraft. */
-export type LobbyEntry = { id: number; name: string; team: Team; kind: AircraftKind };
+export type LobbyEntry = { id: number; name: string; team: Team; kind: AircraftKind; skin?: string }; // skin omitted: standard
 /** A lobby room's state: phase, host (0: none), seats per side (FFA: the room), humans. Created rooms only. */
 export type LobbyMsg = { t: "lobby"; phase: Phase; host: number; seats: number; list: LobbyEntry[] };
 export type Pong = { t: "pong"; ts: number };

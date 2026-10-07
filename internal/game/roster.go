@@ -31,6 +31,13 @@ type Player struct {
 	Kind    sim.Kind
 	Bot     bool
 	Loadout sim.Loadout // missile loadout of the next spawn
+	// Skin is the paint of Kind (the jet picked: flying, or for the next
+	// spawn); FlySkin the paint of the jet in the air when that is another
+	// kind (a pick waiting for the next spawn), else "". Players fills both
+	// from the paint kept per kind, so every kind change keeps them valid.
+	Skin    string
+	FlySkin string
+	paints  map[sim.Kind]string // SetSkin per kind; missing: standard
 }
 
 // teamKinds lists the aircraft a team may fly, in sim.Kinds order (the first
@@ -67,8 +74,9 @@ func cleanName(name string) string {
 func (g *Game) seat(name string, team sim.Team, kind sim.Kind, isBot bool) sim.ID {
 	g.nextID++
 	id := g.nextID
-	g.players[id] = &Player{ID: id, Name: name, Team: team, Kind: kind, Bot: isBot}
+	g.players[id] = &Player{ID: id, Name: name, Team: team, Kind: kind, Bot: isBot, paints: map[sim.Kind]string{}}
 	if isBot {
+		g.players[id].paints[kind] = botSkin(kind, g.s.Seed, id)
 		b := bot.New(id, g.s.Difficulty, g.s.Seed*7919+int64(id))
 		g.bots[id] = b
 		g.players[id].Loadout = b.Loadout(nil)
@@ -254,11 +262,17 @@ func (g *Game) Pick(id sim.ID, k sim.Kind) error {
 	return nil
 }
 
-// Players returns the roster ordered by ID.
+// Players returns the roster ordered by ID, with each player's paints.
 func (g *Game) Players() []Player {
 	out := make([]Player, 0, len(g.players))
 	for _, p := range g.players {
-		out = append(out, *p)
+		c := *p
+		c.paints = nil
+		c.Skin, c.FlySkin = p.paint(p.Kind), ""
+		if pl, ok := g.world.Plane(p.ID); ok && pl.Kind != p.Kind {
+			c.FlySkin = p.paint(pl.Kind)
+		}
+		out = append(out, c)
 	}
 	slices.SortFunc(out, func(a, b Player) int { return cmp.Compare(a.ID, b.ID) })
 	return out

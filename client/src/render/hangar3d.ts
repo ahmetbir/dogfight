@@ -8,6 +8,7 @@
 // a time. The loaded scenes are the page's (render/models.ts GlbLibrary).
 import * as THREE from "three";
 import { dressGlb, NEUTRAL, type Dressed } from "./glb.ts";
+import { validSkin } from "./skins.ts";
 import { buildModel, tryLoadGlb } from "./models.ts";
 import type { Team } from "./models/common.ts";
 import { ThumbQueue } from "./thumbqueue.ts";
@@ -37,16 +38,18 @@ export class HangarModels {
   }
 
   /**
-   * The thumbnail canvas of kind for team, empty until a stage draws it. The
-   * cards ask with their side: another side than the one held frees the
-   * held side's thumbnails first (a team switch).
+   * The thumbnail canvas of kind for team in look (its skin), empty until a
+   * stage draws it. The cards ask with their side: another side than the one
+   * held frees the held side's thumbnails first (a team switch); another
+   * look marks the kind's thumbnail for drawing again.
    */
-  thumb(kind: string, team: Team): { canvas: HTMLCanvasElement; drawn: boolean } {
+  thumb(kind: string, team: Team, look = ""): { canvas: HTMLCanvasElement; drawn: boolean } {
     if (team !== this.team) {
       this.dispose();
       this.team = team;
     }
     let c = this.thumbs.get(kind);
+    if (c && (c.dataset.look ?? "") !== look) delete c.dataset.drawn;
     const drawn = !!c && c.dataset.drawn === "1";
     if (!c) {
       const k = Math.min(2, Math.max(1, typeof devicePixelRatio === "number" ? devicePixelRatio : 1));
@@ -56,6 +59,7 @@ export class HangarModels {
       c.className = "hangar-thumb";
       this.thumbs.set(kind, c);
     }
+    c.dataset.look = look;
     return { canvas: c, drawn };
   }
 
@@ -78,26 +82,27 @@ export class HangarModels {
 
 /**
  * One frame's thumbnail: the next ready job is drawn into its card's canvas
- * if the cards still show that side (models.held), then its jet is freed.
+ * if the cards still show that side (models.held) in that look, then its
+ * jet is freed.
  */
 export function drawNextThumb<T>(jobs: ThumbQueue<T>, models: HangarModels, draw: (jet: T, out: HTMLCanvasElement) => void,
   free: (jet: T) => void): void {
   const job = jobs.next();
   if (!job) return;
   const out = models.held(job.kind, job.team as Team); // null: the cards moved on to another side
-  if (out && out.dataset.drawn !== "1") {
+  if (out && out.dataset.drawn !== "1" && (out.dataset.look ?? "") === job.look) {
     draw(job.jet, out);
     job.done(job.kind);
   }
   free(job.jet);
 }
 
-/** A jet for the hangar: the dressed .glb if there is one, else the procedural model. */
-async function showJet(kind: string, team: Team): Promise<Shown> {
+/** A jet for the hangar in a skin: the dressed .glb if there is one, else the procedural model. */
+async function showJet(kind: string, team: Team, skin: string): Promise<Shown> {
   const root = new THREE.Group();
   const g = await tryLoadGlb(kind);
   if (g) {
-    const d = dressGlb(g, team, false);
+    const d = dressGlb(g, team, false, validSkin(kind, skin), "hangar"); // its own materials: all freed with the stage's jets
     d.rig.pose(NEUTRAL, 1);         // gear down, flaps lowered with it
     d.rig.missiles(Infinity);       // the full load on its rails
     for (const o of d.ab) o.visible = false;
@@ -116,7 +121,7 @@ async function showJet(kind: string, team: Team): Promise<Shown> {
 function freeJet(s: Shown): void {
   s.root.removeFromParent();
   if (s.dressed) {
-    for (const m of s.dressed.materials) m.dispose(); // geometry and textures are shared with the loaded scene
+    s.dressed.release(); // geometry, textures and materials are shared
     for (const e of s.dressed.engines) e.traverse((o) => { if (o instanceof THREE.Mesh) { o.geometry.dispose(); (o.material as THREE.Material).dispose(); } });
   } else {
     s.root.traverse((o) => { if (o instanceof THREE.Mesh) { o.geometry.dispose(); (o.material as THREE.Material).dispose(); } });
@@ -144,7 +149,7 @@ export class HangarStage {
   private readonly canvas: HTMLCanvasElement;
   private readonly still: boolean;
   private shown: Shown | null = null;
-  private want = "";           // kind|team asked for last
+  private want = "";           // kind|team|skin asked for last
   private radius = 10;
   private yaw = -2.3;          // rad: the nose toward the viewer's left, three-quarter
   private tilt = 0.32;         // rad of camera elevation
@@ -191,12 +196,12 @@ export class HangarStage {
     this.raf = requestAnimationFrame(this.frame);
   }
 
-  /** Shows kind in team colours (the newest call wins while models load). */
-  show(kind: string, team: Team): void {
-    const key = `${kind}|${team}`;
+  /** Shows kind in team colours and a skin (the newest call wins while models load). */
+  show(kind: string, team: Team, skin = ""): void {
+    const key = `${kind}|${team}|${skin}`;
     if (key === this.want) return;
     this.want = key;
-    void showJet(kind, team).then((s) => {
+    void showJet(kind, team, skin).then((s) => {
       if (!this.alive || this.want !== key) {
         freeJet(s);
         return;
@@ -213,13 +218,14 @@ export class HangarStage {
   }
 
   /**
-   * Draws every kind's thumbnail for team that is not drawn yet, one per
-   * frame before the preview (so the preview never shows a cleared buffer),
-   * calling done(kind) after each.
+   * Draws every kind's thumbnail for team (in looks[kind], its skin) that is
+   * not drawn yet, one per frame before the preview (so the preview never
+   * shows a cleared buffer), calling done(kind) after each.
    */
-  thumbnails(kinds: readonly string[], team: Team, done: (kind: string) => void): void {
+  thumbnails(kinds: readonly string[], team: Team, done: (kind: string) => void, looks: Readonly<Record<string, string>> = {}): void {
     const todo = kinds.filter((k) => this.models.held(k, team)?.dataset.drawn !== "1");
-    this.jobs.request(todo, team, (kind) => showJet(kind, team), done); // another side cancels the pending ones
+    const look = (k: string) => looks[k] ?? "";
+    this.jobs.request(todo, team, (kind, l) => showJet(kind, team, l), done, look); // another side cancels the pending ones
   }
 
   private drawThumb(s: Shown, out: HTMLCanvasElement): void {

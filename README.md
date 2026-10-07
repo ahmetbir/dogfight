@@ -16,6 +16,10 @@ Live demo: https://dogfight.ahmetbirinci.dev
   all-rounder, 5th gen, interceptor, attack, ...) and its own speed, turn rates, hit points,
   missile and flare load, balanced by a bot round-robin. The pick screen is a hangar: cards with
   thumbnails of the models and a turning 3D preview with stat bars.
+- **Skins:** a paint row under the preview: standard grey, air superiority, desert, winter,
+  naval, splinter camo, night black, plus Flanker blue (Su-27, Su-30) and black with a white band
+  (F-14, F-4). Chosen per jet and kept in the browser; everyone in the room sees it, bots wear a
+  random one. The team colour stays on fin tips, stripes and roundels.
 - **Weapons:** cannon (overheats on long bursts), missiles, flares; bombs in Base Attack.
 - **Missile loadouts**, chosen on the aircraft pick screen:
   - **IR** (short range): fire-and-forget heat seekers. Flares can decoy them.
@@ -297,12 +301,12 @@ go run ./cmd/dogfight
   - The web files are embedded with Go `embed`, so restart `go run` after they change.
 - A DEBUG build exposes a `debugGame` object in the console (`state`, `renderer`).
 - DEBUG builds also open serverless test scenes:
-  - `?debug=fly`: single-plane flight over flat ground.
+  - `?debug=fly`: single-plane flight over flat ground (`&kind=f14&skin=blackband&team=nato`).
   - `?debug=terrain`: terrain scene.
   - `?debug=world&map=sehir&wx=gece&cam=base`: a map and weather from a chosen camera
     (`cam=base|runway|plane|hangar|city|high|low`, `side=0|1`).
   - `?debug=models`: the four original aircraft side by side (`&glb=1&kinds=f14,mig23&sweep=0,1`
-    lines up any kinds as .glb models, swing wings posed).
+    lines up any kinds as .glb models, swing wings posed; `&skin=desert` paints them).
   - `?debug=fx`: effects scene.
 - Before committing or deploying, return `cmd/dogfight/web` to a production build
   (`DEBUG=false`) with `npm run build`.

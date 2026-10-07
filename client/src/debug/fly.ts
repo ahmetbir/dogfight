@@ -1,7 +1,8 @@
 // ?debug=fly: local flight over flat ground without a server (stepFlight +
 // chase camera + the configured control scheme). &scheme=mouse|keyboard
 // overrides the saved setting; &kind=f15|mig29|su27 flies another jet's
-// model (the F-16's flight model). Debug builds only.
+// model (the F-16's flight model); &skin=<id> paints it, &team=nato|soviet
+// colours it (default FFA, own). Debug builds only.
 import * as THREE from "three";
 import { InputState } from "../input/input.ts";
 import { loadSettings, makeScheme } from "../input/schemes.ts";
@@ -70,7 +71,7 @@ export function debugFly(canvas: HTMLCanvasElement, params: URLSearchParams): vo
       }
     }
     const me: PlaneRender = {
-      id: 1, kind, team: "none", pos: fs.pos, rot: fs.rot, alive: true, hp: 100, maxHP: 100,
+      id: 1, kind, team: params.get("team") ?? "none", skin: params.get("skin") ?? undefined, pos: fs.pos, rot: fs.rot, alive: true, hp: 100, maxHP: 100,
       ab: out.stick.ab, gForce: 1, name: "me", isMe: true, gear: !!fs.gear, ctl: out.stick,
     };
     views.sync(new Map([[1, me]]));

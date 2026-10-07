@@ -148,6 +148,10 @@ type PlayerJSON struct {
 	Team string `json:"team"`
 	Kind string `json:"kind"`
 	Bot  bool   `json:"bot"`
+	Skin string `json:"skin,omitempty"` // paint of kind; omitted: standard
+	// Paint of the jet in the air when it is another kind than kind (a pick
+	// for the next spawn); omitted when it is the same paint or kind.
+	FlySkin string `json:"fskin,omitempty"`
 }
 
 // LobbyMsg is a lobby room's state, sent to everyone when it changes (and
@@ -167,6 +171,7 @@ type LobbyEntryJSON struct {
 	Name string `json:"name"`
 	Team string `json:"team"`
 	Kind string `json:"kind"`
+	Skin string `json:"skin,omitempty"` // paint of kind; omitted: standard
 }
 
 // NewLobby builds the lobby message from the roster (ordered by ID).
@@ -174,7 +179,11 @@ func NewLobby(phase game.Phase, host sim.ID, seats int, ps []game.Player) LobbyM
 	list := make([]LobbyEntryJSON, 0, len(ps))
 	for _, p := range ps {
 		if !p.Bot {
-			list = append(list, LobbyEntryJSON{ID: p.ID, Name: p.Name, Team: TeamName(p.Team), Kind: p.Kind.String()})
+			e := LobbyEntryJSON{ID: p.ID, Name: p.Name, Team: TeamName(p.Team), Kind: p.Kind.String()}
+			if p.Skin != game.StandardSkin {
+				e.Skin = p.Skin
+			}
+			list = append(list, e)
 		}
 	}
 	return LobbyMsg{T: "lobby", Phase: PhaseName(phase), Host: host, Seats: seats, List: list}
@@ -290,7 +299,14 @@ func NewRound(r game.Round) RoundMsg {
 func NewPlayers(ps []game.Player) PlayersMsg {
 	list := make([]PlayerJSON, 0, len(ps))
 	for _, p := range ps {
-		list = append(list, PlayerJSON{ID: p.ID, Name: p.Name, Team: TeamName(p.Team), Kind: p.Kind.String(), Bot: p.Bot})
+		j := PlayerJSON{ID: p.ID, Name: p.Name, Team: TeamName(p.Team), Kind: p.Kind.String(), Bot: p.Bot}
+		if p.Skin != game.StandardSkin {
+			j.Skin = p.Skin
+		}
+		if p.FlySkin != "" && p.FlySkin != p.Skin {
+			j.FlySkin = p.FlySkin
+		}
+		list = append(list, j)
 	}
 	return PlayersMsg{T: "players", List: list}
 }

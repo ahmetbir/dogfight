@@ -1,4 +1,5 @@
 // Render states for every plane: mine from prediction, others interpolated.
+import type { PlayerJSON } from "../net/protocol.ts";
 import type { Controls } from "../render/glb.ts";
 import type { PlaneRender } from "../render/planes.ts";
 import type { FlightState, Spec } from "../sim/flight.ts";
@@ -27,6 +28,16 @@ export function ratesToControls(w: V3 | undefined, spec: Pick<Spec, "pitchRate" 
 }
 
 /**
+ * The paint of a player's jet of kind (the kind the snapshot flies): the
+ * roster's skin when that is the picked jet, else the flying jet's own
+ * (fskin; a pick waiting for the next spawn leaves it alone).
+ */
+export function paintOf(pl: PlayerJSON | undefined, kind: string): string | undefined {
+  if (!pl) return undefined;
+  return pl.kind === kind ? pl.skin : pl.fskin ?? pl.skin;
+}
+
+/**
  * mine is my drawn state (null while dead or unknown); ab is my current AB
  * input so the flame reacts without waiting for the server; stick moves my
  * control surfaces.
@@ -51,7 +62,7 @@ export function planeRenders(
       alive: p.a && (!isMe || mine.fs !== null),
       hp: p.hp, maxHP: s.aircraft.get(p.k)?.maxHP ?? 100,
       ab: isMe ? p.a && mine.ab : !!p.ab, gForce: g,
-      name: s.players.get(p.id)?.name ?? "", isMe,
+      name: s.players.get(p.id)?.name ?? "", isMe, skin: paintOf(s.players.get(p.id), p.k),
       gear: isMe ? !!fs.gear : !!p.gr, // mine from prediction, others from the wire
       ctl: isMe ? mine.stick : ratesToControls(toFlight(p).w, s.aircraft.get(p.k)),
       msl: p.ms + (p.rm ?? 0), // every plane's snapshot carries both kinds (rearm refills them)

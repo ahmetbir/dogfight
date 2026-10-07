@@ -8,7 +8,7 @@ import { scale, sub, v3, type Q, type V3 } from "../sim/vec.ts";
 import type { Heard } from "./events.ts";
 import { REPLAY_MS, ReplayBuffer, ReplayPlayer, type RFrame } from "./replay.ts";
 import { toFlight, type GameState } from "./state.ts";
-import { ratesToControls } from "./view.ts";
+import { paintOf, ratesToControls } from "./view.ts";
 
 const POST_DEATH_MS = 1500;  // recorded after my death (the explosion)
 const VEL_MS = 50;           // velocity estimate window (Doppler, camera FOV)
@@ -41,6 +41,7 @@ export class ReplayView {
       id: p.id, k: p.k, tm: p.tm, a: p.a, gr: !!p.gr, ab: !!p.ab,
       pos: v3(p.p[0], p.p[1], p.p[2]), rot: { w: p.q[0], x: p.q[1], y: p.q[2], z: p.q[3] },
       msl: p.ms + (p.rm ?? 0), ctl: ratesToControls(toFlight(p).w, s.aircraft.get(p.k)),
+      skin: paintOf(s.players.get(p.id), p.k), // the paint it wore then, even if the pilot repaints or leaves
     }));
     const missiles = s.missiles.map((m) => ({ id: m.id, pos: v3(m.p[0], m.p[1], m.p[2]), vel: v3(m.v[0], m.v[1], m.v[2]) }));
     this.buffer.push({ t, planes, missiles });
@@ -119,7 +120,7 @@ export class ReplayView {
       const isMe = p.id === s.you;
       planes.set(p.id, {
         id: p.id, kind: p.k, team: p.tm, pos: p.pos, rot: p.rot, alive: p.a, hp: 1, maxHP: 1,
-        ab: !!p.ab, gForce: 1, name: s.players.get(p.id)?.name ?? "", isMe, gear: !!p.gr,
+        ab: !!p.ab, gForce: 1, name: s.players.get(p.id)?.name ?? "", isMe, gear: !!p.gr, skin: p.skin,
         msl: p.msl, ctl: p.ctl,
       });
       const v = vel(p.id, p.pos);
