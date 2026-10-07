@@ -70,6 +70,7 @@ type Plane struct {
 	Radars                           int         // radar missiles left (Missiles counts the IR ones)
 	RadarRegenAt                     int         // tick of the next +1 radar missile; 0 while at the regen cap
 	LockKind                         MissileKind // the kind the current lock is for (fired by the missile key)
+	Damage                           Damage      // lasting hit damage (damage.go); a new life, a rearm or a repair clears it
 }
 
 type Bullet struct {
@@ -137,7 +138,7 @@ const (
 	EvStructDown // Plane: structure, Other: attacker
 	EvBombDrop   // Plane: bomb, By: owner, Pos, Vel
 	EvBombHit    // Plane: bomb, By: owner, Pos
-	EvDecoy      // Plane: missile, Other: its target (the flare's dropper), By: shooter, Pos: the flare
+	EvDecoy      // Plane: missile, Other: its target, By: shooter, Pos: the flare (a radar track lost: the missile)
 )
 
 type Event struct {
@@ -150,6 +151,7 @@ type Event struct {
 	Item     PowerupKind
 	By       ID          // owner (missile launch, bombs)
 	Missile  MissileKind // EvLock, EvMissileLaunch: the missile's kind
+	Zone     Zone        // EvHit: where it struck (missile and cannon hits; ZoneGraze otherwise)
 }
 
 type Snapshot struct {

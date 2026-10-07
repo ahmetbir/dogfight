@@ -1,6 +1,7 @@
 // Server events → effects, tracers and UI/audio hooks.
 import type { Settings } from "../input/schemes.ts";
-import type { Item, Loadout, Weapon } from "../net/protocol.ts";
+import type { HitZone, Item, Loadout, Weapon } from "../net/protocol.ts";
+import type { Damage } from "./damage.ts";
 import { v3, type V3 } from "../sim/vec.ts";
 import type { ServerEvent } from "./state.ts";
 
@@ -16,6 +17,7 @@ export type HudView = {
   lockRange: number;             // my effective (IR) lock range (m): aircraft × weather; radar is ×RULES.radarRangeMul
   radars: number; loadout: Loadout; // radar missiles left (missiles: the IR ones); this sortie's loadout
   lockKind: "ir" | "radar";      // the kind my lock is for (what the missile key fires)
+  damage: Damage;                // my lasting damage (damage.ts)
   fires: "ir" | "radar";         // the kind the missile key fires now: the pick, or the lock's kind without one
   picked: boolean;               // the kind is picked by the pick key (mouse, keyboard); touch picks by range
   gear: boolean; gearWanted: boolean; // gear down (actual) and as commanded
@@ -51,6 +53,7 @@ export type GameHooks = {
   camera?(c: CamView): void;                                  // every frame, before hud
   hurt?(dmg: number): void;                                   // I was hit
   hitConfirm?(): void;                                        // my round/missile hit someone
+  zoneHit?(zone: HitZone, atMe: boolean, mine: boolean): void; // a hit struck a part (crit, engine, controls, avionics)
   kill?(victim: number, killer: number, weapon: Weapon | undefined): void;
   lockedOn?(by: number): void;                                // someone locked me
   missileLaunch?(target: number, atMe: boolean, missileId: number, mine: boolean): void; // mine: I fired it
@@ -111,6 +114,7 @@ export function dispatchEvents(evs: ServerEvent[], c: EventCtx): boolean {
         if (p) c.fx.sparks(p);
         if (e.a === c.you) c.hooks.hurt?.(e.val ?? 0);
         if (e.b === c.you) c.hooks.hitConfirm?.();
+        if (e.z) c.hooks.zoneHit?.(e.z, e.a === c.you, e.b === c.you);
         break;
       case "kill": // a = victim, b = killer
         if (p) {

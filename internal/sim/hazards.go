@@ -21,8 +21,13 @@ func (w *World) damage(p *Plane, by ID, dmg float64, weapon Weapon, ev *[]Event)
 	if !p.Alive || !(dmg > 0) || w.tick < p.ProtectUntil { // !(>) also rejects NaN
 		return
 	}
+	zone := w.hitZone(weapon)
+	if zone == ZoneCrit {
+		dmg = p.HP // goes down whatever it had left
+	}
+	p.Damage.add(zone)
 	p.HP -= dmg
-	*ev = append(*ev, Event{Kind: EvHit, Plane: p.ID, Other: by, Pos: p.Pos, Value: dmg, Weapon: weapon})
+	*ev = append(*ev, Event{Kind: EvHit, Plane: p.ID, Other: by, Pos: p.Pos, Value: dmg, Weapon: weapon, Zone: zone})
 	if p.HP <= 0 {
 		w.kill(p, by, weapon, ev)
 	}

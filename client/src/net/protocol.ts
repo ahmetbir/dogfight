@@ -130,6 +130,7 @@ export type PlaneJSON = {
   lo?: number;   // sortie loadout: index in LOADOUTS (missing: 0, IR)
   rm?: number;   // radar missiles left (ms counts the IR ones)
   lkk?: number;  // kind the lock is for: 1 radar (missing: IR)
+  dm?: number;   // lasting damage levels: engine bits 0–1, controls 2–3, avionics 4–5 (missing: intact)
 };
 
 /** mk: 1 radar (missing: IR). */
@@ -146,7 +147,11 @@ export type EventJSON = {
   p?: Vec3; v?: Vec3; val?: number; w?: Weapon; item?: Item;
   o?: number; // owner (mlaunch, bdrop, boom); shooter (decoy)
   mk?: number; // lock, mlaunch: 1 radar missile (missing: IR)
+  z?: HitZone; // hit: where it struck (missing: a graze)
 };
+
+/** Where a hit struck (sim damage.go). */
+export type HitZone = "crit" | "engine" | "controls" | "avionics";
 
 export type Snap = {
   t: "snap"; tick: number; ack: number;

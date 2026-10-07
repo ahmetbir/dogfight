@@ -13,6 +13,7 @@ import type { Renderer } from "../render/renderer.ts";
 import { extrapolate, ServerClock } from "../predict/interp.ts";
 import { DT } from "../sim/flight.ts";
 import { add, len, qForward, qRotate, scale } from "../sim/vec.ts";
+import { unpackDamage } from "./damage.ts";
 import { Bullets } from "./bullets.ts";
 import { Cams } from "./cams.ts";
 import { dispatchEvents, mergeHooks, pruneDecoys, type FxSink, type GameHooks } from "./events.ts";
@@ -205,7 +206,7 @@ export function startGame(ctx: GameCtx): Game {
         hp: me.hp, maxHP: state.aircraft.get(me.k)?.maxHP ?? 100,
         th: ctl?.stick.th ?? me.th, ab: !!ctl?.stick.ab && !!mine && !mine.abl, heat: me.ht, overheated: me.oh,
         missiles: me.ms, radars: me.rm ?? 0, loadout: loadoutOf(me.lo), lockKind: kindOf(me.lkk),
-        picked: scheme.kind !== "touch",
+        picked: scheme.kind !== "touch", damage: unpackDamage(me.dm),
         fires: scheme.kind !== "touch" ? pickedKind(pick, me.ms, me.rm ?? 0) : kindOf(me.lkk),
         flares: me.fl, respawnS: (me.rs ?? 0) / 60,
         lockProgress: me.lp ?? 0, locked: !!me.ld, oobS: me.oob ?? 0,

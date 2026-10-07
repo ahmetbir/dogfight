@@ -14,6 +14,7 @@ type EventJSON struct {
 	Item string      `json:"item,omitempty"` // missiles|repair|shield|turbo
 	O    sim.ID      `json:"o,omitempty"`    // owner (mlaunch, bdrop, boom); shooter (decoy)
 	MK   uint8       `json:"mk,omitempty"`   // lock, mlaunch: missile kind, 0 IR (omitted), 1 radar
+	Z    string      `json:"z,omitempty"`    // hit: crit|engine|controls|avionics (a graze: omitted)
 }
 
 var eventNames = [...]string{
@@ -27,6 +28,8 @@ var weaponNames = [...]string{
 	sim.WCannon: "cannon", sim.WMissile: "missile", sim.WCrash: "crash", sim.WRam: "ram", sim.WBounds: "bounds",
 	sim.WAA: "aa", sim.WBomb: "bomb",
 }
+
+var zoneNames = [...]string{sim.ZoneCrit: "crit", sim.ZoneEngine: "engine", sim.ZoneControls: "controls", sim.ZoneAvionics: "avionics"}
 
 var itemNames = [...]string{
 	sim.PUMissiles: "missiles", sim.PURepair: "repair", sim.PUShield: "shield", sim.PUTurbo: "turbo",
@@ -50,6 +53,9 @@ func NewEvents(evs []sim.Event, tick int) []EventJSON {
 			MK: uint8(e.Missile)}
 		if int(e.Weapon) < len(weaponNames) {
 			j.W = weaponNames[e.Weapon]
+		}
+		if e.Kind == sim.EvHit && int(e.Zone) < len(zoneNames) {
+			j.Z = zoneNames[e.Zone]
 		}
 		if e.Kind != sim.EvLock {
 			p := r3(e.Pos, 100)

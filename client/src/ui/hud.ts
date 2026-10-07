@@ -5,7 +5,7 @@ import { enemyOnRadar } from "../game/sight.ts";
 import { threatened, type GameState } from "../game/state.ts";
 import { lt, t, type Key } from "../i18n/index.ts";
 import { fixed } from "../i18n/format.ts";
-import type { Item, PlaneJSON, Team } from "../net/protocol.ts";
+import type { HitZone, Item, PlaneJSON, Team } from "../net/protocol.ts";
 import { dist, type V3 } from "../sim/vec.ts";
 import { GroundHelp } from "./coach.ts";
 import { GEffects } from "./gfx.ts";
@@ -107,6 +107,12 @@ export class Hud {
         this.toastUntil = performance.now() + TOAST_MS;
       },
       decoy: (atMe, mine) => this.flare.decoy(atMe, mine, performance.now()),
+      zoneHit: (zone, atMe, mine) => {
+        const msg = zoneNotice(zone, atMe, mine);
+        if (!msg) return;
+        this.toast.textContent = msg;
+        this.toastUntil = performance.now() + TOAST_MS;
+      },
       notice: (msg) => {
         this.toast.textContent = msg;
         this.toastUntil = performance.now() + TOAST_MS;
@@ -286,6 +292,13 @@ export class Hud {
     if (s.mode === "base") for (const pos of enemyTargets(s.map?.structs ?? [], s.structs, myTeam)) out.push({ pos, kind: "target" });
     return out;
   }
+}
+
+/** The toast for a zone hit: my damaged part, or my critical hit on someone; null otherwise (my own crit downs me: the death text says it). */
+export function zoneNotice(zone: HitZone, atMe: boolean, mine: boolean): string | null {
+  if (atMe) return zone === "crit" ? null : t(`dmg.${zone}`);
+  if (mine && zone === "crit") return t("dmg.critMine");
+  return null;
 }
 
 /** Restarts a CSS animation by toggling cls. */

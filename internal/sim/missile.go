@@ -37,7 +37,8 @@ func angleBetween(a, b geom.Vec3) float64 {
 // the lock cone and the longest range of the missiles left; holding it for
 // the lock time of the kind the missile key would fire (lockKind) sets
 // Locked and emits EvLock. A plane on its wheels cannot be locked. A picked
-// kind (pickedKind) locks only at that kind's range and time.
+// kind (pickedKind) locks only at that kind's range and time; radar never
+// inside RadarMinRange (inMinRange: IR there when it can, else no lock).
 func (w *World) updateLock(p *Plane, pick MissilePick, ev *[]Event) {
 	if p.Missiles <= 0 && p.Radars <= 0 {
 		p.LockTarget, p.LockTime, p.Locked, p.LockKind = 0, 0, false, MissileIR
@@ -65,6 +66,17 @@ func (w *World) updateLock(p *Plane, pick MissilePick, ev *[]Event) {
 			cand, best = o.ID, a
 		}
 	}
+	kind := picked
+	if cand != 0 {
+		d := w.planes[cand].Pos.Dist(p.Pos)
+		if !fixed {
+			kind = lockKind(p, d, irRange)
+		}
+		var ok bool
+		if kind, ok = inMinRange(p, kind, d, irRange); !ok { // radar only, inside its minimum range
+			cand = 0
+		}
+	}
 	switch {
 	case cand == 0:
 		p.LockTarget, p.LockTime, p.Locked, p.LockKind = 0, 0, false, MissileIR
@@ -74,10 +86,8 @@ func (w *World) updateLock(p *Plane, pick MissilePick, ev *[]Event) {
 	default:
 		p.LockTarget, p.LockTime, p.Locked = cand, 0, false
 	}
-	if p.LockKind = picked; !fixed {
-		p.LockKind = lockKind(p, w.planes[cand].Pos.Dist(p.Pos), irRange)
-	}
-	locked := p.LockTime >= p.LockKind.LockSeconds()-1e-9 // 120 × Dt sums to just under 2
+	p.LockKind = kind
+	locked := p.LockTime >= LockSecondsOf(p.LockKind, p.Damage)-1e-9 // 120 × Dt sums to just under 2
 	if locked && !p.Locked {
 		*ev = append(*ev, Event{Kind: EvLock, Plane: p.ID, Other: p.LockTarget, Missile: p.LockKind})
 	}
@@ -138,6 +148,7 @@ func (w *World) stepMissile(m *Missile, ev *[]Event) bool {
 		m.Target, tgt = 0, nil
 	}
 	if tgt != nil && m.Kind == MissileRadar && !w.radarTrack(m, tgt) { // semi-active leash or beaming: lost for good
+		*ev = append(*ev, Event{Kind: EvDecoy, Plane: m.ID, Other: m.Target, By: m.Owner, Pos: m.Pos}) // the target evaded it (no flare)
 		m.Target, tgt = 0, nil
 	}
 	var decoy *Flare

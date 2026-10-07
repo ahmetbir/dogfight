@@ -6,9 +6,10 @@ const (
 	RadarRangeMul    = 2.2                // radar lock range: the aircraft's lock range × this
 	RadarLockSeconds = 2.0                // s on target before a radar lock
 	RadarLeash       = 60 * math.Pi / 180 // semi-active: the target must stay this close to the launcher's nose
-	RadarBeamSpeed   = 40.0               // m/s: target speed along the missile's line of sight under which it is beaming
+	RadarBeamSpeed   = 80.0               // m/s: target speed along the missile's line of sight under which it is beaming (±18° of square at 250 m/s)
 	RadarDmg         = 50.0
-	RadarBeamTicks   = 90 // ticks of continuous beaming that break a radar track (1.5 s)
+	RadarBeamTicks   = 60     // ticks of continuous beaming that break a radar track (1 s)
+	RadarMinRange    = 1000.0 // m: no radar lock closer than this (the missile needs room to guide; up close it is IR or guns)
 )
 
 // LockSeconds is the lock time of a missile kind.
@@ -46,6 +47,19 @@ func pickedKind(p *Plane, pick MissilePick) (k MissileKind, ok bool) {
 		return MissileIR, true
 	}
 	return MissileIR, false
+}
+
+// inMinRange is the kind for a target dist away once RadarMinRange is
+// applied: radar inside it falls back to IR when IR can lock there (ok
+// false: nothing can).
+func inMinRange(p *Plane, k MissileKind, dist, irRange float64) (MissileKind, bool) {
+	if k != MissileRadar || dist >= RadarMinRange {
+		return k, true
+	}
+	if p.Missiles > 0 && dist <= irRange {
+		return MissileIR, true
+	}
+	return k, false
 }
 
 // lockKind is the kind the missile key fires at a target dist away: radar

@@ -77,6 +77,7 @@ func (w *World) applyPowerup(p *Plane, k PowerupKind) {
 		p.MissileRegenAt, p.RadarRegenAt = 0, 0 // spec §3.2: the pickup restarts the regen interval
 	case PURepair:
 		p.HP = math.Min(SpecOf(p.Kind).MaxHP, p.HP+repairHP)
+		p.Damage = Damage{}
 	case PUTurbo:
 		p.TurboUntil = w.tick + turboTicks
 	}

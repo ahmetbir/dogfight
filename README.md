@@ -17,8 +17,9 @@ Live demo: https://dogfight.ahmetbirinci.dev
 - **Missile loadouts**, chosen on the aircraft pick screen:
   - **IR** (short range): fire-and-forget heat seekers. Flares can decoy them.
   - **Radar** (medium range, about 2.2× the IR lock range, half the missile count):
-    semi-active, so the launcher must keep the target within 60° of its nose. Flares do nothing;
-    the target breaks the lock by *beaming* (flying perpendicular to the missile's line of sight).
+    semi-active, so the launcher must keep the target within 60° of its nose. No lock inside
+    1 km. Flares do nothing; the target breaks the track by *beaming*: about 1 s with the
+    missile at its 3 or 9 o'clock (within roughly ±18° at 250 m/s).
   - **Mixed** (*Karışık*): half the IR missiles plus one radar missile. `Q` (mouse) or `Z`
     (keyboard) picks the kind the missile key fires; the HUD frames the picked kind. When it runs
     out the other kind fires. Touch has no pick: radar beyond IR range, IR inside it.
@@ -26,6 +27,10 @@ Live demo: https://dogfight.ahmetbirinci.dev
     round the reticle toward the nearest one and a ringed red dot on the radar: a blinking `FLARE!`
     against an IR missile, `DİK UÇ!` ("beam it!") with the way to turn against a radar missile.
     A lock on you before any missile is fired reads `KİLİTLENDİN` ("locked on").
+- **Hit zones:** every missile and gun hit rolls where it struck: a critical hit downs the plane
+  outright (15 % of missile hits, 0.5 % of rounds), engine, controls and avionics hits leave
+  lasting damage (lower top speed, slower turns, slower locks) until a new life, a rearm or the
+  repair power-up. The HUD lights the damaged parts.
 - **Afterburner heat:** about 15 s of continuous afterburner, then a lockout while it cools down.
 - **3 power-ups:** missiles, repair, turbo.
 - **3 game modes:** team deathmatch, free-for-all (FFA) and **Base Attack** (destroy the enemy
