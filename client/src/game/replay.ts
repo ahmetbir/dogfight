@@ -1,11 +1,12 @@
 // Replay of the last seconds: a ring buffer of snapshot frames and a player
 // that interpolates between them. Client only; the server is not involved.
+import type { Controls } from "../render/glb.ts";
 import { lerp, qSlerp, type Q, type V3 } from "../sim/vec.ts";
 
 export const REPLAY_MS = 10000;
 
-/** gr/ab (gear down, afterburner) are optional extras for drawing. */
-export type RPlane = { id: number; k: string; tm: string; a: boolean; pos: V3; rot: Q; gr?: boolean; ab?: boolean };
+/** gr/ab (gear down, afterburner), msl (missiles on the rails) and ctl (control surfaces) are optional extras for drawing. */
+export type RPlane = { id: number; k: string; tm: string; a: boolean; pos: V3; rot: Q; gr?: boolean; ab?: boolean; msl?: number; ctl?: Controls };
 export type RMissile = { id: number; pos: V3; vel?: V3 };
 export type RFrame = { t: number; planes: RPlane[]; missiles: RMissile[] }; // t = server ms
 
