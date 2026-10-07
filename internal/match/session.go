@@ -21,6 +21,7 @@ type seatMemo struct {
 	lobby   bool // the side and jet below are a lobby seat's
 	team    sim.Team
 	kind    sim.Kind
+	skin    string // the paint of kind
 	loadout sim.Loadout
 	left    int // game tick it left
 }
@@ -33,7 +34,7 @@ func (m *Match) memo(id sim.ID) seatMemo {
 	s := seatMemo{host: m.g.Host() == id, lobby: m.g.InLobby(), left: m.g.Tick()}
 	for _, p := range m.g.Players() {
 		if p.ID == id {
-			s.team, s.kind, s.loadout = p.Team, p.Kind, p.Loadout
+			s.team, s.kind, s.skin, s.loadout = p.Team, p.Kind, p.Skin, p.Loadout
 		}
 	}
 	return s
@@ -90,6 +91,7 @@ func (m *Match) restore(id sim.ID, s seatMemo) {
 	_ = m.g.SetSide(id, s.team) // refused (side full now): the auto-balanced side stays
 	m.g.SetLoadout(id, s.loadout)
 	_ = m.g.Pick(id, s.kind) // a kind of the other side is refused: the side's default stays
+	m.g.SetSkin(id, s.skin)  // checked against the jet it got back (another jet: standard)
 }
 
 // Drain is the server's drain state as the rooms see it (blue/green): the

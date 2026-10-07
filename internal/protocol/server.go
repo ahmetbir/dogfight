@@ -171,6 +171,7 @@ type LobbyEntryJSON struct {
 	Name string `json:"name"`
 	Team string `json:"team"`
 	Kind string `json:"kind"`
+	Skin string `json:"skin,omitempty"` // paint of kind; omitted: standard
 }
 
 // NewLobby builds the lobby message from the roster (ordered by ID).
@@ -178,7 +179,11 @@ func NewLobby(phase game.Phase, host sim.ID, seats int, ps []game.Player) LobbyM
 	list := make([]LobbyEntryJSON, 0, len(ps))
 	for _, p := range ps {
 		if !p.Bot {
-			list = append(list, LobbyEntryJSON{ID: p.ID, Name: p.Name, Team: TeamName(p.Team), Kind: p.Kind.String()})
+			e := LobbyEntryJSON{ID: p.ID, Name: p.Name, Team: TeamName(p.Team), Kind: p.Kind.String()}
+			if p.Skin != game.StandardSkin {
+				e.Skin = p.Skin
+			}
+			list = append(list, e)
 		}
 	}
 	return LobbyMsg{T: "lobby", Phase: PhaseName(phase), Host: host, Seats: seats, List: list}
