@@ -39,16 +39,17 @@ func (m *Match) memo(id sim.ID) seatMemo {
 	return s
 }
 
-// dropped keeps a leaving pilot's seat for its return: at once when the
-// same pilot already sits again (the new socket came before the old one
-// timed out), else for ReturnTicks.
-func (m *Match) dropped(pilot string, s seatMemo) {
+// dropped keeps the seat id of a leaving pilot for its return: at once
+// when the same pilot already sits again in a newer seat (the new socket
+// came before the old one timed out; an older seat of the same pilot is
+// another tab, not a reconnect), else for ReturnTicks.
+func (m *Match) dropped(id sim.ID, pilot string, s seatMemo) {
 	if pilot == "" || (!s.host && !s.lobby) {
 		return
 	}
-	var again sim.ID // the earliest seat of the same pilot (map order is not defined)
+	var again sim.ID // the earliest newer seat of the same pilot (map order is not defined)
 	for oid, o := range m.humans {
-		if o.pilot == pilot && (again == 0 || oid < again) {
+		if o.pilot == pilot && oid > id && (again == 0 || oid < again) {
 			again = oid
 		}
 	}

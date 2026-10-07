@@ -144,7 +144,7 @@ func (m *Match) Leave(id room.PlayerID) {
 	}
 	m.g.RemoveHuman(sid)
 	if ok {
-		m.dropped(h.pilot, kept)
+		m.dropped(sid, h.pilot, kept)
 	}
 }
 

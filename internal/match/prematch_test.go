@@ -422,3 +422,16 @@ func TestLobbyMessageQuietWhilePlaying(t *testing.T) {
 		}
 	})
 }
+
+// Two tabs of one browser share a pilot token: one leaving hands nothing
+// to the other, older seat (only a newer seat is a reconnect).
+func TestOlderSeatOfSamePilotIsNotAReturn(t *testing.T) {
+	m := New(lobby2, nil)
+	host, _ := m.Join(room.Who{Name: "host", Pilot: "same"})
+	tab, _ := m.Join(room.Who{Name: "tab", Pilot: "same"})
+	_ = m.g.Pick(sim.ID(tab), sim.Su27)
+	m.Leave(tab)
+	if p := playerOf(t, m, host); p.Team != sim.TeamNATO || p.Kind == sim.Su27 {
+		t.Fatalf("the host took the other tab's seat: %+v", p)
+	}
+}
