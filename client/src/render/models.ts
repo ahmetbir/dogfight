@@ -51,7 +51,13 @@ export async function tryLoadGlb(kind: string): Promise<THREE.Group | null> {
     const kinds: unknown = await res.json();
     if (!Array.isArray(kinds) || !kinds.includes(kind)) return null;
     listed = true;
-    const gltf = await new GLTFLoader().loadAsync(`/models/${kind}.glb`);
+    const loader = new GLTFLoader();
+    // Embedded textures through <img> (CSP img-src allows blob:), not fetch (connect-src 'self').
+    loader.register((parser) => {
+      parser.textureLoader = new THREE.TextureLoader(parser.options.manager);
+      return { name: "dogfight_img_textures" };
+    });
+    const gltf = await loader.loadAsync(`/models/${kind}.glb`);
     return gltf.scene;
   } catch (e) {
     // A listed model that fails to load falls back to the built-in one, loudly.

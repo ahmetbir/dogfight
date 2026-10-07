@@ -184,7 +184,7 @@ export function startGame(ctx: GameCtx): Game {
     const mine = drawn && drawAhead(drawn, own.spin(), acc, (x, z) => env.ground(x, z).h);
     const rs = cams.replayScene(now); // the replay draws recorded planes and missiles instead
     views.setViewHeight(r.canvas.clientHeight);
-    views.sync(rs?.planes ?? planeRenders(state, rt, { fs: mine, gForce: own.gForce(), ab: !!ctl?.stick.ab && !mine?.abl }), state.players.get(state.you)?.team);
+    views.sync(rs?.planes ?? planeRenders(state, rt, { fs: mine, gForce: own.gForce(), ab: !!ctl?.stick.ab && !mine?.abl, stick: ctl?.stick }), state.players.get(state.you)?.team);
     props.syncMissiles(rs?.missiles ?? state.missiles, rs ? 0 : (now - state.snapAt) / 1000, fx);
     props.syncBombs(state.bombs, (now - state.snapAt) / 1000);
     fx.flares(rs ? [] : flaresAt(state.flares, (now - state.snapAt) / 1000), dt);

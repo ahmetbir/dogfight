@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { enemyTagVisible } from "../game/sight.ts";
 import { dist, qForward, type Q, type V3 } from "../sim/vec.ts";
 import type { Effects } from "./effects.ts";
+import { dressGlb, NEUTRAL, type Controls, type Dressed, type Rig } from "./glb.ts";
 import { buildModel, tryLoadGlb } from "./models.ts";
 import type { Team } from "./models/common.ts";
 
@@ -11,6 +12,7 @@ export type PlaneRender = {
   id: number; kind: string; team: string; pos: V3; rot: Q; alive: boolean;
   hp: number; maxHP: number; ab: boolean; gForce: number; name: string; isMe: boolean;
   gear: boolean; // landing gear down
+  ctl?: Controls; // control surfaces: my stick, or others' turn rates (absent: neutral)
 };
 
 const LABEL_RANGE = 3000; // m: friendly tags (enemies: game/sight.ts)
@@ -20,6 +22,7 @@ const TRAIL_G = 9;
 const TRAIL_MS = 500;
 const TRAIL_CAP = 64;
 const GEAR_S = 0.8;       // gear travel time, s
+const SURFACE_RATE = 4;   // control surface travel, full scale per s
 const ENEMY = "#ff5a5a";
 const FRIEND = "#6aa8ff";
 
@@ -109,22 +112,31 @@ class PlaneView {
   readonly key: string;
   readonly root = new THREE.Group();
   private readonly label: THREE.Sprite | null;
-  private readonly ab: THREE.Object3D[];
-  private readonly idle: THREE.Object3D[];
+  private ab: THREE.Object3D[];
+  private idle: THREE.Object3D[];
   private readonly trails = [new Trail(), new Trail()];
   private readonly span: number;
-  private readonly gear: THREE.Object3D | null; // null if a model ever comes without one
+  private gear: THREE.Object3D | null; // null if a model ever comes without one
+  private readonly model: THREE.Group;
+  private readonly team: Team;
+  private readonly own: boolean;
+  private glbParts: Dressed | null = null;
+  private rig: Rig | null = null;
+  private readonly ctl: Controls = { ...NEUTRAL };
   private gearT: number;      // 0 retracted .. 1 down
   private lastAt = -1;        // ms of the previous update
+  private dt = 0;             // s since the previous update
   private body: THREE.Object3D;
-  private glb = false;
   private lastSmoke = -Infinity;
   private readonly scene: THREE.Scene;
 
   constructor(scene: THREE.Scene, key: string, p: PlaneRender, labelColor: string) {
     this.scene = scene;
     this.key = key;
-    const model = buildModel(p.kind, asTeam(p.team), p.isMe);
+    this.team = asTeam(p.team);
+    this.own = p.isMe;
+    const model = buildModel(p.kind, this.team, this.own);
+    this.model = model;
     this.body = model.children[0];
     this.span = model.userData.span as number;
     this.ab = model.getObjectsByProperty("name", "ab");
@@ -137,15 +149,25 @@ class PlaneView {
     if (this.label) scene.add(this.label);
   }
 
-  /** Swaps the procedural airframe for a loaded .glb (flames stay). */
+  /**
+   * Swaps the procedural airframe, flames and gear for a loaded .glb: its own
+   * flames at the engine markers, its gear and control surfaces on a rig.
+   */
   useGlb(g: THREE.Group): void {
-    const parent = this.body.parent;
-    if (!parent || this.glb) return;
-    disposeTree(this.body);
-    parent.remove(this.body);
-    this.body = g.clone();
-    parent.add(this.body);
-    this.glb = true;
+    if (this.glbParts) return;
+    for (const o of [...this.model.children]) {
+      this.model.remove(o);
+      disposeTree(o);
+    }
+    const d = dressGlb(g, this.team, this.own);
+    d.body.scale.setScalar(1 / this.model.scale.x); // the .glb is in true metres
+    this.model.add(d.body);
+    this.body = d.body;
+    this.glbParts = d;
+    this.rig = d.rig;
+    this.ab = d.ab;
+    this.idle = d.idle;
+    this.gear = d.rig.gear;
   }
 
   update(p: PlaneRender, now: number, showLabel: boolean, fx: Effects, labelK = 1): void {
@@ -159,6 +181,7 @@ class PlaneView {
     }
     for (const o of this.idle) o.visible = !p.ab;
     this.updateGear(p, now);
+    this.updateSurfaces(p.alive ? p.ctl ?? NEUTRAL : NEUTRAL);
     if (this.label) {
       this.label.position.set(p.pos.x, p.pos.y + 9, p.pos.z);
       this.label.visible = p.alive && showLabel;
@@ -180,18 +203,36 @@ class PlaneView {
   private updateGear(p: PlaneRender, now: number): void {
     const dt = this.lastAt < 0 ? 0 : Math.max(0, now - this.lastAt) / 1000;
     this.lastAt = now;
+    this.dt = dt;
     const want = p.gear ? 1 : 0;
     if (!p.alive) this.gearT = want;
     else if (this.gearT < want) this.gearT = Math.min(want, this.gearT + dt / GEAR_S);
     else this.gearT = Math.max(want, this.gearT - dt / GEAR_S);
+    if (this.rig) return; // posed with the surfaces
     if (!this.gear) return;
     this.gear.visible = this.gearT > 0.01;
     this.gear.scale.y = this.gearT * this.gear.scale.x; // x carries 1/model scale
   }
 
+  /** Moves the control surfaces toward c at SURFACE_RATE (only a .glb has them). */
+  private updateSurfaces(c: Controls): void {
+    if (!this.rig) return;
+    const step = Math.min(1, Math.max(0, this.dt) * SURFACE_RATE);
+    for (const k of ["p", "r", "y"] as const) {
+      const want = Math.max(-1, Math.min(1, Number.isFinite(c[k]) ? c[k] : 0));
+      this.ctl[k] += Math.max(-step, Math.min(step, want - this.ctl[k]));
+    }
+    this.rig.pose(this.ctl, this.gearT);
+  }
+
   dispose(): void {
     this.scene.remove(this.root, ...this.trails.map((t) => t.line));
-    if (this.glb) this.body.removeFromParent(); // shared .glb geometry is not ours
+    if (this.glbParts) {
+      // Geometry and textures of a .glb are shared; its flames and materials are ours.
+      for (const e of this.glbParts.engines) disposeTree(e);
+      for (const m of this.glbParts.materials) m.dispose();
+      this.body.removeFromParent();
+    }
     disposeTree(this.root);
     for (const t of this.trails) t.dispose();
     if (this.label) {

@@ -1,7 +1,8 @@
 // Render states for every plane: mine from prediction, others interpolated.
+import type { Controls } from "../render/glb.ts";
 import type { PlaneRender } from "../render/planes.ts";
-import type { FlightState } from "../sim/flight.ts";
-import { add, len, scale, sub, v3 } from "../sim/vec.ts";
+import type { FlightState, Spec } from "../sim/flight.ts";
+import { add, len, scale, sub, v3, type V3 } from "../sim/vec.ts";
 import { toFlight, type GameState } from "./state.ts";
 
 const G = 9.81;
@@ -16,11 +17,22 @@ function remoteG(s: GameState, id: number, rt: number, now: FlightState): number
 }
 
 /**
+ * Stick deflections that would produce body rates w (x pitch, y yaw, z roll,
+ * rad/s) on aircraft spec: how another plane's control surfaces move.
+ */
+export function ratesToControls(w: V3 | undefined, spec: Pick<Spec, "pitchRate" | "yawRate" | "rollRate"> | undefined): Controls | undefined {
+  if (!w || !spec) return undefined;
+  const k = (v: number, rate: number) => (rate > 0 && Number.isFinite(v) ? Math.max(-1, Math.min(1, v / rate)) : 0);
+  return { p: k(w.x, spec.pitchRate), r: k(-w.z, spec.rollRate), y: k(-w.y, spec.yawRate) };
+}
+
+/**
  * mine is my drawn state (null while dead or unknown); ab is my current AB
- * input so the flame reacts without waiting for the server.
+ * input so the flame reacts without waiting for the server; stick moves my
+ * control surfaces.
  */
 export function planeRenders(
-  s: GameState, rt: number, mine: { fs: FlightState | null; gForce: number; ab: boolean },
+  s: GameState, rt: number, mine: { fs: FlightState | null; gForce: number; ab: boolean; stick?: Controls },
 ): Map<number, PlaneRender> {
   const out = new Map<number, PlaneRender>();
   for (const p of s.planes.values()) {
@@ -41,6 +53,7 @@ export function planeRenders(
       ab: isMe ? p.a && mine.ab : !!p.ab, gForce: g,
       name: s.players.get(p.id)?.name ?? "", isMe,
       gear: isMe ? !!fs.gear : !!p.gr, // mine from prediction, others from the wire
+      ctl: isMe ? mine.stick : ratesToControls(toFlight(p).w, s.aircraft.get(p.k)),
     });
   }
   return out;

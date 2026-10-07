@@ -11,13 +11,19 @@ export type Palette = { body: THREE.Material; stripe: THREE.Material; canopy: TH
 const flat = (color: string) =>
   new THREE.MeshLambertMaterial({ color, flatShading: true, emissive: color, emissiveIntensity: 0.18 });
 
+/** Role colors of a team; own marks the local player's plane in FFA. */
+export function teamColors(team: Team, own: boolean): { body: string; secondary: string; stripe: string } {
+  const [body, secondary, stripe] =
+    team === "nato" ? ["#9aa3ad", "#7d8792", "#3b6fd8"]
+    : team === "soviet" ? ["#a8b8c0", "#8a9aa3", "#d83b3b"]
+    : own ? ["#e8b33a", "#b88a2a", "#3a3328"]
+    : ["#9aa3ad", "#7d8792", "#d83b3b"];
+  return { body, secondary, stripe };
+}
+
 /** Team colors; own marks the local player's plane in FFA. */
 export function palette(team: Team, own: boolean): Palette {
-  const [body, stripe] =
-    team === "nato" ? ["#9aa3ad", "#3b6fd8"]
-    : team === "soviet" ? ["#a8b8c0", "#d83b3b"]
-    : own ? ["#e8b33a", "#3a3328"]
-    : ["#9aa3ad", "#d83b3b"];
+  const { body, stripe } = teamColors(team, own);
   return {
     body: flat(body),
     stripe: flat(stripe),
