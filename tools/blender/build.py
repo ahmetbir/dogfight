@@ -6,9 +6,14 @@
 Each kind is tools/blender/kinds/<kind>.py: build() returns the node tree,
 texture() the atlas. Output: client/static/models/<kind>.glb; run the client
 build (or scripts/models-manifest.mjs) afterwards so the client lists it.
-The same input always writes the same file.
+The same input always writes the same file, given the same Blender: the
+committed models were built with Blender 5.1.x (glTF I/O v5.1.20 is embedded
+in every .glb); another version prints a WARN and may change the bytes.
+The node contract and missile counts live in contract.json (the client test
+reads the same file). A build that fails its checks leaves the old .glb alone.
 """
 import importlib
+import json
 import os
 import sys
 
@@ -24,7 +29,9 @@ from mesh import ROLES, build_object  # noqa: E402
 REPO = os.path.dirname(os.path.dirname(HERE))
 OUT = os.path.join(REPO, "client", "static", "models")
 MAX_TRIS, MAX_BYTES = 4000, 150 * 1024
-REQUIRED = ("airframe", "canopy", "aileron_l", "aileron_r", "flap_l", "flap_r", "gear", "ab_0", "idle_0")
+BLENDER = (5, 1)  # major, minor the committed models were built with
+with open(os.path.join(HERE, "contract.json")) as f:
+    CONTRACT = json.load(f)
 
 # Colour factors per role. The client recolours body/secondary/stripe per team
 # and skin; canopy, dark and metal keep these.
@@ -107,7 +114,20 @@ def export(path):
     )
 
 
+def missing_nodes(kind, names):
+    """Contract nodes absent from names, plus a wrong number of msl_* nodes."""
+    spec = CONTRACT["kinds"][kind]
+    want = list(CONTRACT["nodes"]) + CONTRACT["single"] * (not spec["twin"]) + CONTRACT["twin"] * spec["twin"]
+    want += [f"msl_{i}" for i in range(spec["missiles"])]
+    missing = [n for n in want if n not in names]
+    if f"msl_{spec['missiles']}" in names:
+        missing.append(f"no more than {spec['missiles']} msl_* nodes")
+    return missing
+
+
 def build(kind, render_dir, suffix=""):
+    if kind not in CONTRACT["kinds"]:
+        return [f"not in contract.json (kinds: {sorted(CONTRACT['kinds'])})"]
     reset()
     mod = importlib.import_module(f"kinds.{kind}")
     tree = mod.build()
@@ -115,16 +135,27 @@ def build(kind, render_dir, suffix=""):
     mats, _ = make_materials(kind, canvas)
     build_object(tree, mats)
     objs = list(bpy.context.scene.objects)
-    names = {o.name for o in objs}
-    missing = [n for n in REQUIRED if n not in names]
-    missing += [f"msl_{i}" for i in range(mod.MISSILES) if f"msl_{i}" not in names]
-    if f"msl_{mod.MISSILES}" in names:
-        missing.append(f"no more than {mod.MISSILES} msl_* nodes")
+    errors = []
+    missing = missing_nodes(kind, {o.name for o in objs})
+    if missing:
+        errors.append(f"missing nodes {missing}")
     tris = triangles(objs)
+    if tris > MAX_TRIS:
+        errors.append(f"{tris} triangles > {MAX_TRIS}")
+    if errors:
+        return errors  # nothing written
     path = os.path.join(OUT, f"{kind}.glb")
+    tmp = os.path.join(OUT, f".{kind}.build.glb")
     os.makedirs(OUT, exist_ok=True)
-    export(path)
-    size = os.path.getsize(path)
+    try:
+        export(tmp)
+        size = os.path.getsize(tmp)
+        if size > MAX_BYTES:
+            return [f"{size} bytes > {MAX_BYTES}"]
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
     if render_dir:  # after the export: renders pose the jet
         import render
         os.makedirs(render_dir, exist_ok=True)
@@ -132,17 +163,12 @@ def build(kind, render_dir, suffix=""):
             f.write(canvas.png())
         render.shots(kind, render_dir, suffix)
     print(f"BUILD {kind}: {tris} triangles, {size} bytes -> {os.path.relpath(path, REPO)}")
-    errors = []
-    if missing:
-        errors.append(f"missing nodes {missing}")
-    if tris > MAX_TRIS:
-        errors.append(f"{tris} triangles > {MAX_TRIS}")
-    if size > MAX_BYTES:
-        errors.append(f"{size} bytes > {MAX_BYTES}")
-    return errors
+    return []
 
 
 def main():
+    if tuple(bpy.app.version[:2]) != BLENDER:
+        print(f"WARN Blender {bpy.app.version_string}, the models were built with {BLENDER[0]}.{BLENDER[1]}.x: the bytes may differ")
     kinds, render_dir, suffix = kinds_from_args(sys.argv)
     failed = False
     for kind in kinds:

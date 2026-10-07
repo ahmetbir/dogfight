@@ -13,7 +13,6 @@ from kinds._jet import (R27, R73, Jet, engines, fin, gear, glass_uv, insignia, m
                         paint_common, paint_fuselage, paint_surface, plain, stabilator, wing)
 
 NAME = "su27"
-MISSILES = 5  # sim.Spec.Missiles
 
 J = Jet(length=(-10.95, 10.95), wing=(-7.0, 5.5, 0.5, 7.3), fin=(5.2, 9.5, 3.55, -0.10), stab=(7.4, 10.6, 2.1, 5.5))
 

@@ -9,7 +9,6 @@ from mesh import Part
 from parts import Surface, block, bubble, duct, firing_order, fuselage, lerp, nozzle, plate, store, strake, tube
 
 NAME = "f16"
-MISSILES = 5  # sim.Spec.Missiles: one msl_i node each
 LENGTH = (-7.62, 7.45)  # pitot tip .. nozzle exit
 WING_Y = -0.02
 
