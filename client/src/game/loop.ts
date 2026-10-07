@@ -45,6 +45,8 @@ export type GameCtx = {
   touch?: TouchState;
   /** The plane picked to watch while I have none yet (ui/app: click, ← →). */
   spectate?: () => number | null;
+  /** Milliseconds since the server was last heard (net/link): prediction eases during a stall. */
+  silentMs?: () => number;
 };
 
 /** The running game, as the in-game screens drive it. */
@@ -145,7 +147,7 @@ export function startGame(ctx: GameCtx): Game {
       if (me && me.ms + (me.rm ?? 0) <= 0) hooks.notice?.(t("lo.none"));
       else if (me && !me.ld) hooks.notice?.(noLockNotice(loadoutOf(me.lo), picks ? pickedKind(pick, me.ms, me.rm ?? 0) : undefined));
     }
-    const shot = own.tick(picks ? { ...ctl, sel: PICK_WIRE[pick] } : ctl, socket);
+    const shot = own.tick(picks ? { ...ctl, sel: PICK_WIRE[pick] } : ctl, socket, ctx.silentMs?.() ?? 0);
     if (shot) {
       bullets.spawn(shot.pos, shot.vel, 0, true);
       lastShotAt = performance.now();

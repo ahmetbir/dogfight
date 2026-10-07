@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { OwnPlane } from "./own.ts";
+import { EASE_FROM_MS, OwnPlane, stallStick } from "./own.ts";
+import { stepFlight } from "../sim/flight.ts";
 import { AIR_ENV } from "./env.ts";
 import type { FlightEnv } from "../predict/predictor.ts";
 import type { AircraftInfo, ClientMsg, In, PlaneJSON } from "../net/protocol.ts";
@@ -150,4 +151,59 @@ test("signed load factor: about +1 level, positive pulling, negative pushing", (
   assert.ok(Math.abs(fly(0) - 1) < 0.15, `level ${fly(0)}`);
   assert.ok(fly(1) > 7, `pull ${fly(1)}`);
   assert.ok(fly(-1) < -2, `push ${fly(-1)}`);
+});
+
+test("stallStick: my stick until 250 ms of silence, then eased to the held input over 250 ms", () => {
+  const mine = { p: 1, r: -1, y: 0.5, th: 0.4, ab: false, g: true };
+  const held = { p: 0.2, r: 0.2, y: 0, th: 1, ab: true, g: false };
+  assert.deepEqual(stallStick(mine, held, 0), mine);
+  assert.deepEqual(stallStick(mine, held, EASE_FROM_MS), mine);
+  const half = stallStick(mine, held, EASE_FROM_MS + 125);
+  assert.ok(Math.abs(half.p - 0.6) < 1e-12 && Math.abs(half.r + 0.4) < 1e-12 && Math.abs(half.y - 0.25) < 1e-12, JSON.stringify(half));
+  assert.deepEqual([half.th, half.ab, half.g], [1, true, false], "throttle, afterburner and gear held while easing");
+  assert.deepEqual(stallStick(mine, held, EASE_FROM_MS + 250), held);
+  assert.deepEqual(stallStick(mine, held, 5000), held);
+});
+
+test("during a stall prediction flies the last input the server heard, but my inputs still go out", () => {
+  const o = new OwnPlane(() => AIR_ENV);
+  o.snap(plane(), 0, false, aircraft, 0);
+  const s = sink();
+  const turn = { p: 0.4, r: 0.3, y: 0, th: 1, ab: false };
+  const pull = { p: 1, r: -1, y: 0, th: 0.2, ab: false };
+  const ctl = (st: typeof stick) => ({ stick: st, fire: false, missile: false, flare: false, bomb: false });
+  o.tick(ctl(turn), s, 20);
+  const before = o.state()!;
+  o.tick(ctl(pull), s, 600); // silent for 600 ms: fully eased
+  assert.deepEqual(o.state(), stepFlight(before, turn, F16, { turbo: false, wind: { x: 0, y: 0, z: 0 }, ground: { h: 0, surf: 0 } }));
+  assert.deepEqual([s.sent[1].p, s.sent[1].r, s.sent[1].th], [1, -1, 0.2], "the wire carries my stick");
+});
+
+test("after a stall, the queued snapshots are not reconciled until the server acks my latest input", () => {
+  const o = new OwnPlane(() => AIR_ENV);
+  o.snap(plane(), 0, false, aircraft, 0);
+  const s = sink();
+  const ctl = { stick, fire: false, missile: false, flare: false, bomb: false };
+  for (let i = 0; i < 10; i++) o.tick(ctl, s, 0);
+  for (let i = 0; i < 60; i++) o.tick(ctl, s, 300 + i * 17); // the server went silent
+  const predicted = o.state()!;
+  o.snap(plane(true, -500), 5, false, aircraft, 40); // a stale snapshot from the burst (ack 5 < seq 70)
+  assert.deepEqual(o.state(), predicted, "stale: not reconciled");
+  o.snap(plane(true, -500), 69, false, aircraft, 80);
+  assert.deepEqual(o.state(), predicted, "still behind my latest input");
+  o.snap(plane(true, -500), 70, false, aircraft, 82);
+  assert.equal(o.state()!.pos.z, -500, "acked: reconciled on the server state");
+});
+
+test("the post-stall wait gives up after a second of my ticks", () => {
+  const o = new OwnPlane(() => AIR_ENV);
+  o.snap(plane(), 0, false, aircraft, 0);
+  const s = sink();
+  const ctl = { stick, fire: false, missile: false, flare: false, bomb: false };
+  o.tick(ctl, s, 400);
+  o.snap(plane(true, -500), 0, false, aircraft, 10);
+  assert.notEqual(o.state()!.pos.z, -500);
+  for (let i = 0; i < 60; i++) o.tick(ctl, s, 0);
+  o.snap(plane(true, -500), 1, false, aircraft, 20);
+  assert.ok(o.state()!.pos.z < -500, "reconciled: the server state plus the replayed inputs");
 });

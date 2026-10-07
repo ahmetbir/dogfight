@@ -11,6 +11,33 @@ const MUZZLE = 8;         // m ahead of the plane
 const BULLET_SPEED = 900; // m/s on top of the plane's velocity
 const G = 9.81;
 const G_SMOOTH = 0.2;     // per tick low-pass of the g meter
+// While the server is silent it is not getting my inputs either: it repeats
+// the last one it got. Prediction eases from my stick to that one, so the
+// path it draws is the one the server flies and recovery corrects little.
+// The inputs sent stay mine: they count again as soon as traffic resumes.
+export const EASE_FROM_MS = 250; // silence before the easing starts
+const EASE_MS = 250;             // from my stick to the held one over this
+const HEARD_MS = 100;            // silence under this: the server is getting my inputs
+// After a stall the snapshots queued meanwhile arrive in a burst, all from
+// before the server got my newer inputs (their ack lags by the whole stall,
+// then jumps as the backlog of inputs lands). Reconciling on them corrects
+// toward a transient and back. They are skipped until the server acks the
+// input I sent when traffic resumed, or for at most this many of my ticks
+// (a burst arrives within one frame: world ticks would race through it).
+const RESUME_WAIT_TICKS = 60;
+
+/**
+ * The stick prediction flies after silentMs without server traffic: mine,
+ * eased toward held (the last input the server got) once the silence
+ * passes EASE_FROM_MS; throttle, afterburner, gear and brake are held then.
+ */
+export function stallStick(mine: StickInput, held: StickInput, silentMs: number): StickInput {
+  const w = Math.min(Math.max((silentMs - EASE_FROM_MS) / EASE_MS, 0), 1);
+  if (w === 0) return mine;
+  if (w === 1) return held;
+  const mix = (a: number, b: number) => a + (b - a) * w;
+  return { ...held, p: mix(mine.p, held.p), r: mix(mine.r, held.r), y: mix(mine.y, held.y) };
+}
 
 export type Sender = { send(m: ClientMsg): boolean };
 export type Controls = { stick: StickInput; fire: boolean; missile: boolean; flare: boolean; bomb: boolean; sel?: number };
@@ -31,6 +58,9 @@ export class OwnPlane {
   private g = 1;
   private gz = 1; // signed load factor along my up axis
   private lastSpin: Q = qIdentity(); // world-frame rotation of the last predicted tick
+  private heard: StickInput | null = null; // my last input sent while the server was talking
+  private stalled = false; // the server went silent past EASE_FROM_MS (seen by tick)
+  private resume: { seq: number; at: number } | null = null; // waiting for this ack after a stall
 
   private readonly envOf: (turbo: boolean) => FlightEnv;
 
@@ -47,6 +77,9 @@ export class OwnPlane {
     this.prevVel = null;
     this.lastSpin = qIdentity();
     this.gear = false;
+    this.heard = null;
+    this.stalled = false;
+    this.resume = null;
   }
 
   isAlive(): boolean {
@@ -79,9 +112,16 @@ export class OwnPlane {
       this.prevVel = null;
       this.gz = 1;
       this.lastSpin = qIdentity();
+      this.resume = null;
       return true;
     }
     this.pred.setSpec(spec);
+    if (this.stalled) { // first snapshot after a stall: wait for the server to hear my latest input
+      this.stalled = false;
+      this.resume = { seq: this.seq, at: this.ticks };
+    }
+    if (this.resume && ack < this.resume.seq && this.ticks - this.resume.at < RESUME_WAIT_TICKS) return false;
+    this.resume = null;
     this.pred.reconcile(fs, ack, tick, this.envOf(this.turbo));
     return false;
   }
@@ -93,9 +133,11 @@ export class OwnPlane {
 
   /**
    * Sends one tick of input; when it was written and I am alive, predicts
-   * it. Returns my own muzzle shot when the gun fired this tick.
+   * it (eased toward the server's held input after silentMs without server
+   * traffic, see stallStick). Returns my own muzzle shot when the gun fired
+   * this tick.
    */
-  tick(c: Controls, out: Sender): Shot | null {
+  tick(c: Controls, out: Sender, silentMs = 0): Shot | null {
     const seq = this.seq + 1;
     const s = c.stick;
     const sent = out.send({ t: "in", seq, p: s.p, r: s.r, y: s.y, th: s.th, ab: s.ab, f: c.fire, m: c.missile, fl: c.flare,
@@ -105,10 +147,12 @@ export class OwnPlane {
     this.th = s.th;
     this.gear = !!s.g;
     this.ticks++;
+    if (silentMs < HEARD_MS || !this.heard) this.heard = s;
+    if (silentMs >= EASE_FROM_MS) this.stalled = true;
     if (!this.alive || !this.pred) return null;
     const rot0 = this.pred.state().rot;
     // Counted by seq, not by pending inputs, which stop growing at the cap while acks stall.
-    this.pred.push(seq, s, this.pred.tickFor(seq), this.envOf(this.turbo));
+    this.pred.push(seq, stallStick(s, this.heard, silentMs), this.pred.tickFor(seq), this.envOf(this.turbo));
     const fs = this.pred.state();
     this.lastSpin = qNorm(qMul(fs.rot, qConj(rot0)));
     if (this.prevVel) {
