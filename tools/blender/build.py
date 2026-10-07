@@ -114,14 +114,27 @@ def export(path):
     )
 
 
+def wanted_nodes(spec):
+    """The nodes a kind must have: the shared ones, its tail, rudders, engines,
+    swing pivots and canards, and one msl_i per missile of the sim load."""
+    want = list(CONTRACT["nodes"])
+    want += CONTRACT["tail"] if spec.get("tail", True) else []
+    want += CONTRACT["twin"] if spec["twin"] else CONTRACT["single"]
+    want += CONTRACT["swing"] if spec.get("swing") else []
+    want += CONTRACT["canard"] if spec.get("canard") else []
+    for i in range(1, spec["engines"]):
+        want += [f"ab_{i}", f"idle_{i}"]
+    return want + [f"msl_{i}" for i in range(spec["missiles"])]
+
+
 def missing_nodes(kind, names):
-    """Contract nodes absent from names, plus a wrong number of msl_* nodes."""
+    """Contract nodes absent from names, plus a wrong number of msl_* or engine nodes."""
     spec = CONTRACT["kinds"][kind]
-    want = list(CONTRACT["nodes"]) + CONTRACT["single"] * (not spec["twin"]) + CONTRACT["twin"] * spec["twin"]
-    want += [f"msl_{i}" for i in range(spec["missiles"])]
-    missing = [n for n in want if n not in names]
+    missing = [n for n in wanted_nodes(spec) if n not in names]
     if f"msl_{spec['missiles']}" in names:
         missing.append(f"no more than {spec['missiles']} msl_* nodes")
+    if f"ab_{spec['engines']}" in names:
+        missing.append(f"no more than {spec['engines']} engines")
     return missing
 
 

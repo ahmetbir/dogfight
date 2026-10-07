@@ -14,7 +14,6 @@ from kinds._jet import (R73, R77, Jet, engines, fin, gear, glass_uv, insignia, m
                         paint_common, paint_fuselage, paint_surface, stabilator, wing)
 
 NAME = "su57"
-MISSILES = 4  # provisional (Phase 4 sets sim.Spec.Missiles)
 
 J = Jet(length=(-10.10, 10.30), wing=(-6.6, 5.8, 0.5, 7.2), fin=(5.0, 9.1, 2.75, 0.15), stab=(5.7, 9.9, 1.8, 4.8))
 

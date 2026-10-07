@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { deflection, dressGlb, NEUTRAL, Rig, roleColor } from "./glb.ts";
 import { ratesToControls } from "../game/view.ts";
 import { RULES } from "../book/rules.ts";
-import { contract } from "./testglb.ts";
+import { contract, wantedNodes } from "./testglb.ts";
 
 test("roll right raises the right trailing edges and lowers the left", () => {
   const c = { p: 0, r: 1, y: 0 };
@@ -151,14 +151,20 @@ for (const [kind, want] of Object.entries(contract.kinds)) {
       samplers?: { magFilter?: number }[];
     };
     const names = new Set(json.nodes.map((n) => n.name));
-    const nodes = [...contract.nodes, ...(want.twin ? contract.twin : contract.single)];
-    for (const n of nodes) assert.ok(names.has(n), `node ${n}`);
-    for (let i = 0; i < want.missiles; i++) assert.ok(names.has(`msl_${i}`), `msl_${i}`);
+    for (const n of wantedNodes(want)) assert.ok(names.has(n), `node ${n}`);
+    assert.ok(!names.has(`ab_${want.engines}`), `${want.engines} engines`);
     assert.ok(!names.has(`msl_${want.missiles}`), `${want.missiles} missiles: sim.Spec.Missiles`);
     for (const n of json.nodes) {
       if (/^(aileron|flap|stab|elevator|rudder)/.test(n.name)) assert.equal((n.extras?.axis as number[]).length, 3, n.name);
-      // Every rudder swings its trailing edge right for a positive angle: its axis points up.
-      if (/^rudder/.test(n.name)) assert.ok((n.extras?.axis as number[])[1] > 0.9, `${n.name} axis`);
+      // Every rudder swings its trailing edge right for a positive angle: its axis points up
+      // (canted fins lean it out by up to 28 degrees, swept hinges back a little more).
+      if (/^rudder/.test(n.name)) assert.ok((n.extras?.axis as number[])[1] > 0.8, `${n.name} axis`);
+      // A swing wing turns about the vertical, with its sweep range around the modelled pose.
+      if (/^wing_[lr]$/.test(n.name)) {
+        assert.equal(Math.abs((n.extras?.axis as number[])[1]), 1, `${n.name} axis`);
+        const [lo, hi] = n.extras?.sweep as number[];
+        assert.ok(lo < 0 && hi > 0, `${n.name} sweep`);
+      }
     }
     const roles = new Set(json.materials.map((m) => m.name));
     for (const r of roles) assert.ok(["body", "secondary", "stripe", "canopy", "dark", "metal"].includes(r), r);

@@ -9,7 +9,6 @@ from kinds import su27
 from kinds._jet import R27, R73, R77, glass_uv, stabilator, wing
 
 NAME = "su30"
-MISSILES = 6  # provisional (Phase 4 sets sim.Spec.Missiles)
 
 J = su27.J
 CANOPY = [  # longer two-seat bubble

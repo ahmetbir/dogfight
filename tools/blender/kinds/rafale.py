@@ -11,7 +11,6 @@ from kinds._jet import (METEOR, MICA, Jet, engines, fin, gear, glass_uv, insigni
                         paint_fuselage, paint_surface, stabilator, wing)
 
 NAME = "rafale"
-MISSILES = 6  # provisional (Phase 4 sets sim.Spec.Missiles)
 
 J = Jet(length=(-7.75, 7.45), wing=(-2.6, 5.8, 0.4, 5.6), fin=(2.3, 6.8, 3.40, 0.50), stab=(-2.7, -0.3, 0.6, 2.4))
 

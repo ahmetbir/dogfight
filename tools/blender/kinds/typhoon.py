@@ -12,7 +12,6 @@ from kinds._jet import (IRIST, METEOR, Jet, engines, fin, gear, glass_uv, insign
                         paint_common, paint_fuselage, paint_surface, stabilator, wing)
 
 NAME = "typhoon"
-MISSILES = 6  # provisional (Phase 4 sets sim.Spec.Missiles)
 
 J = Jet(length=(-8.15, 7.90), wing=(-2.0, 6.7, 0.4, 5.7), fin=(2.4, 7.0, 3.50, 0.40), stab=(-5.0, -1.9, 0.4, 2.4))
 

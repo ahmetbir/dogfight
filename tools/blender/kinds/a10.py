@@ -13,7 +13,6 @@ from kinds._jet import (AGM65, AIM9, Jet, engines, fin, gear, glass_uv, insignia
                         nozzles, paint_common, paint_fuselage, paint_surface, plain, wing)
 
 NAME = "a10"
-MISSILES = 4  # provisional (Phase 4 sets sim.Spec.Missiles)
 
 J = Jet(length=(-8.15, 8.10), wing=(-2.0, 1.8, 0.4, 8.9), fin=(5.2, 7.8, 2.30, -0.40), stab=(5.8, 7.8, 0.2, 3.0))
 
