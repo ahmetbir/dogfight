@@ -123,35 +123,47 @@ test("a rig ignores malformed axes", () => {
   assert.ok(bad.quaternion.equals(new THREE.Quaternion()));
 });
 
-// The committed model honours the node contract and the budgets (spec Phase 3).
-const F16 = new URL("../../static/models/f16.glb", import.meta.url);
+// The committed models honour the node contract and the budgets (spec Phase 3);
+// one msl_i node per missile of the sim load (internal/sim/aircraft.go).
+const KINDS: Record<string, { missiles: number; twin: boolean }> = {
+  f16: { missiles: 5, twin: false }, f15: { missiles: 6, twin: true },
+  mig29: { missiles: 4, twin: true }, su27: { missiles: 5, twin: true },
+};
 
-test("f16.glb: nodes, materials, budgets", { skip: !existsSync(F16) }, () => {
-  const buf = readFileSync(F16);
-  assert.ok(statSync(F16).size <= 150 * 1024, `size ${statSync(F16).size}`);
-  assert.equal(buf.toString("ascii", 0, 4), "glTF");
-  const len = buf.readUInt32LE(12);
-  const json = JSON.parse(buf.toString("utf8", 20, 20 + len)) as {
-    nodes: { name: string; extras?: Record<string, unknown> }[];
-    materials: { name: string }[];
-    meshes: { primitives: { indices: number }[] }[];
-    accessors: { count: number }[];
-    samplers?: { magFilter?: number }[];
-  };
-  const names = new Set(json.nodes.map((n) => n.name));
-  for (const n of ["airframe", "canopy", "aileron_l", "aileron_r", "flap_l", "flap_r", "stab_l", "stab_r", "rudder",
-    "gear", "gear_nose", "gear_main_l", "gear_main_r", "ab_0", "idle_0", "msl_0", "msl_4"]) {
-    assert.ok(names.has(n), `node ${n}`);
-  }
-  assert.ok(!names.has("msl_5"), "five missiles: sim.Spec.Missiles");
-  for (const n of json.nodes) {
-    if (/^(aileron|flap|stab|elevator|rudder)/.test(n.name)) assert.equal((n.extras?.axis as number[]).length, 3, n.name);
-  }
-  const roles = new Set(json.materials.map((m) => m.name));
-  for (const r of roles) assert.ok(["body", "secondary", "stripe", "canopy", "dark", "metal"].includes(r), r);
-  assert.ok(roles.has("body") && roles.has("stripe"));
-  let tris = 0;
-  for (const m of json.meshes) for (const p of m.primitives) tris += json.accessors[p.indices].count / 3;
-  assert.ok(tris >= 1500 && tris <= 4000, `${tris} triangles`);
-  assert.equal(json.samplers?.[0]?.magFilter, 9728, "nearest filter");
-});
+for (const [kind, want] of Object.entries(KINDS)) {
+  const file = new URL(`../../static/models/${kind}.glb`, import.meta.url);
+  test(`${kind}.glb: nodes, materials, budgets`, { skip: !existsSync(file) }, () => {
+    const buf = readFileSync(file);
+    assert.ok(statSync(file).size <= 150 * 1024, `size ${statSync(file).size}`);
+    assert.equal(buf.toString("ascii", 0, 4), "glTF");
+    const len = buf.readUInt32LE(12);
+    const json = JSON.parse(buf.toString("utf8", 20, 20 + len)) as {
+      nodes: { name: string; extras?: Record<string, unknown> }[];
+      materials: { name: string }[];
+      meshes: { primitives: { indices: number }[] }[];
+      accessors: { count: number }[];
+      samplers?: { magFilter?: number }[];
+    };
+    const names = new Set(json.nodes.map((n) => n.name));
+    const rudders = want.twin ? ["rudder_l", "rudder_r"] : ["rudder"];
+    for (const n of ["airframe", "canopy", "aileron_l", "aileron_r", "flap_l", "flap_r", "stab_l", "stab_r", ...rudders,
+      "gear", "gear_nose", "gear_main_l", "gear_main_r", "ab_0", "idle_0"]) {
+      assert.ok(names.has(n), `node ${n}`);
+    }
+    if (want.twin) assert.ok(names.has("ab_1") && names.has("idle_1"), "two engines");
+    for (let i = 0; i < want.missiles; i++) assert.ok(names.has(`msl_${i}`), `msl_${i}`);
+    assert.ok(!names.has(`msl_${want.missiles}`), `${want.missiles} missiles: sim.Spec.Missiles`);
+    for (const n of json.nodes) {
+      if (/^(aileron|flap|stab|elevator|rudder)/.test(n.name)) assert.equal((n.extras?.axis as number[]).length, 3, n.name);
+      // Every rudder swings its trailing edge right for a positive angle: its axis points up.
+      if (/^rudder/.test(n.name)) assert.ok((n.extras?.axis as number[])[1] > 0.9, `${n.name} axis`);
+    }
+    const roles = new Set(json.materials.map((m) => m.name));
+    for (const r of roles) assert.ok(["body", "secondary", "stripe", "canopy", "dark", "metal"].includes(r), r);
+    assert.ok(roles.has("body") && roles.has("stripe"));
+    let tris = 0;
+    for (const m of json.meshes) for (const p of m.primitives) tris += json.accessors[p.indices].count / 3;
+    assert.ok(tris >= 1500 && tris <= 4000, `${tris} triangles`);
+    assert.equal(json.samplers?.[0]?.magFilter, 9728, "nearest filter");
+  });
+}
