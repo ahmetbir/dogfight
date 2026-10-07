@@ -53,6 +53,12 @@ Live demo: https://dogfight.ahmetbirinci.dev
   controls, flight, ground handling, weapons, HUD, game modes, the world and tips. It opens from
   the home page and from the in-game menu, and quotes gameplay numbers that tests keep in sync
   with the server.
+- **Connection indicator:** signal bars under the score line (good / fair / poor / lost from
+  the round-trip time, server silence and lost snapshots; the RTT in ms on hover or tap, and
+  always when the link is not good) and a "connection unstable" banner after
+  1 s without server traffic. While inputs cannot reach the server, the own plane is predicted on
+  the last input the server got, and the correction after a stall is drawn as a glide instead of
+  a jump.
 - Mobile: landscape touch stick, throttle and buttons; optional tilt aiming.
 - Missile camera (picture-in-picture), killcam, spectator mode and a replay of the last 10 s.
 - Procedural jet audio (engine, afterburner, wind) and low-poly models (custom `.glb` models are
@@ -525,7 +531,7 @@ The game runs on the public internet, and the server does not trust the client.
   ping have their own tighter limits. Exceeding a limit closes the connection with a
   policy-violation code.
 - **Timeouts:** 5 s handshake. A connection silent for 30 s is closed; the client pings every
-  15 s. The writer queue holds 64 messages and drops the oldest snapshot when full (its events
+  15 s, and once a second in a match to measure the round-trip time. The writer queue holds 64 messages and drops the oldest snapshot when full (its events
   move into the next snapshot); a queue full for 2 s closes the connection. A room never used
   closes after 15 s, an emptied room after 60 s.
 - **Origin:** the WebSocket is accepted only from hosts in `-origin` (or the same host when empty).
@@ -602,7 +608,8 @@ docs/superpowers/    design specs and implementation plans (in Turkish)
   no shared state.
 - **Netcode:** JSON over WebSocket.
   - Your own plane is predicted on the client. When a server snapshot arrives, unacknowledged
-    inputs are replayed and the correction is smoothed over 100 ms.
+    inputs are replayed (once per frame, on the newest snapshot) and the correction glides:
+    0.15–0.6 s depending on its size, at most 150 m/s and 120°/s.
   - Other planes are drawn from an interpolation buffer.
   - Bullets are simulated on the client from `fire` events; missiles arrive in snapshots.
 - **Design docs:** `docs/superpowers/specs/2026-10-06-dogfight-design.md` (v1) and

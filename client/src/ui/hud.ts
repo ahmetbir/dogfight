@@ -8,6 +8,8 @@ import { fixed } from "../i18n/format.ts";
 import type { HitZone, Item, PlaneJSON, Team } from "../net/protocol.ts";
 import { dist, type V3 } from "../sim/vec.ts";
 import { GroundHelp } from "./coach.ts";
+import { ConnHud } from "./conn.ts";
+import type { LinkView } from "../net/link.ts";
 import { GEffects } from "./gfx.ts";
 import { h, text } from "./dom.ts";
 import { Gauges } from "./hudtext.ts";
@@ -59,6 +61,7 @@ export class Hud {
   private readonly objective = new ObjectiveBar();
   private readonly help = new GroundHelp();
   private readonly gfx = new GEffects();
+  private readonly conn = new ConnHud();
   private lastFrame = 0;
   private lastText = 0;
   private toastUntil = 0;
@@ -72,7 +75,7 @@ export class Hud {
     this.state = state;
     this.menuOpen = menuOpen;
     this.el = h("div", { class: "hud" }, this.gfx.el, this.flash, this.reticle.el,
-      h("div", { class: "hud-top" }, this.objective.el, this.score, this.warn, this.flare.cue, this.flare.beam),
+      h("div", { class: "hud-top" }, this.objective.el, this.score, this.conn.el, this.conn.banner, this.warn, this.flare.cue, this.flare.beam),
       this.radar.el, this.feed.el,
       h("div", { class: "hud-mid" }, this.center, this.sub, this.flare.note, this.outRange, this.prot, this.toast),
       this.hitMark, this.arrow, this.help.el, this.gauges.left, this.gauges.right, this.watch);
@@ -118,6 +121,11 @@ export class Hud {
         this.toastUntil = performance.now() + TOAST_MS;
       },
     };
+  }
+
+  /** The connection indicator and banner; null while reconnecting. */
+  link(v: LinkView | null): void {
+    this.conn.update(v);
   }
 
   /** A quick chat line from plane `from` in the kill feed; unknown presets are ignored. */

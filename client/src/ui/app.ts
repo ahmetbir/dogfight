@@ -12,6 +12,7 @@ import { loadSettings, type Settings } from "../input/schemes.ts";
 import { requestTilt, Tilt } from "../input/tilt.ts";
 import { newTouchState } from "../input/touch.ts";
 import type { AircraftKind, Create, Join, Loadout, Quick, ServerMsg } from "../net/protocol.ts";
+import { LinkMonitor } from "../net/link.ts";
 import { loadToken, storeToken } from "../net/pilot.ts";
 import { openSocket, socketURL, type Socket } from "../net/socket.ts";
 import { Renderer } from "../render/renderer.ts";
@@ -48,6 +49,8 @@ export function play(o: PlayOpts): void {
     return;
   }
   const state = new GameState();
+  const link = new LinkMonitor(performance.now());
+  let online = false; // the socket is open (between welcome and a drop)
   const feed = new Feed();
   const pick = new PickScreen((k) => choose(k), () => closeMenus(true), (c) => teams.choose(c, performance.now()), (lo) => chooseLoadout(lo));
   const teams = new TeamFlow((team) => socket.send({ t: "team", team }), state);
@@ -237,12 +240,20 @@ export function play(o: PlayOpts): void {
     }
     if (pick.isOpen()) pick.show(pickView());
     hud.waiting(waiting(), waitLeft(welcomeAt, performance.now()), settings.scheme === "touch");
+    const now = performance.now();
+    if (online) link.ping(now, (ts) => socket.send({ t: "ping", ts }));
+    hud.link(online ? link.view(now) : null);
     pad?.sync();
   };
   const uiTimer = setInterval(tick, UI_MS);
 
   const onMsg = (m: ServerMsg) => {
-    const evs = state.apply(m, performance.now());
+    const now = performance.now();
+    if (m.t === "welcome") link.reset(now);
+    link.received(now);
+    if (m.t === "snap") link.snap(m.tick);
+    if (m.t === "pong") link.pong(m.ts, now);
+    const evs = state.apply(m, now);
     feed.emit(m, evs);
     // Switched teams: the new team's aircraft, with a fresh pick timer.
     if (teams.apply(m, evs, performance.now())) { chosen = null; welcomeAt = performance.now(); openPick(); }
@@ -258,7 +269,10 @@ export function play(o: PlayOpts): void {
         fill(ui, hud.el, board.el, roundEnd.el, pick.el, menu.el, book.el);
         document.body.classList.add("in-game"); // portrait phones: the turn-sideways prompt
         syncTouch();
-        game = startGame({ socket, renderer, state, settings, feed, hooks, blocked, touch, spectate: () => spectate });
+        game = startGame({
+          socket, renderer, state, settings, feed, hooks, blocked, touch, spectate: () => spectate,
+          silentMs: () => link.silentMs(performance.now()),
+        });
       } else {
         repick = chosen !== null;
         extra.stop?.(); // reconnected: no plane yet, so nothing would quiet the engine drone
@@ -283,7 +297,10 @@ export function play(o: PlayOpts): void {
 
   const socket: Socket = openSocket(socketURL(location), o.name, o.entry, {
     onMsg,
-    onStatus: (s) => banner.status(s),
+    onStatus: (s) => {
+      online = s === "open";
+      banner.status(s);
+    },
     onFatal: (code, raw) => {
       const msg = errorText(code, raw);
       clearInterval(uiTimer);

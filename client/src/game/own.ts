@@ -5,12 +5,30 @@ import { Predictor, type FlightEnv } from "../predict/predictor.ts";
 import { DT, type FlightState, type StickInput } from "../sim/flight.ts";
 import { add, dot, len, qConj, qForward, qIdentity, qMul, qNorm, qRotate, scale, sub, v3, type Q, type V3 } from "../sim/vec.ts";
 import { toFlight } from "./state.ts";
+import { STALL_MS } from "../net/shaper.ts";
 
 const GUN_TICKS = 4;      // sim.GunInterval
 const MUZZLE = 8;         // m ahead of the plane
 const BULLET_SPEED = 900; // m/s on top of the plane's velocity
 const G = 9.81;
 const G_SMOOTH = 0.2;     // per tick low-pass of the g meter
+// After STALL_MS without server traffic the shaper holds my inputs, so the
+// server stops getting them and repeats the last one it got (the last one
+// sent before the hold). From then on prediction flies that input too: the
+// drawn path stays the server's, whichever way the link stalled. Before
+// that the uplink may still flow (a downlink-only stall), so prediction
+// keeps my stick. The inputs sent stay mine and count again on recovery.
+//
+// After a stall the snapshots queued meanwhile arrive in one burst, their
+// ack lagging by the whole stall. Reconciling on each in turn walked the
+// core reconciler's median baseline through that transient (corrections of
+// 50–120 m to and fro). Snapshots are reconciled once per frame instead, on
+// the newest one that arrived: never skipped, only coalesced.
+
+/** The stick prediction flies after silentMs without server traffic: mine, or held once the shaper holds my inputs. */
+export function stallStick(mine: StickInput, held: StickInput, silentMs: number): StickInput {
+  return silentMs > STALL_MS ? held : mine;
+}
 
 export type Sender = { send(m: ClientMsg): boolean };
 export type Controls = { stick: StickInput; fire: boolean; missile: boolean; flare: boolean; bomb: boolean; sel?: number };
@@ -31,6 +49,8 @@ export class OwnPlane {
   private g = 1;
   private gz = 1; // signed load factor along my up axis
   private lastSpin: Q = qIdentity(); // world-frame rotation of the last predicted tick
+  private heard: StickInput | null = null; // my last input the shaper let through (the server's repeat in a stall)
+  private due: { fs: FlightState; ack: number; tick: number } | null = null; // newest snapshot not yet reconciled
 
   private readonly envOf: (turbo: boolean) => FlightEnv;
 
@@ -47,6 +67,8 @@ export class OwnPlane {
     this.prevVel = null;
     this.lastSpin = qIdentity();
     this.gear = false;
+    this.heard = null;
+    this.due = null;
   }
 
   isAlive(): boolean {
@@ -61,6 +83,7 @@ export class OwnPlane {
   snap(p: PlaneJSON | undefined, ack: number, spawned: boolean, aircraft: Map<string, AircraftInfo>, tick: number): boolean {
     if (!p || !p.a) {
       this.alive = false;
+      this.due = null;
       return false;
     }
     this.turbo = !!p.tb;
@@ -79,23 +102,35 @@ export class OwnPlane {
       this.prevVel = null;
       this.gz = 1;
       this.lastSpin = qIdentity();
+      this.due = null;
       return true;
     }
     this.pred.setSpec(spec);
-    this.pred.reconcile(fs, ack, tick, this.envOf(this.turbo));
+    this.due = { fs, ack, tick }; // reconciled by the next state(), tick() or render()
     return false;
+  }
+
+  /** Reconciles on the newest snapshot that arrived since the last call. */
+  private flush(): void {
+    const d = this.due;
+    if (!d || !this.pred) return;
+    this.due = null;
+    this.pred.reconcile(d.fs, d.ack, d.tick, this.envOf(this.turbo));
   }
 
   /** Physics state for the control scheme (null while dead). */
   state(): FlightState | null {
+    this.flush();
     return this.alive && this.pred ? this.pred.state() : null;
   }
 
   /**
    * Sends one tick of input; when it was written and I am alive, predicts
-   * it. Returns my own muzzle shot when the gun fired this tick.
+   * it (the server's held input after silentMs without server traffic, see
+   * stallStick). Returns my own muzzle shot when the gun fired
+   * this tick.
    */
-  tick(c: Controls, out: Sender): Shot | null {
+  tick(c: Controls, out: Sender, silentMs = 0): Shot | null {
     const seq = this.seq + 1;
     const s = c.stick;
     const sent = out.send({ t: "in", seq, p: s.p, r: s.r, y: s.y, th: s.th, ab: s.ab, f: c.fire, m: c.missile, fl: c.flare,
@@ -105,10 +140,12 @@ export class OwnPlane {
     this.th = s.th;
     this.gear = !!s.g;
     this.ticks++;
+    if (silentMs <= STALL_MS || !this.heard) this.heard = s;
     if (!this.alive || !this.pred) return null;
+    this.flush();
     const rot0 = this.pred.state().rot;
     // Counted by seq, not by pending inputs, which stop growing at the cap while acks stall.
-    this.pred.push(seq, s, this.pred.tickFor(seq), this.envOf(this.turbo));
+    this.pred.push(seq, stallStick(s, this.heard, silentMs), this.pred.tickFor(seq), this.envOf(this.turbo));
     const fs = this.pred.state();
     this.lastSpin = qNorm(qMul(fs.rot, qConj(rot0)));
     if (this.prevVel) {
@@ -137,6 +174,7 @@ export class OwnPlane {
 
   /** Drawn state (prediction + decaying correction); null while dead. */
   render(dtS: number): FlightState | null {
+    this.flush();
     return this.alive && this.pred ? this.pred.render(dtS) : null;
   }
 
@@ -151,6 +189,7 @@ export class OwnPlane {
 
   /** World ticks my drawn state runs ahead of the latest snapshot (0 while dead). */
   ahead(): number {
+    this.flush();
     return this.alive && this.pred ? this.pred.ahead() : 0;
   }
 

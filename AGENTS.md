@@ -224,9 +224,33 @@ dependencies to this repo.
   server-side).
 - The client predicts its own plane and reconciles on each snapshot: unacknowledged inputs are
   replayed (`roomkit/ts/predict/reconcile.ts`, baseline = median offset over ~30 snapshots),
-  corrections are smoothed with a 0.1 s time constant and corrections over 50 m snap
-  (`client/src/predict/predictor.ts`). Other planes are interpolated 100 ms behind
-  (`INTERP_DELAY_MS`).
+  corrections are smoothed with a time constant that grows with their size (0.15 s up to 1 m,
+  0.6 s from 40 m) and never faster than 150 m/s, attitude corrections are rate limited to
+  120°/s, and only corrections over 300 m snap (position and attitude together) (`client/src/predict/predictor.ts`).
+  Other planes are interpolated 100 ms behind (`INTERP_DELAY_MS`).
+- **Snapshots are reconciled once per frame**, on the newest one that arrived
+  (`client/src/game/own.ts`, `flush()`). After a stall the queued snapshots arrive in one burst
+  with an ack lagging by the whole stall; reconciling each walked the reconciler's median
+  baseline through that transient (50–120 m corrections to and fro). Nothing is ever skipped
+  for longer than a frame.
+- **Stalls** (`client/src/game/own.ts`): once the server has been silent for `STALL_MS` (1 s) the
+  shaper holds inputs, so the server repeats the last one it got; from then on prediction flies
+  that input too. Before that the uplink may still flow (a downlink-only stall), so prediction
+  keeps the player's stick. The inputs sent stay the player's.
+  `client/src/game/stall.test.ts` drives the whole client path (OwnPlane, core Shaper, link
+  monitor) against the Go-parity server models through two-way, downlink-only, clumpy, gappy
+  and repeated stalls; its bounds are the pre-v3 client's numbers where that did better.
+- **Connection indicator** (`client/src/net/link.ts`, `client/src/ui/conn.ts`): a 1 Hz ping in a
+  match gives the RTT (pong echoes the ping's `performance.now()`); **at most one link ping is
+  in flight** (the next one a second after its pong, or after 30 s): the server kicks a
+  connection whose pings come faster than 2/s beyond a burst of 4, and a stall releases held pings
+  back to back; any stall under the 30 s idle close releases at most 1 link ping and 2 keepalives,
+  and the next waits until the bucket refilled (`link.test.ts` sweeps stall lengths, keepalive
+  phases and RTTs against the bucket). Pongs of pings sent before a stall ended (≥ 1 s of
+  silence, or a sudden wait of ≥ 1 s with the downlink flowing) are not RTT samples; a second
+  slow ping in a row is believed. Silence and gaps in the snapshot ticks grade the link; the
+  banner shows after 1 s of silence and stays 600 ms after recovery. The bars sit in the
+  top-centre column under the score line.
 - **Instant mocks hide ordering races.** Netcode that passes with zero-latency fakes can still
   fail under real delay. Test it with latency: `client/src/predict/converge.test.ts` and
   `jitter.test.ts` (delay steps, stalls, bursty delivery), and `SERVER_ARGS="-lag 100ms"
@@ -246,7 +270,7 @@ Server (`roomkit/server/guard.go`, `inbound.go`, defaults in `server.go`):
 
 Client (`roomkit/ts/net/shaper.ts`, Dogfight policy `client/src/net/shaper.ts`): while the
 socket has more than 8 KB buffered or the server has been silent for 1 s, only the newest input
-is held; picks go out at most every 500 ms; pings every 15 s (server idle-closes at 30 s);
+is held; picks go out at most every 500 ms; pings every 15 s (server idle-closes at 30 s) plus one per second in a match (`net/link.ts`);
 chat through `ChatThrottle`.
 
 **Adding a client message type:** give it a rate class in `internal/front` (`Kit.Class`), allow
