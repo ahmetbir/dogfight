@@ -139,3 +139,10 @@ test("the authority drawing keeps at most four curves: the corner and top speed 
   assert.ok(pick.includes("a10"), "slowest");
   assert.deepEqual(authKinds(PLANES), PLANES);
 });
+
+test("the bombs line gives the attack jets' own load from the rules", async () => {
+  const { extraBombs } = await import("./ch-aircraft.ts");
+  assert.equal(extraBombs(), ` (A-10, Su-25: ${RULES.bombs + RULES.a10ExtraBombs})`);
+  const text = textOf("silahlar", builtinAircraft());
+  assert.ok(text.includes(`bomba (A-10, Su-25: 4)`), "tr weapons chapter");
+});
