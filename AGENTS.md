@@ -225,13 +225,18 @@ dependencies to this repo.
   there are no bots and no planes, the world does not step and the round clock does not run;
   only the game tick advances, and the room keeps sending (empty) snapshots so the client's
   link monitor does not read the lobby as a stall.
-- The host is the lowest human ID still seated (IDs only grow: the earliest joiner). `start`
+- The host is the lowest human ID still seated (IDs only grow: the earliest joiner), unless a
+  host reconnected: the same pilot token back within `match.HostReturnTicks` (or already
+  seated again when the old socket times out) gets the role back (`game.SetHost`). `start`
   is host-only and Lobby-only; it spawns the humans per the start mode, then fills each side
   with bots. After the scoreboard a lobby room goes back to the Lobby with a fresh world (same
   seed); sides and picks stay. Late joiners while Playing take the old path (a bot's seat).
 - Lobby side rule (`game.sideBalanced`, mirrored by `client/src/ui/lobby.ts` `sideOpen`):
   everyone on one side is allowed; otherwise a side may be at most one human ahead (or the
   move narrows the gap). The in-round `team` switch keeps its own stricter rule.
+- Quick Play never seats anyone in a created room: `match.Info` reports such a room's human
+  count as the core's `Summary.Seats` (only `lobby.Quick` reads it), and the room list takes
+  the real seats from `match.Info.Seats`. Link and room-list joins are unaffected.
 - The room goldens (`room_*.golden`) are built from quick-play settings and do not cover the
   Lobby; `internal/match/prematch_test.go` and `internal/game/lobby_test.go` do.
 

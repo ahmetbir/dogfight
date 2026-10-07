@@ -53,8 +53,9 @@ Live demo: https://dogfight.ahmetbirinci.dev
 - **Lobby** for created rooms: the room waits until its host presses **Start**. Everyone who comes
   by the link picks a side (NATO / Soviet; friends may all take one side against bots, otherwise a
   side may be at most one human ahead) and an aircraft; bots fill the empty seats on Start. After
-  each round the room returns to the lobby with sides kept. Late joiners enter a running round as
-  before; Quick Play rooms start at once.
+  each round the room returns to the lobby with sides kept. Late joiners by link enter a running
+  round as before; Quick Play never puts anyone in a created room, and its own rooms start at
+  once. A host whose connection drops gets the role back on reconnecting.
 - Quick chat: 6 canned messages (keys 1–6; team-only in team modes). No free text.
 - Persistent pilot card (anonymous token, no account) and a weekly / all-time leaderboard.
 - **Pilot's manual** (*Pilot El Kitabı*): an in-game book with chapters on getting started,
