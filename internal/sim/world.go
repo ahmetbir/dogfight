@@ -11,8 +11,6 @@ import (
 const (
 	RespawnTicks = 180 // 3 s
 	ProtectTicks = 120 // 2 s spawn protection
-	PlaneRadius  = 9.0 // plane-plane collision sphere
-	HitRadius    = 7.0 // bullet hit sphere
 )
 
 // missileIDBase keeps missile IDs disjoint from player IDs.

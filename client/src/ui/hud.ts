@@ -168,7 +168,7 @@ export class Hud {
     const lockPlane = v.lockTarget ? v.planeAt(v.lockTarget) : null;
     // The box frames the drawn plane; the lead uses where it is now.
     this.reticle.update({
-      alive: v.alive, pos: v.pos, vel: v.vel, fwd: v.fwd, aimDir: v.aimDir, project: v.project,
+      alive: v.alive, pos: v.pos, vel: v.vel, fwd: v.fwd, aimDir: v.aimDir, project: v.project, muzzle: v.muzzle,
       lock: lockPlane && v.lockProgress > 0
         ? {
           pos: lockPlane.pos, progress: v.lockProgress, locked: v.locked, dist: dist(lockPlane.pos, v.pos), kind: v.lockKind,

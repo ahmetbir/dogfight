@@ -13,9 +13,6 @@ const (
 	ramFactor        = 0.5    // damage = ramFactor * |relative velocity|
 )
 
-// BuildingRadius is the plane sphere against buildings and hangar walls.
-const BuildingRadius = 5.0
-
 // damage applies dmg unless protected; emits EvHit and, at 0 HP, EvKill.
 func (w *World) damage(p *Plane, by ID, dmg float64, weapon Weapon, ev *[]Event) {
 	if !p.Alive || !(dmg > 0) || w.tick < p.ProtectUntil { // !(>) also rejects NaN
@@ -56,14 +53,15 @@ func (w *World) hazards(ev *[]Event) {
 			w.kill(p, 0, WCrash, ev) // crashes ignore protection
 			continue
 		}
+		wall := SpecOf(p.Kind).WallRadius()
 		if w.cfg.Map != nil {
-			if _, _, hit := w.cfg.Map.Solids.Sweep(w.prev[id], p.Pos, BuildingRadius); hit {
+			if _, _, hit := w.cfg.Map.Solids.Sweep(w.prev[id], p.Pos, wall); hit {
 				w.kill(p, 0, WCrash, ev)
 				continue
 			}
 		}
 		if w.structs != nil { // hangar targets stay hollow: their walls are solids already
-			if _, _, hit := w.structSweep(w.prev[id], p.Pos, BuildingRadius, w.solidStruct); hit {
+			if _, _, hit := w.structSweep(w.prev[id], p.Pos, wall, w.solidStruct); hit {
 				w.kill(p, 0, WCrash, ev)
 				continue
 			}
@@ -86,7 +84,8 @@ func (w *World) hazards(ev *[]Event) {
 				continue // protected or on its wheels: neither rams nor is rammed
 			}
 			rel, relV := b.Pos.Sub(a.Pos), b.Vel.Sub(a.Vel)
-			if !(rel.Len() < 2*PlaneRadius && rel.Dot(relV) < 0) { // positive form: NaN never rams
+			reach := SpecOf(a.Kind).RamRadius() + SpecOf(b.Kind).RamRadius()
+			if !(rel.Len() < reach && rel.Dot(relV) < 0) { // positive form: NaN never rams
 				continue
 			}
 			dmg := ramFactor * relV.Len()
