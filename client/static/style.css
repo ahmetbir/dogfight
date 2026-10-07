@@ -142,6 +142,34 @@ p { margin: 0; line-height: 1.5; }
 .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(4, 8, 14, 0.55); z-index: 10; }
 .overlay.passive { pointer-events: none; background: rgba(4, 8, 14, 0.35); }
 
+/* pre-match lobby (ui/lobby.ts) */
+body.in-lobby .hud { visibility: hidden; } /* no flight readouts before Start */
+.lobby-body { display: flex; flex-direction: column; gap: 16px; }
+.lobby-cols { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.lobby-cols.two { grid-template-columns: 1fr 1fr; }
+.lobby-col { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03); }
+.lobby-col.nato.mine { border-color: rgba(90, 169, 255, 0.55); }
+.lobby-col.soviet.mine { border-color: rgba(255, 95, 87, 0.55); }
+.lobby-col-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.lobby-col-head h3 { margin: 0; font-size: 13px; }
+.lobby-col-head .team-tag.none { color: var(--hud); background: rgba(124, 255, 178, 0.1); }
+.lobby-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.lobby-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.25); min-height: 22px; }
+.lobby-row.me { box-shadow: 0 0 0 1px var(--hud-dim) inset; }
+.lobby-row.bot { background: rgba(0, 0, 0, 0.12); border: 1px dashed rgba(255, 255, 255, 0.10); }
+.lobby-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.lobby-kind { margin-left: auto; font-size: 13px; white-space: nowrap; }
+.lobby-badge { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 6px; border-radius: 5px; flex: none; }
+.lobby-badge.host { color: #062615; background: var(--amber); }
+.lobby-badge.me { color: var(--hud); background: rgba(124, 255, 178, 0.12); }
+.lobby-action { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.lobby-here { font-size: 13px; }
+.lobby-me { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.lobby-wait { display: inline-flex; align-items: center; gap: 10px; }
+.lobby-start { min-width: 160px; }
+.btn.team-switch.nato:not(:disabled) { border-color: rgba(90, 169, 255, 0.55); }
+.btn.team-switch.soviet:not(:disabled) { border-color: rgba(255, 95, 87, 0.55); }
+
 .plane-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
 .team-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 14px; }
 .team-pick .team-seg { flex: 0 1 340px; }

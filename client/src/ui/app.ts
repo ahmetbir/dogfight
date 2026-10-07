@@ -22,10 +22,11 @@ import { fill, h } from "./dom.ts";
 import { ChatMenu, ChatThrottle } from "./chat.ts";
 import { Hud } from "./hud.ts";
 import { escapeAction, keyRouter } from "./keys.ts";
+import { LobbyScreen, lobbyView } from "./lobby.ts";
 import { kindsFor, PickScreen, waitLeft } from "./pick.ts";
 import { RoundEnd, Scoreboard } from "./scoreboard.ts";
 import { SettingsMenu } from "./settings.ts";
-import { noticeOf, switchRow, TeamFlow } from "./team.ts";
+import { CHOOSE_GAP_MS, noticeOf, switchRow, TeamFlow } from "./team.ts";
 import { TouchPad } from "./touchpad.ts";
 
 const UI_MS = 100;
@@ -54,6 +55,21 @@ export function play(o: PlayOpts): void {
   const feed = new Feed();
   const pick = new PickScreen((k) => choose(k), () => closeMenus(true), (c) => teams.choose(c, performance.now()), (lo) => chooseLoadout(lo));
   const teams = new TeamFlow((team) => socket.send({ t: "team", team }), state);
+  let lobbyNote = "";
+  let lobbyNoteUntil = 0;
+  let sideSentAt = -Infinity;
+  const lobby = new LobbyScreen({
+    side: (team) => {
+      const now = performance.now();
+      if (now - sideSentAt < CHOOSE_GAP_MS) return; // side shares the server's choice bucket
+      if (socket.send({ t: "side", team })) {
+        sideSentAt = now;
+        chosen = null; // the server gives me the new side's aircraft; the roster shows it
+      }
+    },
+    plane: () => openPick(),
+    start: () => { socket.send({ t: "start" }); },
+  });
   const menu = new SettingsMenu(settings, {
     changed: (s) => {
       extra.changed?.(s);
@@ -84,7 +100,7 @@ export function play(o: PlayOpts): void {
       menu.focusBook(); // back on the Kitap button that opened it
     },
   });
-  const blocked = () => pick.isOpen() || menu.isOpen() || book.isOpen();
+  const blocked = () => pick.isOpen() || menu.isOpen() || book.isOpen() || lobby.isOpen();
   const hud = new Hud(state, blocked);
   hud.setStyle(settings);
   const board = new Scoreboard();
@@ -104,14 +120,28 @@ export function play(o: PlayOpts): void {
   let welcomeAt = performance.now(); // the server's pick timeout starts at each welcome
 
   const me = () => state.players.get(state.you);
+  // In the lobby the pick only records my aircraft (the plane comes with Start): no
+  // pick timeout, nothing "flying now", and the side is chosen on the lobby screen.
   const pickView = () => ({
     code: state.code, team: me()?.team ?? "none", aircraft: [...state.aircraft.values()],
-    current: me()?.kind ?? null, chosen, protectedNow: !!state.planes.get(state.you)?.pr, waiting: waiting(),
+    current: state.inLobby() ? null : me()?.kind ?? null, chosen: state.inLobby() ? chosen ?? me()?.kind ?? null : chosen,
+    protectedNow: !!state.planes.get(state.you)?.pr, waiting: waiting(),
     waitLeft: waitLeft(welcomeAt, performance.now()),
-    teamPick: teams.pickView(performance.now()),
+    teamPick: state.inLobby() ? null : teams.pickView(performance.now()),
     loadout,
   });
-  const waiting = () => !state.planes.has(state.you); // joined, no plane until the first pick
+  const waiting = () => !state.planes.has(state.you) && !state.inLobby(); // joined, no plane until the first pick
+  const showLobby = () => {
+    if (!state.inLobby() || !state.lobby) {
+      if (lobby.isOpen()) lobby.close();
+      document.body.classList.remove("in-lobby");
+      return;
+    }
+    const now = performance.now();
+    lobby.show(lobbyView({ msg: state.lobby, you: state.you, mode: state.mode, code: state.code, aircraft: state.aircraft,
+      note: now < lobbyNoteUntil ? lobbyNote : "" }));
+    document.body.classList.add("in-lobby"); // portrait phones: no turn-sideways prompt over the lobby
+  };
   let spectate: number | null = null; // the plane watched while waiting (pick screen closed)
   const cycle = (step: 1 | -1) => {
     if (!waiting() || blocked()) return;
@@ -123,7 +153,7 @@ export function play(o: PlayOpts): void {
     if (socket.send({ t: "pick", kind: k, lo: loadout })) chosen = k;
     closeMenus(true);
   }
-  /** A loadout click: flying, it goes out at once with my aircraft (now if protected, else next spawn); before the first plane it waits for the aircraft pick. */
+  /** A loadout click: flying or in the lobby, it goes out at once with my aircraft (now if protected, else next spawn); before the first plane it waits for the aircraft pick. */
   function chooseLoadout(lo: Loadout): void {
     loadout = lo;
     const kind = chosen ?? me()?.kind;
@@ -148,7 +178,7 @@ export function play(o: PlayOpts): void {
     pick.close();
     menu.close();
     book.hide();
-    if (relock && settings.scheme === "mouse" && started) {
+    if (relock && settings.scheme === "mouse" && started && !state.inLobby()) {
       try {
         void Promise.resolve(canvas.requestPointerLock()).catch(() => {});
       } catch {
@@ -240,6 +270,7 @@ export function play(o: PlayOpts): void {
       roundEnd.hide();
       if (board.isOpen()) board.show(hud.board());
     }
+    showLobby();
     if (pick.isOpen()) pick.show(pickView());
     hud.waiting(waiting(), waitLeft(welcomeAt, performance.now()), settings.scheme === "touch");
     const now = performance.now();
@@ -257,8 +288,16 @@ export function play(o: PlayOpts): void {
     if (m.t === "pong") link.pong(m.ts, now);
     const evs = state.apply(m, now);
     feed.emit(m, evs);
-    // Switched teams: the new team's aircraft, with a fresh pick timer.
-    if (teams.apply(m, evs, performance.now())) { chosen = null; welcomeAt = performance.now(); openPick(); }
+    // Switched teams: the new team's aircraft, with a fresh pick timer (the lobby keeps its own screen).
+    if (teams.apply(m, evs, performance.now()) && !state.inLobby()) { chosen = null; welcomeAt = performance.now(); openPick(); }
+    if (m.t === "lobby" || m.t === "round") {
+      const wasOpen = lobby.isOpen();
+      showLobby();
+      if (wasOpen && !lobby.isOpen()) { // the host started: fly
+        pick.close();
+        closeMenus(true);
+      }
+    }
     if (m.t === "welcome") {
       if (m.tok) { // a new pilot: keep the token for the next hello and /api/me
         storeToken(m.tok);
@@ -268,7 +307,7 @@ export function play(o: PlayOpts): void {
       if (location.pathname !== `/r/${m.code}`) history.replaceState(null, "", `/r/${m.code}`);
       if (!started) {
         started = true;
-        fill(ui, hud.el, board.el, roundEnd.el, pick.el, menu.el, book.el);
+        fill(ui, hud.el, board.el, roundEnd.el, lobby.el, pick.el, menu.el, book.el);
         document.body.classList.add("in-game"); // portrait phones: the turn-sideways prompt
         syncTouch();
         game = startGame({
@@ -281,7 +320,12 @@ export function play(o: PlayOpts): void {
       }
     }
     if (m.t === "chat") hud.chat(m.from, m.id);
-    if (m.t === "notice") hooks.notice?.(noticeOf(m)); // a refused team choice
+    if (m.t === "notice") { // a refused team choice or lobby request
+      hooks.notice?.(noticeOf(m));
+      lobbyNote = noticeOf(m);
+      lobbyNoteUntil = performance.now() + 4000;
+      showLobby();
+    }
     if (m.t === "players") {
       const mine = me();
       if (!mine) return;
@@ -290,10 +334,12 @@ export function play(o: PlayOpts): void {
         const ok = kindsFor(mine.team, [...state.aircraft.values()]).some((a) => a.kind === chosen);
         if (ok && (mine.kind !== chosen || loadout !== "ir")) socket.send({ t: "pick", kind: chosen, lo: loadout }); // a new seat starts on IR
       }
-      if (showPick) {
-        showPick = false;
-        openPick();
-      }
+    }
+    // The first round message says whether the room waits in its lobby (the
+    // roster came before it): the lobby screen, or the pick screen as before.
+    if (m.t === "round" && showPick && me()) {
+      showPick = false;
+      if (!state.inLobby()) openPick();
     }
   };
 
