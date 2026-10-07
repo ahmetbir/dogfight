@@ -54,7 +54,8 @@
 .hud-conn.poor .conn-bar.on { background: var(--amber); }
 .hud-conn.lost .conn-bar.on { background: var(--danger); }
 .conn-ms { display: none; font-size: 12px; font-weight: 700; line-height: 14px; color: #e4ecf4; }
-.hud-conn:hover .conn-ms, .hud-conn.open .conn-ms { display: inline; }
+.hud-conn:hover .conn-ms, .hud-conn.open .conn-ms, .hud-conn:not(.good) .conn-ms { display: inline; } /* readable in flight unless all is well */
+.hud.waiting .hud-conn { display: none; }
 .hud-conn-warn { font-size: 15px; font-weight: 800; letter-spacing: 0.12em; color: #1a1200; background: var(--amber); padding: 4px 14px; border-radius: 8px; text-shadow: none; }
 .killfeed { position: absolute; top: 16px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; max-width: 46vw; }
 .kf-line { display: flex; gap: 8px; align-items: center; font-size: 14px; font-weight: 600; background: rgba(6, 12, 18, 0.5); padding: 4px 10px; border-radius: 7px; white-space: nowrap; }
