@@ -95,7 +95,7 @@ All of this runs without a browser. Run the client commands with Node 22 on `PAT
 ```sh
 go vet ./... && go test ./... -short -count=1   # fast: skips the long match simulations
 go test ./... -race -count=1                     # full, with the race detector
-go test ./internal/game/ -run TestBalance -v -balance   # bot balance, slow, opt-in
+go test ./internal/game/ -run TestBalance -v -balance   # bot round-robin over every kind (~30 s), opt-in; without -balance it flies 2 duels per pair and judges nothing
 ```
 
 ### 2. Golden suite (`internal/golden`)
@@ -349,6 +349,24 @@ bucket; otherwise players get kicked with `flood`. Core types (`hello`, `create`
   only reviewed pull requests, and the environment's secrets reach only approved main runs.
 - `TestDockerfileCopiesEveryGoDir` fails if a new top-level Go directory is not `COPY`'d in the
   `Dockerfile`.
+
+### Aircraft kinds and balance
+
+- A kind is a `sim.Spec` row (`internal/sim/aircraft.go`, role in the comment above the table), a
+  `.glb` from `tools/blender/kinds/<kind>.py`, an entry in `tools/blender/contract.json`, RULES
+  lines and an `AIRCRAFT` entry in `client/src/book/rules.ts` (pinned by
+  `internal/match/book_rules_test.go`), a role in `client/src/ui/roles.ts` with `role.*` i18n
+  lines. Kinds travel as strings; `sim.ParseKind` refuses anything else.
+- **The model carries the missile load:** one `msl_i` node per `Spec.Missiles`. Changing a
+  count means changing the kind's Blender build too (`contract.json` is checked by build.py,
+  the client model test and `TestContractMissilesAreTheSimLoad`).
+- `Length`, `Span`, `Nose` are measured from the `.glb` (`render/shape.test.ts` fails on drift);
+  the wall sphere is capped at `MaxWallRadius` (8.4 m) so the widest jets fit the hangar roof.
+- **Balance:** Hard-bot duels are decided mostly by lock range (+150 m took the F-16 from 31 % to
+  64 % of its duels), then HP; speed, agility and flares move it little. Keep lock ranges close
+  and carry roles with HP and flight numbers; re-run `TestBalance -balance` after any Spec change.
+  The induced-drag test (`TestInducedDragBleedsSustainedTurn`) bounds corner speed and thrust.
+- Teammates do not ram each other unless the room has friendly fire on.
 
 ### Input
 
