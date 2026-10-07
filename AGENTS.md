@@ -224,9 +224,21 @@ dependencies to this repo.
   server-side).
 - The client predicts its own plane and reconciles on each snapshot: unacknowledged inputs are
   replayed (`roomkit/ts/predict/reconcile.ts`, baseline = median offset over ~30 snapshots),
-  corrections are smoothed with a 0.1 s time constant and corrections over 50 m snap
-  (`client/src/predict/predictor.ts`). Other planes are interpolated 100 ms behind
+  corrections are smoothed with a time constant that grows with their size (0.15 s up to 1 m,
+  0.6 s from 40 m), attitude corrections are rate limited to 120°/s, and only corrections over
+  150 m snap (`client/src/predict/predictor.ts`). Other planes are interpolated 100 ms behind
   (`INTERP_DELAY_MS`).
+- **Stalls** (`client/src/game/own.ts`, `client/src/net/link.ts`): after 250 ms without server
+  traffic, prediction eases over 250 ms from the player's stick to the last input the server got
+  (the one it repeats while starved); the inputs sent stay the player's. The snapshots queued
+  during the stall arrive in a burst with a lagging ack: they are not reconciled until the
+  server acks the input sent when traffic resumed (at most 60 client ticks), so the reconciler's
+  median baseline never re-anchors on that transient. `client/src/game/stall.test.ts` drives the
+  whole client path through a 1.5 s two-way stall against the Go-parity server models.
+- **Connection indicator** (`client/src/net/link.ts`, `client/src/ui/conn.ts`): a 1 Hz ping in a
+  match gives the RTT (pong echoes the ping's `performance.now()`); silence and gaps in the
+  snapshot ticks grade the link; the banner shows after 1 s of silence and stays 600 ms after
+  recovery.
 - **Instant mocks hide ordering races.** Netcode that passes with zero-latency fakes can still
   fail under real delay. Test it with latency: `client/src/predict/converge.test.ts` and
   `jitter.test.ts` (delay steps, stalls, bursty delivery), and `SERVER_ARGS="-lag 100ms"
@@ -246,7 +258,7 @@ Server (`roomkit/server/guard.go`, `inbound.go`, defaults in `server.go`):
 
 Client (`roomkit/ts/net/shaper.ts`, Dogfight policy `client/src/net/shaper.ts`): while the
 socket has more than 8 KB buffered or the server has been silent for 1 s, only the newest input
-is held; picks go out at most every 500 ms; pings every 15 s (server idle-closes at 30 s);
+is held; picks go out at most every 500 ms; pings every 15 s (server idle-closes at 30 s) plus one per second in a match (`net/link.ts`);
 chat through `ChatThrottle`.
 
 **Adding a client message type:** give it a rate class in `internal/front` (`Kit.Class`), allow
