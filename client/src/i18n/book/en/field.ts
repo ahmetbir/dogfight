@@ -85,8 +85,11 @@ export const field: Field = {
       [b("Target"), ": while a lock builds, a diamond closes round the target and the seeker's cone shows; locked, the diamond fills and reads LOCK (dashed for radar). ",
         "Beside it the missile kind and the distance (km), under it the range bar. On a gun target, the lead ring; the arc round it shortens as the target closes."],
       [b("Bottom right"), " (top right on touch): missiles, range (RNG), flares (FLR), gun heat (GUN), HP, damage (ENG, CTL, AVN)."]),
-    p("The radar, score, warnings and event feed keep their places, in the same colour. Over a bright sky the symbols get a soft shadow ",
-      "from what lies behind them, and the readouts a very faint backing."),
+    p("The rest of the HUD takes the same colour and moves: on desktop the radar goes to the bottom left, the mission text and score to the top left, ",
+      "the warnings under the heading tape and the centre messages to the bottom centre; on touch the mission text and score sit at the top centre. ",
+      "Over a bright sky the symbols get a soft shadow from what lies behind them, and the readouts a very faint backing."),
+    p(b("Radar"), ": one colour, so the shapes tell the contacts apart. A hollow circle is a friend, a filled diamond an enemy, a cross a power-up, ",
+      "a hollow square a base target, a small dim dot a missile; a dot with a blinking ring is a missile tracking you."),
   ],
 
   tips: () => [
