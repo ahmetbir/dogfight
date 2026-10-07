@@ -15,8 +15,9 @@ type Input struct {
 	Pitch, Roll, Yaw         float64 // [-1,1]
 	Throttle                 float64 // [0,1]
 	AB, Fire, Missile, Flare bool
-	Gear, Brake              bool // desired gear-down state; wheel brakes (held)
-	Bomb                     bool // drop one bomb (one-shot)
+	Gear, Brake              bool        // desired gear-down state; wheel brakes (held)
+	Bomb                     bool        // drop one bomb (one-shot)
+	Pick                     MissilePick // missile kind the pilot chose (held; PickAuto for bots and old clients)
 }
 
 // Clamp bounds the axes; non-finite values (NaN, ±Inf) become 0.
@@ -25,6 +26,9 @@ func (in Input) Clamp() Input {
 	in.Roll = clampFinite(in.Roll, -1, 1)
 	in.Yaw = clampFinite(in.Yaw, -1, 1)
 	in.Throttle = clampFinite(in.Throttle, 0, 1)
+	if in.Pick > PickRadar {
+		in.Pick = PickAuto
+	}
 	return in
 }
 

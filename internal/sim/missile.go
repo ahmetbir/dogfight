@@ -36,15 +36,17 @@ func angleBetween(a, b geom.Vec3) float64 {
 // updateLock tracks the airborne hostile plane closest to the nose inside
 // the lock cone and the longest range of the missiles left; holding it for
 // the lock time of the kind the missile key would fire (lockKind) sets
-// Locked and emits EvLock. A plane on its wheels cannot be locked.
-func (w *World) updateLock(p *Plane, ev *[]Event) {
+// Locked and emits EvLock. A plane on its wheels cannot be locked. A picked
+// kind (pickedKind) locks only at that kind's range and time.
+func (w *World) updateLock(p *Plane, pick MissilePick, ev *[]Event) {
 	if p.Missiles <= 0 && p.Radars <= 0 {
 		p.LockTarget, p.LockTime, p.Locked, p.LockKind = 0, 0, false, MissileIR
 		return
 	}
 	irRange := w.lockRange(p.Kind)
+	picked, fixed := pickedKind(p, pick)
 	lockRange := irRange
-	if p.Radars > 0 {
+	if fixed && picked == MissileRadar || !fixed && p.Radars > 0 {
 		lockRange *= RadarRangeMul
 	}
 	fwd := p.Rot.Forward()
@@ -72,7 +74,9 @@ func (w *World) updateLock(p *Plane, ev *[]Event) {
 	default:
 		p.LockTarget, p.LockTime, p.Locked = cand, 0, false
 	}
-	p.LockKind = lockKind(p, w.planes[cand].Pos.Dist(p.Pos), irRange)
+	if p.LockKind = picked; !fixed {
+		p.LockKind = lockKind(p, w.planes[cand].Pos.Dist(p.Pos), irRange)
+	}
 	locked := p.LockTime >= p.LockKind.LockSeconds()-1e-9 // 120 × Dt sums to just under 2
 	if locked && !p.Locked {
 		*ev = append(*ev, Event{Kind: EvLock, Plane: p.ID, Other: p.LockTarget, Missile: p.LockKind})

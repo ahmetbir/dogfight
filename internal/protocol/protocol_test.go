@@ -272,6 +272,19 @@ func TestBaseModeWire(t *testing.T) {
 	}
 }
 
+// sel carries the picked missile kind; missing or unknown is auto (old clients, bots).
+func TestInputPick(t *testing.T) {
+	for wire, want := range map[string]sim.MissilePick{
+		`{"t":"in","seq":1}`: sim.PickAuto, `{"t":"in","seq":1,"sel":1}`: sim.PickIR,
+		`{"t":"in","seq":1,"sel":2}`: sim.PickRadar, `{"t":"in","seq":1,"sel":9}`: sim.PickAuto,
+	} {
+		m, err := DecodeClient([]byte(wire))
+		if err != nil || m.Input().Pick != want {
+			t.Errorf("%s: pick %v (%v), want %v", wire, m.Input().Pick, err, want)
+		}
+	}
+}
+
 // Outside base attack the wire carries no structures, bombs or objective.
 func TestNonBaseWireHasNoBaseAttackFields(t *testing.T) {
 	for _, k := range []mode.Kind{mode.Team, mode.FFA} {
