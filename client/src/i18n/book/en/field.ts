@@ -8,6 +8,7 @@ import type { MapKind, WeatherKind } from "../../../net/protocol.ts";
 import { MAPS, mapName, WEATHERS, weatherName } from "../../../ui/create.ts";
 import type { Child } from "../../../ui/dom.ts";
 import { RADAR_M } from "../../../ui/radar.ts";
+import { UNSTABLE_MS } from "../../../net/link.ts";
 import { t } from "../../index.ts";
 import type { Field } from "../types.ts";
 
@@ -68,6 +69,10 @@ export const field: Field = {
     p(b(t("hud.prot")), ": spawn or ground protection is on. ", b("Name tags"), ": an enemy's name shows only within ", dist(TAG_NEAR_M),
       ", or near your gun line (within ", deg(TAG_GUN_RAD), ") and closer than ", dist(TAG_GUN_M), "; friends' names always show."),
     p("If the screen flashes red, you were hit; the small mark in the middle of the screen shows that you hit. When your HP runs low, the HP bar turns red."),
+    p(b("Connection"), ": the bars under the radar (beside it on phones and tablets) show your link to the server: four green bars when all is well, then fair, poor, ",
+      "and one red bar when the server has gone quiet. Hover or tap them for the round trip in ms; when the link isn't good, the ms shows by itself. After ",
+      sec(UNSTABLE_MS / 1000), " without a word from the server, ", b(t("conn.unstable")), " appears under the score. Your plane then flies on with the last input the server got; ",
+      "when the link is back it glides to where the server has it instead of jumping."),
   ],
 
   tips: () => [
