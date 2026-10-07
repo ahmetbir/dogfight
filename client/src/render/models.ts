@@ -1,6 +1,6 @@
 // Aircraft models: procedural low-poly builders and optional .glb overrides.
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { airframe } from "../game/airframe.ts";
 import { palette, type Model, type Palette, type Team } from "./models/common.ts";
 import { buildF15 } from "./models/f15.ts";
@@ -45,6 +45,16 @@ export function buildModel(kind: string, team: Team, own = false): THREE.Group {
 }
 
 /**
+ * GLTFLoader plugin: embedded textures through <img> (CSP img-src allows
+ * blob:), not fetch (connect-src 'self'). It overwrites an internal field of
+ * three's GLTFParser (checked against 0.186); models.test.ts guards it.
+ */
+export function imgTextures(parser: GLTFParser): { name: string } {
+  parser.textureLoader = new THREE.TextureLoader(parser.options.manager);
+  return { name: "dogfight_img_textures" };
+}
+
+/**
  * Loads /models/<kind>.glb when the build listed it in
  * /models/manifest.json; null otherwise (never fetches a missing file).
  */
@@ -57,11 +67,7 @@ export async function tryLoadGlb(kind: string): Promise<THREE.Group | null> {
     if (!Array.isArray(kinds) || !kinds.includes(kind)) return null;
     listed = true;
     const loader = new GLTFLoader();
-    // Embedded textures through <img> (CSP img-src allows blob:), not fetch (connect-src 'self').
-    loader.register((parser) => {
-      parser.textureLoader = new THREE.TextureLoader(parser.options.manager);
-      return { name: "dogfight_img_textures" };
-    });
+    loader.register(imgTextures);
     const gltf = await loader.loadAsync(`/models/${kind}.glb`);
     return gltf.scene;
   } catch (e) {

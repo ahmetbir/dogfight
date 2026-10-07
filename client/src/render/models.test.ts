@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
 import { airframe } from "../game/airframe.ts";
-import { buildModel } from "./models.ts";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { buildModel, imgTextures } from "./models.ts";
 import { measure } from "./shape.ts";
 
 const KINDS = ["f16", "f15", "mig29", "su27"];
@@ -55,4 +56,28 @@ test("team colors differ", () => {
   assert.equal(color("nato"), "9aa3ad");
   assert.equal(color("soviet"), "a8b8c0");
   assert.equal(color("none", true), "e8b33a");
+});
+
+// CSP forbids fetching blob: textures, so imgTextures must replace the parser's
+// image loader. It does so through an internal field of three's GLTFParser:
+// this fails if a three upgrade renames or rebuilds it.
+test("imgTextures swaps the parser's ImageBitmapLoader for a TextureLoader", async () => {
+  const g = globalThis as { createImageBitmap?: unknown };
+  const saved = g.createImageBitmap;
+  g.createImageBitmap = () => undefined; // three picks ImageBitmapLoader when this exists
+  try {
+    const seen: string[] = [];
+    const probe = (when: string) => (parser: { textureLoader?: unknown }) => {
+      seen.push(`${when}:${parser.textureLoader?.constructor?.name}`);
+      return { name: `probe_${when}` };
+    };
+    const loader = new GLTFLoader();
+    loader.register(probe("before"));
+    loader.register(imgTextures);
+    loader.register(probe("after"));
+    await new Promise((resolve, reject) => loader.parse(JSON.stringify({ asset: { version: "2.0" } }), "", resolve, reject));
+    assert.deepEqual(seen, ["before:ImageBitmapLoader", "after:TextureLoader"]);
+  } finally {
+    g.createImageBitmap = saved;
+  }
 });
