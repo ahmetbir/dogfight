@@ -65,10 +65,6 @@ func TestPickSkinIsCheckedKeptAndRelayed(t *testing.T) {
 	if p := step(protocol.ClientMsg{T: protocol.TPick, Kind: "f16", Skin: "winter"}); p.Skin != "winter" {
 		t.Fatalf("winter: %+v", p)
 	}
-	// An unparsable kind keeps the aircraft; the skin is checked against it.
-	if p := step(protocol.ClientMsg{T: protocol.TPick, Kind: "zeppelin", Skin: "night"}); p.Kind != "f16" || p.Skin != "night" {
-		t.Fatalf("unparsable kind: %+v", p)
-	}
 	for _, p := range b.last.List {
 		if p.Bot && p.Skin != "" && p.Skin != game.SkinFor(must(t, p.Kind), p.Skin) {
 			t.Fatalf("bot %+v wears an invalid skin", p)

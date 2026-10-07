@@ -125,3 +125,59 @@ func TestBotsWearASeededValidSkinPerSeat(t *testing.T) {
 		t.Fatal("another seed paints every bot the same")
 	}
 }
+
+// A team switch changes the kind: the roster's paint is the new jet's (its
+// own paint, standard if never set), never the old jet's scheme.
+func TestTeamSwitchKeepsTheSkinValidForTheNewJet(t *testing.T) {
+	g := New(Settings{Mode: mode.Team, Size: 2, Difficulty: bot.Easy, Seed: 1})
+	a, _ := g.AddHuman("a") // NATO
+	if err := g.ChooseTeam(a, sim.TeamSoviet); err != nil {
+		t.Fatal(err)
+	}
+	if err := g.Pick(a, sim.Su27); err != nil {
+		t.Fatal(err)
+	}
+	g.SetSkin(a, "flanker")
+	if p := player(t, g, a); p.Kind != sim.Su27 || p.Skin != "flanker" {
+		t.Fatalf("su27: %+v", p)
+	}
+	g.switchAt = map[sim.ID]int{} // no cooldown for the test
+	if err := g.ChooseTeam(a, sim.TeamNATO); err != nil {
+		t.Fatal(err)
+	}
+	p := player(t, g, a)
+	if p.Team != sim.TeamNATO || SkinFor(p.Kind, p.Skin) != p.Skin || p.Skin != StandardSkin {
+		t.Fatalf("after the switch: kind %v skin %q fly %q", p.Kind, p.Skin, p.FlySkin)
+	}
+}
+
+// A pick for the next spawn paints the next jet; the jet in the air keeps
+// its own paint (FlySkin) until the new one spawns.
+func TestNextJetPaintLeavesTheFlyingJetAlone(t *testing.T) {
+	g := New(Settings{Mode: mode.FFA, Size: 4, Difficulty: bot.Easy, Seed: 1})
+	a, _ := g.AddHuman("a")
+	pick := func(k sim.Kind, skin string) Player {
+		if err := g.Pick(a, k); err != nil {
+			t.Fatal(err)
+		}
+		g.SetSkin(a, skin)
+		return player(t, g, a)
+	}
+	pick(sim.F14, "blackband") // spawns
+	pick(sim.F4, "night")      // in spawn protection: reseated in an F-4 at once (once per life)
+	p := pick(sim.F14, "naval") // the F-4 flies on; the F-14 waits for the next spawn
+	if pl, _ := g.world.Plane(a); pl.Kind != sim.F4 {
+		t.Fatalf("flying %v", pl.Kind)
+	}
+	if p.Kind != sim.F14 || p.Skin != "naval" || p.FlySkin != "night" {
+		t.Fatalf("next f14 naval, flying f4 night: %+v", p)
+	}
+	g.SetSkin(a, "winter") // repaint the next jet again: the F-4 still wears night
+	if p := player(t, g, a); p.Skin != "winter" || p.FlySkin != "night" {
+		t.Fatalf("%+v", p)
+	}
+	p = pick(sim.F4, "night") // back to the jet in the air
+	if p.Skin != "night" || p.FlySkin != "" {
+		t.Fatalf("same kind again: %+v", p)
+	}
+}

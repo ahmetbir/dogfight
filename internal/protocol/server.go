@@ -148,7 +148,10 @@ type PlayerJSON struct {
 	Team string `json:"team"`
 	Kind string `json:"kind"`
 	Bot  bool   `json:"bot"`
-	Skin string `json:"skin,omitempty"` // paint scheme; omitted: standard
+	Skin string `json:"skin,omitempty"` // paint of kind; omitted: standard
+	// Paint of the jet in the air when it is another kind than kind (a pick
+	// for the next spawn); omitted when it is the same paint or kind.
+	FlySkin string `json:"fskin,omitempty"`
 }
 
 // The core message types, under their old names.
@@ -256,6 +259,9 @@ func NewPlayers(ps []game.Player) PlayersMsg {
 		j := PlayerJSON{ID: p.ID, Name: p.Name, Team: TeamName(p.Team), Kind: p.Kind.String(), Bot: p.Bot}
 		if p.Skin != game.StandardSkin {
 			j.Skin = p.Skin
+		}
+		if p.FlySkin != "" && p.FlySkin != p.Skin {
+			j.FlySkin = p.FlySkin
 		}
 		list = append(list, j)
 	}

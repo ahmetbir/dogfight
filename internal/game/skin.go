@@ -67,15 +67,24 @@ func containsKind(ks []sim.Kind, k sim.Kind) bool {
 	return false
 }
 
-// SetSkin sets id's paint for its current aircraft (unknown or not allowed
-// for it: standard). It shows in the roster at once.
+// SetSkin sets id's paint for the aircraft it picked (unknown or not
+// allowed for it: standard). The paint is kept per kind: a jet still in the
+// air keeps its own until the picked one spawns.
 func (g *Game) SetSkin(id sim.ID, skin string) {
 	p, ok := g.players[id]
 	if !ok {
 		return
 	}
-	if s := SkinFor(p.Kind, skin); s != p.Skin {
-		p.Skin = s
+	if s := SkinFor(p.Kind, skin); s != p.paint(p.Kind) {
+		p.paints[p.Kind] = s
 		g.rosterVer++
 	}
+}
+
+// paint is p's paint for kind: valid for it by construction (SetSkin), else standard.
+func (p *Player) paint(kind sim.Kind) string {
+	if s, ok := p.paints[kind]; ok {
+		return s
+	}
+	return StandardSkin
 }

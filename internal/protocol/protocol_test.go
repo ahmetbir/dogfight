@@ -370,12 +370,14 @@ func TestPickSkinAndRosterSkin(t *testing.T) {
 	msg := NewPlayers([]game.Player{
 		{ID: 1, Name: "a", Kind: sim.Su27, Skin: "flanker"},
 		{ID: 2, Name: "b", Kind: sim.F16, Skin: game.StandardSkin},
+		{ID: 3, Name: "c", Kind: sim.F14, Skin: "naval", FlySkin: "night"},
+		{ID: 4, Name: "d", Kind: sim.F14, Skin: "naval", FlySkin: "naval"},
 	})
 	b, err := json.Marshal(msg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `{"t":"players","list":[{"id":1,"name":"a","team":"none","kind":"su27","bot":false,"skin":"flanker"},{"id":2,"name":"b","team":"none","kind":"f16","bot":false}]}`
+	want := `{"t":"players","list":[{"id":1,"name":"a","team":"none","kind":"su27","bot":false,"skin":"flanker"},{"id":2,"name":"b","team":"none","kind":"f16","bot":false},{"id":3,"name":"c","team":"none","kind":"f14","bot":false,"skin":"naval","fskin":"night"},{"id":4,"name":"d","team":"none","kind":"f14","bot":false,"skin":"naval"}]}`
 	if string(b) != want {
 		t.Fatalf("roster\n got %s\nwant %s", b, want)
 	}
