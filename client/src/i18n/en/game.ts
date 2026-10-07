@@ -38,6 +38,7 @@ export const game: Area<typeof tr> = {
   "scheme.touch": "Touch",
   "settings.sens": "Mouse sensitivity",
   "settings.invertY": "Invert Y axis",
+  "settings.lever": "Mouse as a lever: the plane keeps turning the way you moved the mouse",
   "settings.gfx": "G effects",
   "settings.missileCam": "Missile camera",
   "settings.perf": "Performance mode",

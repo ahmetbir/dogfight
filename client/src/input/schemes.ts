@@ -9,16 +9,17 @@ import { TouchScheme, type TouchState } from "./touch.ts";
 /**
  * gfx: G effects (blackout / red tint); missileCam: follow my missile;
  * perf: performance mode (lighter rendering); tilt: aim by tilting the device
- * (touch scheme only).
+ * (touch scheme only); lever: mouse aim as a lever (mouse scheme only): the
+ * aim keeps its offset from the nose, so a held offset keeps the plane turning.
  */
 export type Settings = {
   scheme: "mouse" | "keyboard" | "touch"; sensitivity: number; invertY: boolean; volume: number; gfx: boolean;
-  missileCam: boolean; perf: boolean; tilt: boolean;
+  missileCam: boolean; perf: boolean; tilt: boolean; lever: boolean;
 };
 
 /** Defaults for a fine (mouse) or coarse (touch) pointer. */
 export function defaultSettings(coarse: boolean): Settings {
-  return { scheme: coarse ? "touch" : "mouse", sensitivity: 1, invertY: false, volume: 0.8, gfx: true, missileCam: !coarse, perf: coarse, tilt: false };
+  return { scheme: coarse ? "touch" : "mouse", sensitivity: 1, invertY: false, volume: 0.8, gfx: true, missileCam: !coarse, perf: coarse, tilt: false, lever: false };
 }
 
 export const DEFAULT_SETTINGS: Settings = defaultSettings(false);
@@ -57,6 +58,7 @@ export function loadSettings(store: Pick<Storage, "getItem"> | null = globalThis
     missileCam: bool(raw.missileCam, d.missileCam),
     perf: bool(raw.perf, d.perf),
     tilt: bool(raw.tilt, d.tilt),
+    lever: bool(raw.lever, d.lever),
   };
 }
 
@@ -107,6 +109,7 @@ const THROTTLE_RATE = 0.5; // per second
 export const AIM_RAD_PER_PX = 0.0025;
 const MAX_AIM_PITCH = (85 * Math.PI) / 180;
 export const MAX_AIM_OFF = Math.PI / 3; // aim stays within 60° of the nose, so the plane stays on screen
+export const LEVER_DEAD = (1.5 * Math.PI) / 180; // lever offsets inside this hold the nose (no drift off a near-centred mouse)
 
 type Codes = readonly string[];
 /** Any of codes held down. */
@@ -164,6 +167,9 @@ class MouseScheme implements Scheme {
   readonly kind = "mouse";
   private yaw = NaN; // NaN until the first frame seeds it from the plane
   private pitch = 0;
+  private offYaw = 0;   // lever: aim offset from the nose's heading (rad, + left)
+  private offPitch = 0; // lever: aim offset from the nose's pitch (rad, + up)
+  private heading = 0;  // lever: last nose heading, kept while the nose points nearly straight up or down
   private th = 0;
   private readonly gear = new GearWant();
   private readonly s: Settings;
@@ -174,22 +180,41 @@ class MouseScheme implements Scheme {
 
   reset(): void {
     this.yaw = NaN;
+    this.offYaw = this.offPitch = 0;
     this.gear.reset();
   }
 
   frame(st: Controls, plane: PlaneView, dtS: number): Frame {
     const g = this.gear.frame(takeAny(st, M.gear), plane.gear);
+    const nose = qForward(plane.rot);
     if (Number.isNaN(this.yaw)) {
-      const f = qForward(plane.rot);
-      this.yaw = Math.atan2(-f.x, -f.z);
-      this.pitch = Math.max(-MAX_AIM_PITCH, Math.min(MAX_AIM_PITCH, Math.asin(Math.max(-1, Math.min(1, f.y)))));
+      this.yaw = this.heading = Math.atan2(-nose.x, -nose.z);
+      this.pitch = Math.max(-MAX_AIM_PITCH, Math.min(MAX_AIM_PITCH, Math.asin(Math.max(-1, Math.min(1, nose.y)))));
       this.th = seedThrottle(plane);
       st.consumeMouse();
     }
     const m = st.consumeMouse();
     const k = this.s.sensitivity * AIM_RAD_PER_PX;
-    this.yaw -= m.dx * k; // mouse right → turn right
-    this.pitch -= m.dy * k * (this.s.invertY ? -1 : 1); // mouse up → nose up
+    const dYaw = -m.dx * k; // mouse right → turn right
+    const dPitch = -m.dy * k * (this.s.invertY ? -1 : 1); // mouse up → nose up
+    if (this.s.lever) {
+      // The aim rides on the nose (heading and pitch, horizon-level): a held offset never gets reached.
+      if (Math.abs(nose.y) < 0.98) this.heading = Math.atan2(-nose.x, -nose.z);
+      this.offYaw += dYaw;
+      this.offPitch += dPitch;
+      const r = Math.hypot(this.offYaw, this.offPitch);
+      if (r > MAX_AIM_OFF) {
+        this.offYaw *= MAX_AIM_OFF / r;
+        this.offPitch *= MAX_AIM_OFF / r;
+      }
+      const live = r > LEVER_DEAD;
+      this.yaw = this.heading + (live ? this.offYaw : 0);
+      this.pitch = Math.asin(Math.max(-1, Math.min(1, nose.y))) + (live ? this.offPitch : 0);
+    } else {
+      this.yaw += dYaw;
+      this.pitch += dPitch;
+      this.offYaw = this.offPitch = 0;
+    }
     this.pitch = Math.max(-MAX_AIM_PITCH, Math.min(MAX_AIM_PITCH, this.pitch));
     const c = Math.cos(this.pitch);
     let aimDir: V3 = { x: -Math.sin(this.yaw) * c, y: Math.sin(this.pitch), z: -Math.cos(this.yaw) * c };

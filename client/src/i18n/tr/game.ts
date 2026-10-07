@@ -36,6 +36,7 @@ export const game = {
   "scheme.touch": "Dokunmatik",
   "settings.sens": "Fare hassasiyeti",
   "settings.invertY": "Y eksenini ters çevir",
+  "settings.lever": "Fare kol gibi: fareyi kaydırdığın yöne uçak dönmeye devam eder",
   "settings.gfx": "G efektleri",
   "settings.missileCam": "Füze kamerası",
   "settings.perf": "Performans modu",
