@@ -129,4 +129,4 @@
 {"t":"header","n":31,"m":"X-Content-Type-Options: nosniff"}
 {"t":"body","n":68,"m":{"code":"updating","error":"sunucu güncelleniyor, yeniden bağlan"}}
 ## setup
-{"t":"welcome","n":46828,"h":"9a4c04374417000e","p":"{\"t\":\"welcome\",\"you\":9,\"code\":\"CODE\",\"mode\":\"team\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\""}
+{"t":"welcome","n":49712,"h":"2473d0a5482b1796","p":"{\"t\":\"welcome\",\"you\":9,\"code\":\"CODE\",\"mode\":\"team\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\""}
