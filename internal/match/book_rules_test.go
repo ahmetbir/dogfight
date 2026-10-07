@@ -249,3 +249,33 @@ func TestBookAircraftMatchServer(t *testing.T) {
 		}
 	}
 }
+
+// The pick screen's and the manual's roles (client/src/ui/roles.ts, ROLE) are
+// the sim's Spec.Role, kind for kind.
+func TestClientRolesMatchServer(t *testing.T) {
+	b, err := os.ReadFile("../../client/src/ui/roles.ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(b)
+	start := strings.Index(src, "export const ROLE")
+	if start < 0 {
+		t.Fatal("roles.ts: ROLE block not found")
+	}
+	end := strings.Index(src[start:], "};")
+	if end < 0 {
+		t.Fatal("roles.ts: ROLE block not closed")
+	}
+	got := map[string]string{}
+	for _, m := range regexp.MustCompile(`([a-z0-9]+): "([a-z]+)"`).FindAllStringSubmatch(src[start:start+end], -1) {
+		got[m[1]] = m[2]
+	}
+	if len(got) != len(sim.Kinds()) {
+		t.Fatalf("roles.ts ROLE has %d kinds, Go %d", len(got), len(sim.Kinds()))
+	}
+	for _, k := range sim.Kinds() {
+		if want := string(sim.SpecOf(k).Role); got[k.String()] != want {
+			t.Errorf("roles.ts ROLE %s = %q, Go %q", k, got[k.String()], want)
+		}
+	}
+}

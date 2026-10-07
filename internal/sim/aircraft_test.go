@@ -20,11 +20,13 @@ func TestSpecTable(t *testing.T) {
 		t.Fatal("teams wrong")
 	}
 	names := map[string]bool{}
+	roles := map[Role]bool{RoleLight: true, RoleMulti: true, RoleStealth: true, RoleInterceptor: true, RoleAttack: true, RoleCheap: true, RoleHeavy: true}
 	for _, k := range Kinds() {
 		s := SpecOf(k)
 		ok := s.Team != TeamNone && !names[s.Name] && s.MaxHP >= 50 && s.MaxHP <= 200 && s.Accel > 0 &&
 			s.RollRate > 0 && s.PitchRate > 0 && s.YawRate > 0 && s.Missiles >= 2 && s.Flares > 0 &&
-			s.LockRange >= 800 && s.LockRange <= 1200 && s.RotateSpeed > 50 && s.RotateSpeed < s.CornerSpeed && s.ExtraBombs >= 0
+			s.LockRange >= 800 && s.LockRange <= 1200 && s.RotateSpeed > 50 && s.RotateSpeed < s.CornerSpeed && s.ExtraBombs >= 0 &&
+			roles[s.Role]
 		if !ok {
 			t.Fatalf("implausible spec %+v", s)
 		}

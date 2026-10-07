@@ -1,12 +1,13 @@
 // Each aircraft's role, as the pick screen (ui/hangar.ts) and the pilot's
 // manual show it: a group tag and one line per kind (i18n role.*). The roles
-// follow the sim's spec table (internal/sim aircraft.go).
+// are the sim's Spec.Role (internal/sim aircraft.go); TestClientRolesMatchServer
+// (internal/match/book_rules_test.go) pins this table to it.
 import type { AircraftKind } from "../net/protocol.ts";
 import { t, type Key } from "../i18n/index.ts";
 
 export type RoleGroup = "light" | "multi" | "stealth" | "interceptor" | "attack" | "cheap" | "heavy";
 
-/** Each kind's role (the sim's roles, internal/sim aircraft.go). */
+/** Each kind's role: sim.Spec.Role, Go-checked. One `kind: "role"` pair per entry. */
 export const ROLE: Readonly<Record<AircraftKind, RoleGroup>> = {
   f16: "light", mig29: "light", rafale: "light", typhoon: "light",
   f15: "multi", su27: "multi", su30: "multi", f18: "multi",
