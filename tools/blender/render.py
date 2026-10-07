@@ -13,6 +13,8 @@ VIEWS = {
     "side": ((1.0, 0.06, 0.0), True, False),
     "top": ((0.0, 1.0, 0.02), False, False),
     "front": ((0.0, 0.12, -1.0), True, False),
+    "lowfront": ((-0.28, -0.30, -1.0), True, False),
+    "nose": ((0.0, -0.06, -1.0), False, False),
     "rear34": ((0.95, 0.45, 1.3), False, True),
 }
 DEFLECT = {"aileron_r": -0.35, "aileron_l": 0.35, "flap_r": 0.3, "flap_l": 0.3, "stab_r": -0.25, "stab_l": -0.12, "rudder": 0.3}
@@ -66,16 +68,16 @@ def pose(gear_down, deflect):
         ob.rotation_axis_angle = (a if deflect else 0.0, *ax)
 
 
-def shots(kind, out_dir):
+def shots(kind, out_dir, suffix=""):
     scene = bpy.context.scene
     cam = setup(scene)
     target = Vector((0.0, 0.0, -0.3))
     for name, (d, gear_down, deflect) in VIEWS.items():
         pose(gear_down, deflect)
         dv = Vector(to_blender(d)).normalized()
-        cam.location = target + dv * (60.0 if name == "top" else 46.0)
+        cam.location = target + dv * {"top": 60.0, "nose": 13.0}.get(name, 46.0)
         cam.rotation_euler = (-dv).to_track_quat("-Z", "Y").to_euler()
-        scene.render.filepath = os.path.join(out_dir, f"{kind}_{name}.png")
+        scene.render.filepath = os.path.join(out_dir, f"{kind}_{name}{suffix}.png")
         bpy.ops.render.render(write_still=True)
     pose(True, False)
     for ob in (cam, bpy.data.objects["sun"]):

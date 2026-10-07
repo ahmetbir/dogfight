@@ -6,9 +6,10 @@ import math
 
 import atlas as A
 from mesh import Part
-from parts import Surface, block, bubble, fuselage, lerp, missile, nozzle, plate, strake, tube
+from parts import Surface, block, bubble, duct, firing_order, fuselage, lerp, nozzle, plate, store, strake, tube
 
 NAME = "f16"
+MISSILES = 5  # sim.Spec.Missiles: one msl_i node each
 LENGTH = (-7.62, 7.45)  # pitot tip .. nozzle exit
 WING_Y = -0.02
 
@@ -23,15 +24,23 @@ FORE = [
     (-3.25, 0.00, 0.66, 0.55, 0.55, 0.53, 2.5, 2.4),
 ]
 AFT = [
-    (-3.25, 0.00, 0.66, 0.55, 1.24, 0.60, 2.5, 3.2),
-    (-2.40, 0.00, 0.72, 0.58, 1.24, 0.62, 2.6, 3.2),
-    (-1.30, 0.00, 0.80, 0.61, 1.18, 0.64, 2.8, 3.0),
-    (0.00, 0.00, 0.86, 0.63, 1.08, 0.68, 3.0, 3.0),
-    (1.50, 0.00, 0.88, 0.63, 0.92, 0.70, 3.0, 2.8),
-    (3.00, 0.00, 0.84, 0.62, 0.78, 0.70, 2.8, 2.6),
-    (4.50, 0.00, 0.74, 0.62, 0.68, 0.66, 2.4, 2.4),
+    (-2.40, 0.00, 0.72, 0.58, 0.62, 0.60, 2.6, 2.4),
+    (-1.30, 0.00, 0.80, 0.61, 0.68, 0.66, 2.8, 2.4),
+    (0.00, 0.00, 0.86, 0.63, 0.72, 0.70, 3.0, 2.4),
+    (1.50, 0.00, 0.88, 0.63, 0.74, 0.72, 3.0, 2.4),
+    (3.00, 0.00, 0.84, 0.62, 0.72, 0.70, 2.8, 2.4),
+    (4.50, 0.00, 0.74, 0.62, 0.66, 0.66, 2.4, 2.3),
     (5.80, 0.00, 0.64, 0.62, 0.62, 0.62, 2.1, 2.2),
     (6.60, 0.00, 0.60, 0.60, 0.60, 0.60, 2.0, 2.0),
+]
+# Chin intake: a wide, shallow "smile" under the radome; flat top, round
+# bottom, lower lip forward. z, cx, cy, half width, half height, exponents, slant.
+INTAKE = [
+    (-3.40, 0.0, -0.845, 0.77, 0.275, 3.2, 2.0, 0.14, 0.0, 0.08),
+    (-2.80, 0.0, -0.790, 0.72, 0.250, 3.0, 2.2),
+    (-1.40, 0.0, -0.720, 0.68, 0.280, 3.0, 2.4),
+    (0.30, 0.0, -0.640, 0.62, 0.300, 3.0, 2.4),
+    (1.90, 0.0, -0.520, 0.50, 0.260, 2.5, 2.4),
 ]
 CANOPY = [  # z, base y, half width, height
     (-4.85, 0.38, 0.06, 0.10),
@@ -100,7 +109,7 @@ def insignia(a, r):
 
 def half_width(z):
     """Fuselage half width at the chine at z (stations interpolated)."""
-    st = FORE[:-1] + AFT
+    st = FORE + AFT
     for a, b in zip(st, st[1:]):
         if a[0] <= z <= b[0]:
             return lerp(a[2], b[2], (z - a[0]) / (b[0] - a[0]) if b[0] > a[0] else 0)
@@ -130,7 +139,8 @@ def build():
     air = Part("airframe")
     half = Part("half")  # right-hand parts, mirrored at the end
 
-    fuselage(air, FORE, AFT, FUSE_R, nu=6, nl=6, fore_role=lambda i: "secondary" if i < 3 else "body")
+    fuselage(air, FORE + AFT, FUSE_R, nu=6, nl=6, role=lambda i: "secondary" if i < 3 else "body")
+    duct(air, INTAKE, lambda p, a: FUSE_R.uv(p[2], 0.5 + a), seg=20, lip=0.05, depth=1.3)
     # Radome and the pitot ahead of it.
     tube(air, (0, 0.06, -7.62), (0, 0.06, -7.20), [0.018, 0.03], 4, "metal", lambda a, l: missile_uv(0.5, 0.5))
     # Drag chute fairing at the fin root, reaching past the nozzle.
@@ -147,9 +157,15 @@ def build():
     w.decal(half, 3.05, 0.47, 0.34, -1, insignia)
     strake(half, [(0.78 * half_width(z), z) for _, z in LERX_OUT], LERX_OUT, WING_Y, 0.24, 0.10, wing_uv)
     block(half, (4.60, WING_Y, 2.70), (0.10, 0.12, 1.70), "secondary", wing_uv)
-    missile(half, (4.73, WING_Y - 0.01, 0.55), 3.65, 0.085, missile_uv, fins=((0.36, 0.11, 0.34), (0.88, 0.12, 0.30)))
     plate(half, [(3.20, WING_Y - 0.06, 1.25), (3.20, WING_Y - 0.06, 2.95), (3.20, -0.36, 2.75), (3.20, -0.36, 1.05)], "secondary", wing_uv, thick=0.07)
-    missile(half, (3.20, -0.44, 0.35), 2.90, 0.064, missile_uv, fins=((0.12, 0.09, 0.14), (0.86, 0.12, 0.26)))
+    # Stores (sim loadout: 5): AIM-120s on the tips, AIM-9s on the outer pylons, one on the left inner pylon.
+    amraam = dict(length=3.65, r=0.085, uv=missile_uv, fins=((0.36, 0.11, 0.34), (0.88, 0.12, 0.30)))
+    sidewinder = dict(length=2.90, r=0.064, uv=missile_uv, fins=((0.12, 0.09, 0.14), (0.86, 0.12, 0.26)))
+    tip = store((4.73, WING_Y - 0.01, 0.55), **amraam)
+    outer = store((3.20, -0.44, 0.35), **sidewinder)
+    inner = store((-2.20, -0.48, -0.05), **sidewinder)
+    plate(air, [(-2.20, WING_Y - 0.08, 0.85), (-2.20, WING_Y - 0.08, 2.55), (-2.20, -0.40, 2.35), (-2.20, -0.40, 0.65)], "secondary", wing_uv, thick=0.07)
+    stores = firing_order([inner, outer, outer.mirrored(), tip, tip.mirrored()])
 
     # Tail boom fairings either side of the engine; speed brakes at their ends.
     boom = [(z, k) for z, k in ((2.55, 0.05), (3.40, 1.0), (6.25, 1.0), (7.15, 0.85))]
@@ -195,7 +211,7 @@ def build():
     root.children = [air, cano]
     for p in surfaces:
         root.children += [p, p.mirrored()]
-    root.children += [stab, stab.mirrored(), rudder, gear()]
+    root.children += [stab, stab.mirrored(), rudder, gear()] + stores
     for name in ("ab_0", "idle_0"):
         root.children.append(Part(name, (0.0, 0.0, 7.45), {"radius": 0.46}))
     return root
@@ -207,8 +223,8 @@ def gear():
     dark, metal = "dark", "metal"
     m = lambda a, l: missile_uv(0.5, 0.5)
 
-    nose = Part("gear_nose", (0.0, -0.95, -2.70), {"retract": [1.0, 0.0, 0.0, -1.5708]})
-    tube(nose, (0, -0.95, -2.70), (0, -1.98, -2.70), [0.07, 0.06], 6, metal, m)
+    nose = Part("gear_nose", (0.0, -0.90, -2.70), {"retract": [1.0, 0.0, 0.0, -1.5708]})
+    tube(nose, (0, -0.90, -2.70), (0, -1.98, -2.70), [0.07, 0.06], 6, metal, m)
     for x in (-0.12, 0.12):
         block(nose, (x, -2.06, -2.64), (0.04, 0.34, 0.10), metal)
     tube(nose, (-0.09, -2.22, -2.62), (0.09, -2.22, -2.62), [0.28, 0.28], 10, dark, cap0=True, cap1=True)
@@ -219,8 +235,8 @@ def gear():
     tube(main, (0.72, -0.30, 0.25), (1.10, -1.25, 0.86), [0.045, 0.04], 5, metal, m)
     tube(main, (1.06, -2.14, 0.90), (1.30, -2.14, 0.90), [0.36, 0.36], 12, dark, cap0=True, cap1=True)
 
-    door_n = Part("door_nose", (0.21, -1.23, -2.20), {"retract": [0.0, 0.0, 1.0, -1.5708]})
-    plate(door_n, [(0.21, -1.23, -2.95), (0.21, -1.23, -1.50), (0.21, -1.62, -1.55), (0.21, -1.62, -2.90)], "body", plain, thick=0.03)
+    door_n = Part("door_nose", (0.21, -1.04, -2.20), {"retract": [0.0, 0.0, 1.0, -1.5708]})
+    plate(door_n, [(0.21, -1.04, -2.90), (0.21, -1.04, -1.50), (0.21, -1.43, -1.55), (0.21, -1.43, -2.85)], "body", plain, thick=0.03)
     door_m = Part("door_main_r", (1.46, -0.12, 0.95), {"retract": [0.0, 0.0, 1.0, -1.5708]})
     plate(door_m, [(1.46, -0.12, 0.25), (1.46, -0.12, 1.65), (1.46, -0.58, 1.55), (1.46, -0.58, 0.35)], "body", plain, thick=0.03)
 

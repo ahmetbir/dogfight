@@ -83,49 +83,72 @@ def profile(st, nu, nl):
     return pts
 
 
-def fuselage(body, fore, aft, reg, nu=5, nl=5, slant=0.35, lip=0.16, fore_role="body"):
-    """Lofted fuselage in two runs: fore (nose to the intake) and aft (intake
-    duct to the tail). The step between the last fore and first aft lower
-    halves is the intake mouth: a body lip and a dark recess. The lower lip
-    leans forward by slant metres.
-    """
+def fuselage(body, stations, reg, nu=5, nl=5, role="body"):
+    """Lofted fuselage, nose to tail, from cross-sections (see profile).
+    role is a string or role(i) for the band after station i. Intakes are
+    separate ducts (see duct)."""
     n = nu + nl + 1
     s = [k / (n - 1) for k in range(n)]
-
-    def rings(stations):
-        return [profile(st, nu, nl) for st in stations]
-
-    def uvrows(rs):
-        return [[reg.uv(p[2], s[k]) for k, p in enumerate(r)] for r in rs]
-
-    fr = rings(fore)
-    ar = rings(aft)
-    a0 = ar[0]
-    for k in range(nu + 1, n):
-        x, y, z = a0[k]
-        a0[k] = (x, y, z - slant * (k - nu) / nl)
+    rings = [profile(st, nu, nl) for st in stations]
+    uvs = [[reg.uv(p[2], s[k]) for k, p in enumerate(r)] for r in rings]
     half = Part("tmp")
-    def inside(rs):
-        return lambda i: (lambda c: (c[0] * 0.5, c[1], c[2]))(lerp3(centroid(rs[i]), centroid(rs[i + 1]), 0.5))
-    loft(half, fr, uvrows(fr), (lambda i, j: fore_role(i)) if callable(fore_role) else fore_role, closed=False, inside=inside(fr))
-    loft(half, ar, uvrows(ar), "body", closed=False, inside=inside(ar))
-    # Intake mouth: lip ring a little inside and behind the aft ring's lower half.
-    f_end = fr[-1]
-    low = range(nu, n)
-    rim = [a0[k] for k in low]
-    inner = [lerp3(a0[k], f_end[k], 0.22) for k in low]
-    inner = [(x * 0.92, y, z + lip) for x, y, z in inner]
-    nose = [f_end[k] for k in low]
-    ruv = [reg.uv(p[2], s[k]) for k, p in zip(low, rim)]
-    iuv = [reg.uv(p[2], s[k]) for k, p in zip(low, inner)]
-    for j in range(len(rim) - 1):
-        pts = [rim[j], rim[j + 1], inner[j + 1], inner[j]]
-        outward(half, pts, "body", [ruv[j], ruv[j + 1], iuv[j + 1], iuv[j]], (0.2, centroid(pts)[1], centroid(pts)[2] + 1.0))
-        pts = [inner[j], inner[j + 1], nose[j + 1], nose[j]]
-        outward(half, pts, "dark", [A.PLAIN_UV] * 4, (0.2, centroid(pts)[1], centroid(pts)[2] + 1.0))
+
+    def inside(i):
+        c = lerp3(centroid(rings[i]), centroid(rings[i + 1]), 0.5)
+        return (c[0] * 0.5, c[1], c[2])
+
+    loft(half, rings, uvs, (lambda i, j: role(i)) if callable(role) else role, closed=False, inside=inside)
     half.mirror_into()
     body.add(half)
-    return fr, ar
+    return rings
+
+
+def duct_ring(st, seg):
+    """Closed ring of a duct station: z, cx, cy, half width, half height,
+    top and bottom superellipse exponents, mouth slant (dz per unit of y
+    above the centre, dz per unit of x outboard of the centre, smile: how far
+    the top edge's corners rise)."""
+    z, cx, cy, hw, hh, et, eb = st[:7]
+    sy, sx, smile = (list(st[7:10]) + [0.0, 0.0, 0.0])[:3]
+    pts = []
+    for j in range(seg):
+        t = math.pi / 2 - j / seg * 2 * math.pi  # start on top, clockwise seen from the front
+        c, sn = math.cos(t), math.sin(t)
+        e = et if sn >= 0 else eb
+        x = cx + hw * math.copysign(abs(c) ** (2 / e), c)
+        y = cy + hh * math.copysign(abs(sn) ** (2 / e), sn)
+        if sn > 0:  # smile: the top edge rises toward the corners
+            y += smile * ((x - cx) / hw) ** 2
+        side = 1 if cx >= 0 else -1
+        pts.append((x, y, z + sy * (y - cy) / hh + sx * side * (x - cx) / hw))
+    return pts
+
+
+def duct(part, stations, uv, seg=16, lip=0.07, depth=0.8, role="body", wall="secondary"):
+    """An intake: the first station is the mouth, the rest the duct running
+    aft (into the airframe). The mouth gets a lip of thickness lip, a throat
+    depth metres deep walled in wall, and a dark end (the engine face). uv(p, around) maps a point, around 0 top .. 0.5 bottom."""
+    rings = [duct_ring(st, seg) for st in stations]
+    around = [min(j, seg - j) / seg for j in range(seg)]
+    uvs = [[uv(p, around[j]) for j, p in enumerate(r)] for r in rings]
+    axis = lambda i: (stations[i][1], stations[i][2], stations[i][0])
+    loft(part, rings, uvs, role, closed=True,
+         inside=lambda i: lerp3(axis(i), axis(i + 1), 0.5))
+    mouth = rings[0]
+    cx, cy = stations[0][1], stations[0][2]
+    hw, hh = stations[0][3], stations[0][4]
+    k = lambda f: [(cx + (x - cx) * (1 - f * lip / hw), cy + (y - cy) * (1 - f * lip / hh), z + 0.02 * f) for x, y, z in mouth]
+    inner = k(1.0)
+    throat = [(cx + (x - cx) * 0.92, cy + (y - cy) * 0.92, z + depth) for x, y, z in inner]
+    for j in range(seg):
+        i2 = (j + 1) % seg
+        q = [mouth[j], mouth[i2], inner[i2], inner[j]]
+        outward(part, q, role, [uvs[0][j], uvs[0][i2], uvs[0][i2], uvs[0][j]], (cx, cy, mouth[j][2] + 1.0))
+        q = [inner[j], inner[i2], throat[i2], throat[j]]
+        c = centroid(q)
+        outward(part, q, wall, [A.PLAIN_UV] * 4, (cx + (c[0] - cx) * 3, cy + (c[1] - cy) * 3, c[2]))
+    outward(part, throat, "dark", [A.PLAIN_UV] * seg, (cx, cy, throat[0][2] + 1.0))
+    return rings
 
 
 def bubble(part, stations, reg_uv, seg=6, role="canopy", frame_at=None, frame_role="secondary"):
@@ -391,6 +414,22 @@ def missile(part, nose, length, r, uv, fins=((0.86, 0.12, 0.14),), seg=8):
             tip1 = (x + dx * (r + span), y + dy * (r + span), zf + chord)
             tip0 = (x + dx * (r + span), y + dy * (r + span), zf + chord * 0.55)
             plate(part, [root0, root1, tip1, tip0], "metal", lambda p: uv(0.02, 0.98))
+
+
+def store(nose, length, r, uv, fins, seg=8):
+    """A missile as its own node (pivot at its middle) so the client can hide it
+    once fired; named later in firing order (msl_0, msl_1, ...)."""
+    x, y, z = nose
+    p = Part("msl", (x, y, z + length / 2), {"role": "missile"})
+    missile(p, nose, length, r, uv, fins=fins, seg=seg)
+    return p
+
+
+def firing_order(parts):
+    """Names the store parts msl_0.. in the order given (first fired first)."""
+    for i, p in enumerate(parts):
+        p.name = f"msl_{i}"
+    return parts
 
 
 def nozzle(part, z0, z1, r0, r1, cy, seg, petals, uv, depth=0.5):

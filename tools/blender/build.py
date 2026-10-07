@@ -1,6 +1,6 @@
 """Builds the jets as .glb files. Run headless from the repo root:
 
-    blender -b --factory-startup -P tools/blender/build.py -- f16 [--render DIR]
+    blender -b --factory-startup -P tools/blender/build.py -- f16 [--render DIR [--suffix -v2]]
     blender -b --factory-startup -P tools/blender/build.py -- all
 
 Each kind is tools/blender/kinds/<kind>.py: build() returns the node tree,
@@ -40,7 +40,11 @@ COLORS = {
 
 def kinds_from_args(argv):
     args = argv[argv.index("--") + 1:] if "--" in argv else []
-    render = None
+    render, suffix = None, ""
+    if "--suffix" in args:
+        i = args.index("--suffix")
+        suffix = args[i + 1]
+        args = args[:i] + args[i + 2:]
     if "--render" in args:
         i = args.index("--render")
         render = args[i + 1]
@@ -48,7 +52,7 @@ def kinds_from_args(argv):
     kinds = args or ["all"]
     if kinds == ["all"]:
         kinds = sorted(f[:-3] for f in os.listdir(os.path.join(HERE, "kinds")) if f.endswith(".py") and not f.startswith("_"))
-    return kinds, render
+    return kinds, render, suffix
 
 
 def reset():
@@ -103,7 +107,7 @@ def export(path):
     )
 
 
-def build(kind, render_dir):
+def build(kind, render_dir, suffix=""):
     reset()
     mod = importlib.import_module(f"kinds.{kind}")
     tree = mod.build()
@@ -113,6 +117,9 @@ def build(kind, render_dir):
     objs = list(bpy.context.scene.objects)
     names = {o.name for o in objs}
     missing = [n for n in REQUIRED if n not in names]
+    missing += [f"msl_{i}" for i in range(mod.MISSILES) if f"msl_{i}" not in names]
+    if f"msl_{mod.MISSILES}" in names:
+        missing.append(f"no more than {mod.MISSILES} msl_* nodes")
     tris = triangles(objs)
     path = os.path.join(OUT, f"{kind}.glb")
     os.makedirs(OUT, exist_ok=True)
@@ -121,9 +128,9 @@ def build(kind, render_dir):
     if render_dir:  # after the export: renders pose the jet
         import render
         os.makedirs(render_dir, exist_ok=True)
-        with open(os.path.join(render_dir, f"{kind}_atlas.png"), "wb") as f:
+        with open(os.path.join(render_dir, f"{kind}_atlas{suffix}.png"), "wb") as f:
             f.write(canvas.png())
-        render.shots(kind, render_dir)
+        render.shots(kind, render_dir, suffix)
     print(f"BUILD {kind}: {tris} triangles, {size} bytes -> {os.path.relpath(path, REPO)}")
     errors = []
     if missing:
@@ -136,10 +143,10 @@ def build(kind, render_dir):
 
 
 def main():
-    kinds, render_dir = kinds_from_args(sys.argv)
+    kinds, render_dir, suffix = kinds_from_args(sys.argv)
     failed = False
     for kind in kinds:
-        for e in build(kind, render_dir):
+        for e in build(kind, render_dir, suffix):
             print(f"ERROR {kind}: {e}")
             failed = True
     sys.exit(1 if failed else 0)
