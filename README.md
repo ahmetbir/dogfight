@@ -47,6 +47,11 @@ Live demo: https://dogfight.ahmetbirinci.dev
   repair in 3 s.
 - Room list, **Quick Play** (joins a suitable public room or creates one), public / private rooms,
   share links (`/r/CODE`).
+- **Lobby** for created rooms: the room waits until its host presses **Start**. Everyone who comes
+  by the link picks a side (NATO / Soviet; friends may all take one side against bots, otherwise a
+  side may be at most one human ahead) and an aircraft; bots fill the empty seats on Start. After
+  each round the room returns to the lobby with sides kept. Late joiners enter a running round as
+  before; Quick Play rooms start at once.
 - Quick chat: 6 canned messages (keys 1–6; team-only in team modes). No free text.
 - Persistent pilot card (anonymous token, no account) and a weekly / all-time leaderboard.
 - **Pilot's manual** (*Pilot El Kitabı*): an in-game book with chapters on getting started,
@@ -97,8 +102,9 @@ go run ./cmd/dogfight -addr :9000      # another port
 go run ./cmd/dogfight -lag 100ms       # test with artificial latency
 ```
 
-Open `http://localhost:8080`, enter a name, create a room and pick an aircraft. Send the room
-code, or the `/r/CODE` link from the copy-link button, to a friend.
+Open `http://localhost:8080`, enter a name and create a room: it opens in the lobby. Send the room
+code, or the `/r/CODE` link from the copy-link button, to a friend, pick sides and aircraft, and
+press Start.
 
 ### Playing over a LAN
 
