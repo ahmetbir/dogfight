@@ -53,11 +53,12 @@ Live demo: https://dogfight.ahmetbirinci.dev
   controls, flight, ground handling, weapons, HUD, game modes, the world and tips. It opens from
   the home page and from the in-game menu, and quotes gameplay numbers that tests keep in sync
   with the server.
-- **Connection indicator:** signal bars under the radar (good / fair / poor / lost from the
-  round-trip time, server silence and lost snapshots; the RTT in ms on hover or tap) and a
-  "connection unstable" banner after 1 s without server traffic. While the server is silent the
-  own plane is predicted on the last input the server got, and the correction after a stall is
-  drawn as a glide instead of a jump.
+- **Connection indicator:** signal bars under the radar (beside it on touch screens; good / fair
+  / poor / lost from the round-trip time, server silence and lost snapshots; the RTT in ms on
+  hover or tap, and always when the link is not good) and a "connection unstable" banner after
+  1 s without server traffic. While inputs cannot reach the server, the own plane is predicted on
+  the last input the server got, and the correction after a stall is drawn as a glide instead of
+  a jump.
 - Mobile: landscape touch stick, throttle and buttons; optional tilt aiming.
 - Missile camera (picture-in-picture), killcam, spectator mode and a replay of the last 10 s.
 - Procedural jet audio (engine, afterburner, wind) and low-poly models (custom `.glb` models are
@@ -607,7 +608,8 @@ docs/superpowers/    design specs and implementation plans (in Turkish)
   no shared state.
 - **Netcode:** JSON over WebSocket.
   - Your own plane is predicted on the client. When a server snapshot arrives, unacknowledged
-    inputs are replayed and the correction is smoothed over 100 ms.
+    inputs are replayed (once per frame, on the newest snapshot) and the correction glides:
+    0.15–0.6 s depending on its size, at most 150 m/s and 120°/s.
   - Other planes are drawn from an interpolation buffer.
   - Bullets are simulated on the client from `fire` events; missiles arrive in snapshots.
 - **Design docs:** `docs/superpowers/specs/2026-10-06-dogfight-design.md` (v1) and

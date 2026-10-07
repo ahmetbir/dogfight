@@ -225,20 +225,27 @@ dependencies to this repo.
 - The client predicts its own plane and reconciles on each snapshot: unacknowledged inputs are
   replayed (`roomkit/ts/predict/reconcile.ts`, baseline = median offset over ~30 snapshots),
   corrections are smoothed with a time constant that grows with their size (0.15 s up to 1 m,
-  0.6 s from 40 m), attitude corrections are rate limited to 120°/s, and only corrections over
-  150 m snap (`client/src/predict/predictor.ts`). Other planes are interpolated 100 ms behind
-  (`INTERP_DELAY_MS`).
-- **Stalls** (`client/src/game/own.ts`, `client/src/net/link.ts`): after 250 ms without server
-  traffic, prediction eases over 250 ms from the player's stick to the last input the server got
-  (the one it repeats while starved); the inputs sent stay the player's. The snapshots queued
-  during the stall arrive in a burst with a lagging ack: they are not reconciled until the
-  server acks the input sent when traffic resumed (at most 60 client ticks), so the reconciler's
-  median baseline never re-anchors on that transient. `client/src/game/stall.test.ts` drives the
-  whole client path through a 1.5 s two-way stall against the Go-parity server models.
+  0.6 s from 40 m) and never faster than 150 m/s, attitude corrections are rate limited to
+  120°/s, and only position corrections over 300 m snap (`client/src/predict/predictor.ts`).
+  Other planes are interpolated 100 ms behind (`INTERP_DELAY_MS`).
+- **Snapshots are reconciled once per frame**, on the newest one that arrived
+  (`client/src/game/own.ts`, `flush()`). After a stall the queued snapshots arrive in one burst
+  with an ack lagging by the whole stall; reconciling each walked the reconciler's median
+  baseline through that transient (50–120 m corrections to and fro). Nothing is ever skipped
+  for longer than a frame.
+- **Stalls** (`client/src/game/own.ts`): once the server has been silent for `STALL_MS` (1 s) the
+  shaper holds inputs, so the server repeats the last one it got; from then on prediction flies
+  that input too. Before that the uplink may still flow (a downlink-only stall), so prediction
+  keeps the player's stick. The inputs sent stay the player's.
+  `client/src/game/stall.test.ts` drives the whole client path (OwnPlane, core Shaper, link
+  monitor) against the Go-parity server models through two-way, downlink-only, clumpy, gappy
+  and repeated stalls; its bounds are the pre-v3 client's numbers where that did better.
 - **Connection indicator** (`client/src/net/link.ts`, `client/src/ui/conn.ts`): a 1 Hz ping in a
-  match gives the RTT (pong echoes the ping's `performance.now()`); silence and gaps in the
-  snapshot ticks grade the link; the banner shows after 1 s of silence and stays 600 ms after
-  recovery.
+  match gives the RTT (pong echoes the ping's `performance.now()`); **at most one link ping is
+  in flight** (next only after its pong or 20 s): the server kicks a connection whose pings come
+  faster than 2/s beyond a burst of 4, and a stall releases held pings back to back. Pongs of
+  pings sent before a ≥ 1 s silence ended are not RTT samples. Silence and gaps in the snapshot
+  ticks grade the link; the banner shows after 1 s of silence and stays 600 ms after recovery.
 - **Instant mocks hide ordering races.** Netcode that passes with zero-latency fakes can still
   fail under real delay. Test it with latency: `client/src/predict/converge.test.ts` and
   `jitter.test.ts` (delay steps, stalls, bursty delivery), and `SERVER_ARGS="-lag 100ms"
