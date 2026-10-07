@@ -1,9 +1,11 @@
 // ?debug=fly: local flight over flat ground without a server (stepFlight +
 // chase camera + the configured control scheme). &scheme=mouse|keyboard
-// overrides the saved setting. Debug builds only.
+// overrides the saved setting; &kind=f15|mig29|su27 flies another jet's
+// model (the F-16's flight model). Debug builds only.
 import * as THREE from "three";
 import { InputState } from "../input/input.ts";
 import { loadSettings, makeScheme } from "../input/schemes.ts";
+import { airframe } from "../game/airframe.ts";
 import { ChaseCam } from "../render/camera.ts";
 import { Effects } from "../render/effects.ts";
 import { PlaneViews, type PlaneRender } from "../render/planes.ts";
@@ -34,6 +36,8 @@ export function debugFly(canvas: HTMLCanvasElement, params: URLSearchParams): vo
   const input = new InputState(canvas);
   input.playing = true;
   const cam = new ChaseCam(r.camera);
+  const kind = params.get("kind") ?? "f16";
+  const jet = airframe(kind);
   const hud = document.createElement("pre");
   hud.style.cssText = "position:fixed;left:12px;top:8px;margin:0;font:14px monospace;text-shadow:0 0 3px #000";
   document.getElementById("ui")?.append(hud);
@@ -56,7 +60,7 @@ export function debugFly(canvas: HTMLCanvasElement, params: URLSearchParams): vo
       if (out.fire && tick - lastShot >= 4) {
         lastShot = tick;
         const fwd = qForward(fs.rot);
-        fx.tracer(add(fs.pos, scale(fwd, 8)), add(fs.vel, scale(fwd, 900)), 1.2, true);
+        fx.tracer(add(fs.pos, scale(fwd, jet.muzzle)), add(fs.vel, scale(fwd, 900)), 1.2, true);
       }
       if (fs.pos.y < 2) { // crashed: boom and restart
         fx.explosion(fs.pos, true);
@@ -66,11 +70,11 @@ export function debugFly(canvas: HTMLCanvasElement, params: URLSearchParams): vo
       }
     }
     const me: PlaneRender = {
-      id: 1, kind: "f16", team: "none", pos: fs.pos, rot: fs.rot, alive: true, hp: 100, maxHP: 100,
+      id: 1, kind, team: "none", pos: fs.pos, rot: fs.rot, alive: true, hp: 100, maxHP: 100,
       ab: out.stick.ab, gForce: 1, name: "me", isMe: true, gear: !!fs.gear, ctl: out.stick,
     };
     views.sync(new Map([[1, me]]));
-    cam.update(dt, fs.pos, fs.rot, len(fs.vel), out.lookBack, out.aimDir);
+    cam.update(dt, fs.pos, fs.rot, len(fs.vel), out.lookBack, out.aimDir, jet.length);
     fx.update(dt);
     sky.update(r.camera.position);
     r.render();

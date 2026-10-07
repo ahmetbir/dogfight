@@ -17,7 +17,7 @@ const HEARD_TH = 0.8;        // throttle the replayed engines are heard at
 /** One played frame, ready to draw; me: my recorded plane (camera target). */
 export type ReplayScene = {
   planes: Map<number, PlaneRender>; missiles: MissileJSON[]; heard: Heard[];
-  me: { pos: V3; rot: Q; vel: V3 } | null;
+  me: { pos: V3; rot: Q; vel: V3; kind: string } | null;
 };
 
 export class ReplayView {
@@ -120,7 +120,7 @@ export class ReplayView {
         ab: !!p.ab, gForce: 1, name: s.players.get(p.id)?.name ?? "", isMe, gear: !!p.gr,
       });
       const v = vel(p.id, p.pos);
-      if (isMe) me = { pos: p.pos, rot: p.rot, vel: v };
+      if (isMe) me = { pos: p.pos, rot: p.rot, vel: v, kind: p.k };
       if (p.a) heard.push({ id: p.id, pos: p.pos, vel: v, th: HEARD_TH, ab: !!p.ab });
     }
     const wire = (a: V3): Vec3 => [a.x, a.y, a.z];
