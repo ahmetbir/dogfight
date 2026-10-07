@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
-import { GlbLibrary } from "./models.ts";
+import { GLB_RETRY_MS, GlbLibrary } from "./models.ts";
 
 test("the manifest is fetched once, each listed scene loaded once and shared, unlisted kinds never fetched", async () => {
   let manifests = 0;
@@ -17,17 +17,35 @@ test("the manifest is fetched once, each listed scene loaded once and shared, un
   assert.equal(d, null);
 });
 
-test("a failed manifest means no models, and a failed scene falls back once", async () => {
-  const none = new GlbLibrary({ manifest: async () => { throw new Error("offline"); }, scene: async () => new THREE.Group() });
-  assert.equal(await none.load("f16"), null);
-  let tries = 0;
+test("a failed manifest or model is tried again after the backoff, not remembered", async () => {
+  let t = 0;
+  let manifestOk = false, sceneOk = false, manifests = 0, scenes = 0;
   const warn = console.warn;
   console.warn = () => {};
   try {
-    const bad = new GlbLibrary({ manifest: async () => ["f16"], scene: async () => { tries++; throw new Error("corrupt"); } });
-    assert.equal(await bad.load("f16"), null);
-    assert.equal(await bad.load("f16"), null);
-    assert.equal(tries, 1);
+    const lib = new GlbLibrary({
+      manifest: async () => { manifests++; if (!manifestOk) throw new Error("offline"); return ["f16"]; },
+      scene: async () => { scenes++; if (!sceneOk) throw new Error("corrupt"); return new THREE.Group(); },
+    }, () => t);
+    assert.equal(await lib.load("f16"), null);           // manifest down
+    assert.equal(await lib.load("f16"), null);           // inside the backoff: no request
+    assert.equal(manifests, 1);
+    manifestOk = true;
+    t += GLB_RETRY_MS;
+    assert.equal(await lib.load("f16"), null);           // manifest fine now, the model fails
+    assert.equal(manifests, 2);
+    assert.equal(scenes, 1);
+    assert.equal(await lib.load("f16"), null);           // backoff again
+    assert.equal(scenes, 1);
+    sceneOk = true;
+    t += GLB_RETRY_MS;
+    const g = await lib.load("f16");
+    assert.ok(g, "loaded once the server answers");
+    assert.equal(await lib.load("f16"), g, "then kept and shared");
+    assert.equal(manifests, 2, "a good manifest is kept");
+    assert.equal(scenes, 2);
+    assert.equal(await lib.load("zeppelin"), null, "not listed: an answer, no fetch");
+    assert.equal(scenes, 2);
   } finally {
     console.warn = warn;
   }

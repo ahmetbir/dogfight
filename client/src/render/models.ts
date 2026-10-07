@@ -61,7 +61,8 @@ export type GlbIo = { manifest(): Promise<unknown>; scene(url: string): Promise<
 const browserIo: GlbIo = {
   async manifest() {
     const res = await fetch("/models/manifest.json");
-    return res.ok ? res.json() : null;
+    if (!res.ok) throw new Error(`manifest: HTTP ${res.status}`);
+    return res.json();
   },
   async scene(url) {
     const loader = new GLTFLoader();
@@ -70,38 +71,69 @@ const browserIo: GlbIo = {
   },
 };
 
+/** After a failed manifest or model load, the next try waits this long (ms). */
+export const GLB_RETRY_MS = 10_000;
+
 /**
  * The .glb models of a page: /models/manifest.json is fetched once, each
  * listed kind's scene loaded once and shared (callers clone it: dressGlb).
- * A kind the manifest does not list is never fetched.
+ * A kind the manifest does not list is never fetched. A failed manifest or
+ * scene is not remembered as an answer: a load after GLB_RETRY_MS tries it
+ * again (sooner, the built-in model stands in without a request).
  */
 export class GlbLibrary {
   private readonly io: GlbIo;
-  private listed: Promise<readonly string[]> | null = null;
+  private readonly now: () => number;
+  private listed: Promise<readonly string[] | null> | null = null; // null result: the fetch failed
+  private manifestFailedAt = -Infinity;
   private readonly scenes = new Map<string, Promise<THREE.Group | null>>();
+  private readonly sceneFailedAt = new Map<string, number>();
 
-  constructor(io: GlbIo = browserIo) {
+  constructor(io: GlbIo = browserIo, now: () => number = () => performance.now()) {
     this.io = io;
+    this.now = now;
   }
 
   /** The loaded scene of kind, or null when it is not listed or fails to load. */
   load(kind: string): Promise<THREE.Group | null> {
-    let p = this.scenes.get(kind);
-    if (!p) {
-      p = this.fetch(kind);
-      this.scenes.set(kind, p);
+    const p = this.scenes.get(kind);
+    if (p) return p;
+    if (this.now() - (this.sceneFailedAt.get(kind) ?? -Infinity) < GLB_RETRY_MS) return Promise.resolve(null);
+    const q = this.fetch(kind);
+    this.scenes.set(kind, q);
+    return q;
+  }
+
+  private manifest(): Promise<readonly string[] | null> {
+    if (!this.listed) {
+      if (this.now() - this.manifestFailedAt < GLB_RETRY_MS) return Promise.resolve(null);
+      this.listed = this.io.manifest().then(
+        (k) => (Array.isArray(k) ? k.filter((x): x is string => typeof x === "string") : null),
+        () => null);
+      void this.listed.then((k) => {
+        if (k === null) { // not an answer: forget it, try again later
+          this.listed = null;
+          this.manifestFailedAt = this.now();
+        }
+      });
     }
-    return p;
+    return this.listed;
   }
 
   private async fetch(kind: string): Promise<THREE.Group | null> {
-    this.listed ??= this.io.manifest().then((k) => (Array.isArray(k) ? k.filter((x): x is string => typeof x === "string") : []), () => []);
-    if (!(await this.listed).includes(kind)) return null;
+    const listed = await this.manifest();
+    if (listed === null) {
+      this.scenes.delete(kind); // the manifest failed: the kind is not known to be missing
+      return null;
+    }
+    if (!listed.includes(kind)) return null; // not built: an answer, kept
     try {
       return await this.io.scene(`/models/${kind}.glb`);
     } catch (e) {
-      // A listed model that fails to load falls back to the built-in one, loudly.
+      // A listed model that fails to load falls back to the built-in one, loudly, and is tried again later.
       console.warn(`models/${kind}.glb could not be loaded; using the built-in model`, e);
+      this.scenes.delete(kind);
+      this.sceneFailedAt.set(kind, this.now());
       return null;
     }
   }
