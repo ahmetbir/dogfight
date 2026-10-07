@@ -15,6 +15,13 @@ const FLAPERON = 0.5;  // share of roll the flaps also fly
 const STAB = 0.3;      // rad at full pitch
 const TAILERON = 0.4;  // share of roll on the stabilators
 const RUDDER = 0.35;   // rad at full yaw
+const CANARD = 0.3;   // rad at full pitch: the leading edge comes up as the stick pulls
+
+// Swing wings (F-14, MiG-23): spread at low speed, swept back fast, stowed
+// back on the ground at a standstill (the hangar fit; carrier habit).
+const SPREAD_SPEED = 130; // m/s and below: fully forward
+const SWEPT_SPEED = 250;  // m/s and above: fully back
+const STOW_SPEED = 12;    // m/s: parked or nearly, on the ground: stowed back
 
 /**
  * Deflection in radians of a surface: + is trailing edge down (rudder: to the
@@ -28,8 +35,29 @@ export function deflection(role: string, side: string, c: Controls, flaps: numbe
     case "stab": return (-c.p + roll * TAILERON) * STAB;
     case "elevator": return -c.p * STAB;
     case "rudder": return c.y * RUDDER;
+    case "canard": return c.p * CANARD; // ahead of the wing: pulls with its trailing edge down, no roll
     default: return 0;
   }
+}
+
+/**
+ * How far back a swing wing wants to be, 0 fully forward .. 1 fully back,
+ * from the jet's speed (m/s) and whether it stands on its wheels.
+ */
+export function sweepTarget(speed: number, ground: boolean): number {
+  if (!Number.isFinite(speed)) return 1;
+  if (ground && speed < STOW_SPEED) return 1;
+  return Math.max(0, Math.min(1, (speed - SPREAD_SPEED) / (SWEPT_SPEED - SPREAD_SPEED)));
+}
+
+/**
+ * The pivot angle for a sweep t (0 forward .. 1 back) within the node's
+ * range [lo, hi] around the modelled pose: a positive turn swings the tip
+ * forward, so forward is hi and back is lo.
+ */
+export function sweepAngle(range: readonly [number, number], t: number): number {
+  const k = Math.max(0, Math.min(1, Number.isFinite(t) ? t : 0.5));
+  return range[1] + (range[0] - range[1]) * k;
 }
 
 /** Colour of each material role: team roles from the palette, the rest from the model. */
@@ -56,6 +84,7 @@ function turn(h: Hinge, angle: number): void {
 export class Rig {
   private readonly surfaces: (Hinge & { role: string; side: string })[] = [];
   private readonly legs: (Hinge & { angle: number })[] = [];
+  private readonly pivots: (Hinge & { range: [number, number] })[] = []; // swing wings
   private readonly stores: THREE.Object3D[]; // msl_0.. in firing order
   readonly gear: THREE.Object3D | null;
 
@@ -65,8 +94,12 @@ export class Rig {
     root.traverse((o) => {
       const m = /^msl_(\d+)$/.exec(o.name);
       if (m) msl.push([Number(m[1]), o]);
-      const d = o.userData as { role?: unknown; axis?: unknown; retract?: unknown };
-      if (typeof d.role === "string" && d.axis) {
+      const d = o.userData as { role?: unknown; axis?: unknown; retract?: unknown; sweep?: unknown };
+      if (d.role === "sweep") {
+        const h = hinge(o, d.axis);
+        const r = d.sweep;
+        if (h && Array.isArray(r) && r.length === 2 && r.every(Number.isFinite) && r[0] < r[1]) this.pivots.push({ ...h, range: [r[0], r[1]] });
+      } else if (typeof d.role === "string" && d.axis) {
         const h = hinge(o, d.axis);
         const side = /_([lr])$/.exec(o.name)?.[1] ?? "";
         if (h) this.surfaces.push({ ...h, role: d.role, side });
@@ -93,6 +126,16 @@ export class Rig {
     const n = this.stores.length;
     const keep = Number.isFinite(left) ? Math.max(0, Math.min(n, Math.floor(left))) : n;
     this.stores.forEach((o, i) => { o.visible = i >= n - keep; });
+  }
+
+  /** Whether the model has swing wings. */
+  get swings(): boolean {
+    return this.pivots.length > 0;
+  }
+
+  /** Swing wings to t: 0 fully forward .. 1 fully back (sweepTarget). */
+  sweep(t: number): void {
+    for (const p of this.pivots) turn(p, sweepAngle(p.range, t));
   }
 
   /** Surfaces from c; gear 0 retracted .. 1 down (flaps follow it). */

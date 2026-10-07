@@ -11,8 +11,11 @@ Live demo: https://dogfight.ahmetbirinci.dev
 
 ## Features
 
-- **4 jets:** F-16 and F-15 (NATO), MiG-29 and Su-27 (Soviet), each with its own speed, turn
-  rates, hit points, missile and flare load.
+- **17 jets:** nine NATO (F-16, F-15, F-22, F-14, A-10, Rafale, Typhoon, F/A-18, F-4) and eight
+  Soviet (MiG-29, Su-27, Su-57, MiG-31, Su-25, MiG-21, Su-30, MiG-23), each with a role (light,
+  all-rounder, 5th gen, interceptor, attack, ...) and its own speed, turn rates, hit points,
+  missile and flare load, balanced by a bot round-robin. The pick screen is a hangar: cards with
+  thumbnails of the models and a turning 3D preview with stat bars.
 - **Weapons:** cannon (overheats on long bursts), missiles, flares; bombs in Base Attack.
 - **Missile loadouts**, chosen on the aircraft pick screen:
   - **IR** (short range): fire-and-forget heat seekers. Flares can decoy them.
@@ -257,8 +260,10 @@ structures and anti-aircraft fire).
 
 Every aircraft comes with a procedurally built low-poly model. To use your own model instead:
 
-1. Put it at `client/static/models/<kind>.glb`, where `<kind>` is one of `f16`, `f15`, `mig29`,
-   `su27`.
+1. Put it at `client/static/models/<kind>.glb`, where `<kind>` is a kind of `internal/sim`
+   (`f16`, `f15`, `mig29`, `su27`, `f22`, `su57`, `f14`, `mig31`, `a10`, `su25`, `rafale`,
+   `typhoon`, `mig21`, `f18`, `su30`, `f4`, `mig23`; the node contract is
+   `tools/blender/contract.json`).
    - Orientation: nose along local **−Z**, right wing **+X**, up **+Y**.
    - Units are meters; the origin is the aircraft's center.
 2. Run `cd client && npm run build`. The build copies the file to `cmd/dogfight/web/models/` and
@@ -295,7 +300,8 @@ go run ./cmd/dogfight
   - `?debug=terrain`: terrain scene.
   - `?debug=world&map=sehir&wx=gece&cam=base`: a map and weather from a chosen camera
     (`cam=base|runway|plane|hangar|city|high|low`, `side=0|1`).
-  - `?debug=models`: the four aircraft side by side.
+  - `?debug=models`: the four original aircraft side by side (`&glb=1&kinds=f14,mig23&sweep=0,1`
+    lines up any kinds as .glb models, swing wings posed).
   - `?debug=fx`: effects scene.
 - Before committing or deploying, return `cmd/dogfight/web` to a production build
   (`DEBUG=false`) with `npm run build`.
@@ -305,7 +311,9 @@ go run ./cmd/dogfight
 ```sh
 go build ./... && go vet ./... && go test ./... -race     # Go: all packages
 go test ./... -short                                        # skips the long match simulations
-go test ./internal/game/ -run TestBalance -v -balance       # balance: 1v1 hard bots, 200 runs per matchup, must stay within 40–60%
+go test ./internal/game/ -run TestBalance -v -balance       # balance: hard-bot round-robin over all 17 kinds, 200 duels per pair; every kind within ±15% of the mean win rate
+# The gate judges seeds 1000..1199; the specs were tuned on 0..199 (-balance-from 0 to tune). Phase 4:
+# tuning seeds 47.7-51.4 %, gate seeds 45.4-52.9 % (band 42.5-57.5 %).
 
 cd client && npm run check && npm test && npm run build     # TS type check, node --test, production build
 ```

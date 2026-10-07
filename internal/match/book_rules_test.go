@@ -163,7 +163,7 @@ func goRules(t *testing.T) map[string]float64 {
 			"MaxHP": s.MaxHP, "MaxSpeed": s.MaxSpeed, "MaxSpeedAB": s.MaxSpeedAB, "Accel": s.Accel, "RollRate": s.RollRate,
 			"PitchRate": s.PitchRate, "YawRate": s.YawRate, "CornerSpeed": s.CornerSpeed, "Missiles": float64(s.Missiles),
 			"Flares": float64(s.Flares), "LockRange": s.LockRange, "RotateSpeed": s.RotateSpeed,
-			"Length": s.Length, "Span": s.Span, "Nose": s.Nose,
+			"Length": s.Length, "Span": s.Span, "Nose": s.Nose, "ExtraBombs": float64(s.ExtraBombs),
 		} {
 			r[n+f] = v
 		}
@@ -199,9 +199,9 @@ func structureRules(t *testing.T, r map[string]float64) {
 	if len(planes) == 0 {
 		t.Fatal("base game without planes")
 	}
-	r["bombs"] = float64(planes[0].Bombs)
+	r["bombs"] = float64(planes[0].Bombs - sim.SpecOf(planes[0].Kind).ExtraBombs)
 	for _, p := range planes {
-		if float64(p.Bombs) != r["bombs"] {
+		if float64(p.Bombs-sim.SpecOf(p.Kind).ExtraBombs) != r["bombs"] {
 			t.Fatalf("bomb loadouts differ: %d vs %v", p.Bombs, r["bombs"])
 		}
 	}
@@ -246,6 +246,36 @@ func TestBookAircraftMatchServer(t *testing.T) {
 		s := sim.SpecOf(k)
 		if want := s.Name + " " + teams[s.Team]; got[k.String()] != want {
 			t.Errorf("rules.ts AIRCRAFT %s = %q, Go %q", k, got[k.String()], want)
+		}
+	}
+}
+
+// The pick screen's and the manual's roles (client/src/ui/roles.ts, ROLE) are
+// the sim's Spec.Role, kind for kind.
+func TestClientRolesMatchServer(t *testing.T) {
+	b, err := os.ReadFile("../../client/src/ui/roles.ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(b)
+	start := strings.Index(src, "export const ROLE")
+	if start < 0 {
+		t.Fatal("roles.ts: ROLE block not found")
+	}
+	end := strings.Index(src[start:], "};")
+	if end < 0 {
+		t.Fatal("roles.ts: ROLE block not closed")
+	}
+	got := map[string]string{}
+	for _, m := range regexp.MustCompile(`([a-z0-9]+): "([a-z]+)"`).FindAllStringSubmatch(src[start:start+end], -1) {
+		got[m[1]] = m[2]
+	}
+	if len(got) != len(sim.Kinds()) {
+		t.Fatalf("roles.ts ROLE has %d kinds, Go %d", len(got), len(sim.Kinds()))
+	}
+	for _, k := range sim.Kinds() {
+		if want := string(sim.SpecOf(k).Role); got[k.String()] != want {
+			t.Errorf("roles.ts ROLE %s = %q, Go %q", k, got[k.String()], want)
 		}
 	}
 }

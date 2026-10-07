@@ -1,14 +1,30 @@
 {
   "nodes": [
-    "airframe", "canopy", "aileron_l", "aileron_r", "flap_l", "flap_r", "stab_l", "stab_r",
+    "airframe", "canopy", "aileron_l", "aileron_r", "flap_l", "flap_r",
     "gear", "gear_nose", "gear_main_l", "gear_main_r", "ab_0", "idle_0"
   ],
+  "tail": ["stab_l", "stab_r"],
   "single": ["rudder"],
-  "twin": ["rudder_l", "rudder_r", "ab_1", "idle_1"],
+  "twin": ["rudder_l", "rudder_r"],
+  "swing": ["wing_l", "wing_r"],
+  "canard": ["canard_l", "canard_r"],
   "kinds": {
-    "f16": {"missiles": 5, "twin": false},
-    "f15": {"missiles": 6, "twin": true},
-    "mig29": {"missiles": 4, "twin": true},
-    "su27": {"missiles": 5, "twin": true}
+    "f16": {"missiles": 5, "twin": false, "engines": 1},
+    "f15": {"missiles": 6, "twin": true, "engines": 2},
+    "mig29": {"missiles": 4, "twin": true, "engines": 2},
+    "su27": {"missiles": 5, "twin": true, "engines": 2},
+    "f22": {"missiles": 4, "twin": true, "engines": 2},
+    "su57": {"missiles": 4, "twin": true, "engines": 2},
+    "f14": {"missiles": 6, "twin": true, "engines": 2, "swing": true},
+    "mig31": {"missiles": 6, "twin": true, "engines": 2},
+    "a10": {"missiles": 4, "twin": true, "engines": 2},
+    "su25": {"missiles": 4, "twin": false, "engines": 2},
+    "rafale": {"missiles": 6, "twin": false, "engines": 2, "tail": false, "canard": true},
+    "typhoon": {"missiles": 6, "twin": false, "engines": 2, "tail": false, "canard": true},
+    "mig21": {"missiles": 2, "twin": false, "engines": 1},
+    "f18": {"missiles": 6, "twin": true, "engines": 2},
+    "su30": {"missiles": 6, "twin": true, "engines": 2, "canard": true},
+    "f4": {"missiles": 6, "twin": false, "engines": 2},
+    "mig23": {"missiles": 4, "twin": false, "engines": 1, "swing": true}
   }
 }

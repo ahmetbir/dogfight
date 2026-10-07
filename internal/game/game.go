@@ -108,7 +108,9 @@ func New(s Settings) *Game {
 		hurtAt:      map[sim.ID]int{},
 		phase:       Playing,
 	}
-	g.world = sim.NewWorld(g.worldConfig())
+	cfg := g.worldConfig()
+	g.env.Bombs = cfg.Bombs // bots rearm to the same sortie load as the sim
+	g.world = sim.NewWorld(cfg)
 	if s.Mode == mode.Base {
 		g.board.SetObjective(objective(m))
 		g.board.SetTargets(targets(m))

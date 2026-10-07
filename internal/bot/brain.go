@@ -16,6 +16,7 @@ type Env struct {
 	Map     *maps.Map // nil: no bases or buildings
 	Mode    mode.Kind
 	Wind    geom.Vec3 // the weather's base wind (no gusts); crabbed on final
+	Bombs   int       // the room's bombs per sortie (sim Config.Bombs; 0 outside base attack)
 }
 
 type Difficulty uint8

@@ -11,7 +11,7 @@ const (
 func (w *World) needsRearm(p *Plane) bool {
 	s := SpecOf(p.Kind)
 	ir, radar := p.loadout()
-	return p.HP < s.MaxHP || p.Missiles < ir || p.Radars < radar || p.Flares < s.Flares || p.Bombs < w.cfg.Bombs || p.Heat > 0
+	return p.HP < s.MaxHP || p.Missiles < ir || p.Radars < radar || p.Flares < s.Flares || p.Bombs < w.sortieBombs(p.Kind) || p.Heat > 0
 }
 
 // rearm counts ticks stopped on the own base (any base in FFA) and refills
@@ -32,7 +32,7 @@ func (w *World) rearm(p *Plane, ev *[]Event) {
 	}
 	s := SpecOf(p.Kind)
 	p.RearmTicks = 0
-	p.HP, p.Flares, p.Bombs = s.MaxHP, s.Flares, w.cfg.Bombs
+	p.HP, p.Flares, p.Bombs = s.MaxHP, s.Flares, w.sortieBombs(p.Kind)
 	p.Missiles, p.Radars = p.loadout()
 	p.Heat, p.OverheatUntil = 0, 0
 	p.Damage = Damage{}
@@ -44,4 +44,17 @@ func (w *World) rearm(p *Plane, ev *[]Event) {
 // change within a tick means p fired or dropped.
 func weaponClocks(p *Plane) [4]int {
 	return [4]int{p.GunReadyTick, p.MissileReadyTick, p.FlareReadyTick, p.BombReadyTick}
+}
+
+// sortieBombs is a full bomb load of kind in this world (SortieBombs).
+func (w *World) sortieBombs(k Kind) int { return SortieBombs(w.cfg.Bombs, k) }
+
+// SortieBombs is a full bomb load of kind in a room that loads roomBombs per
+// sortie (Config.Bombs): none outside base attack, else the room's load plus
+// the kind's extra (the attack jets). Bots wait on the pad for exactly this.
+func SortieBombs(roomBombs int, k Kind) int {
+	if roomBombs <= 0 {
+		return 0
+	}
+	return roomBombs + SpecOf(k).ExtraBombs
 }

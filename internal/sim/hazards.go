@@ -83,6 +83,9 @@ func (w *World) hazards(ev *[]Event) {
 			if !a.Alive || !b.Alive || w.protected(a) || w.protected(b) || a.Ground || b.Ground {
 				continue // protected or on its wheels: neither rams nor is rammed
 			}
+			if !Hostile(a.Team, b.Team, w.cfg.FriendlyFire) {
+				continue // teammates fly through each other unless friendly fire is on (loose formations with the big jets' spheres)
+			}
 			rel, relV := b.Pos.Sub(a.Pos), b.Vel.Sub(a.Vel)
 			reach := SpecOf(a.Kind).RamRadius() + SpecOf(b.Kind).RamRadius()
 			if !(rel.Len() < reach && rel.Dot(relV) < 0) { // positive form: NaN never rams

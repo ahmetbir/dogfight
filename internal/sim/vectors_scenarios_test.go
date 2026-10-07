@@ -62,6 +62,9 @@ func vecScenarios() []vecScenario {
 	}
 	sc = append(sc, v2Scenarios()...)
 	sc = append(sc, fbScenarios()...)
+	for _, k := range Kinds()[4:] { // Phase 4 kinds: each flies the mixed inputs
+		sc = append(sc, vecScenario{Name: k.String() + "-mixed", Kind: k.String(), Start: start(1500, 0, 200, 1), Inputs: mixed})
+	}
 	for i := range sc {
 		k, _ := ParseKind(sc[i].Kind)
 		sc[i].Spec = toVecSpec(SpecOf(k))

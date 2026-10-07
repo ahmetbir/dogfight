@@ -6,7 +6,7 @@ import type { Chapter } from "./kit.ts";
 
 /** Chapter id (stable: remembered in storage), its prose and its title key. */
 const ORDER: [string, ChapterName, Key][] = [
-  ["baslangic", "start", "ch.start"], ["kontroller", "controls", "ch.controls"], ["ucus", "flight", "ch.flight"], ["yer", "ground", "ch.ground"],
+  ["baslangic", "start", "ch.start"], ["kontroller", "controls", "ch.controls"], ["ucus", "flight", "ch.flight"], ["ucaklar", "aircraft", "ch.aircraft"], ["yer", "ground", "ch.ground"],
   ["silahlar", "weapons", "ch.weapons"], ["modlar", "modes", "ch.modes"], ["dunya", "world", "ch.world"], ["hud", "hud", "ch.hud"],
   ["ipuclari", "tips", "ch.tips"],
 ];

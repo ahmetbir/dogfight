@@ -53,10 +53,12 @@ test("every chapter renders with the live and the built-in aircraft table", () =
 
 test("the built-in aircraft table comes from the Go-checked rules", () => {
   const t = builtinAircraft();
-  assert.deepEqual(t.map((a) => a.kind), ["f16", "f15", "mig29", "su27"]);
+  assert.deepEqual(t.map((a) => a.kind).slice(0, 5), ["f16", "f15", "mig29", "su27", "f22"]);
+  assert.equal(t.length, 17);
   assert.equal(t[0]!.maxHP, RULES.f16MaxHP);
   assert.equal(t[3]!.rotateSpeed, RULES.su27RotateSpeed);
-  assert.deepEqual(t.map((a) => a.team), ["nato", "nato", "soviet", "soviet"]);
+  assert.equal(t[16]!.lockRange, RULES.mig23LockRange);
+  assert.equal(t.filter((a) => a.team === "nato").length, 9);
 });
 
 test("numbers come from the rules and the aircraft table", () => {
@@ -116,4 +118,31 @@ test("every chapter has an English version with the same structure and no Turkis
   } finally {
     setLang("tr", null);
   }
+});
+
+test("the aircraft chapter lists all seventeen with their roles, by side", () => {
+  const all = builtinAircraft();
+  const text = textOf("ucaklar", all);
+  for (const a of all) assert.ok(text.includes(a.name) && text.includes(kmh(a.maxSpeedAB)), a.name);
+  for (const tag of ["Hafif, çevik", "Çok amaçlı", "Gizli, 5. nesil", "Önleme", "Taarruz", "Ucuz, hafif", "Eski, hızlı"]) assert.ok(text.includes(tag), tag);
+  assert.ok(text.includes("(F-14, MiG-31)") && text.includes("(A-10, Su-25)"), "role groups name their aircraft");
+  const tables = (CHAPTERS.find((c) => c.id === "ucaklar")!.render({ aircraft: all }) as unknown as { tag: string }[]).filter((n) => n.tag === "div");
+  assert.ok(tables.length >= 2, "a table per side");
+});
+
+test("the authority drawing keeps at most four curves: the corner and top speed extremes", async () => {
+  const { authKinds } = await import("./ch-flight.ts");
+  const all = builtinAircraft();
+  const pick = authKinds(all).map((a) => a.kind);
+  assert.ok(pick.length >= 2 && pick.length <= 4, pick.join());
+  assert.ok(pick.includes("mig31"), "fastest and highest corner speed");
+  assert.ok(pick.includes("a10"), "slowest");
+  assert.deepEqual(authKinds(PLANES), PLANES);
+});
+
+test("the bombs line gives the attack jets' own load from the rules", async () => {
+  const { extraBombs } = await import("./ch-aircraft.ts");
+  assert.equal(extraBombs(), ` (A-10, Su-25: ${RULES.bombs + RULES.a10ExtraBombs})`);
+  const text = textOf("silahlar", builtinAircraft());
+  assert.ok(text.includes(`bomba (A-10, Su-25: 4)`), "tr weapons chapter");
 });

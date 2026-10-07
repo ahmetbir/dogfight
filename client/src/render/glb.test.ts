@@ -2,10 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, statSync } from "node:fs";
 import * as THREE from "three";
-import { deflection, dressGlb, NEUTRAL, Rig, roleColor } from "./glb.ts";
+import { deflection, dressGlb, NEUTRAL, Rig, roleColor, sweepAngle, sweepTarget } from "./glb.ts";
+import { readGlb } from "./testglb.ts";
 import { ratesToControls } from "../game/view.ts";
 import { RULES } from "../book/rules.ts";
-import { contract } from "./testglb.ts";
+import { contract, wantedNodes } from "./testglb.ts";
 
 test("roll right raises the right trailing edges and lowers the left", () => {
   const c = { p: 0, r: 1, y: 0 };
@@ -24,6 +25,53 @@ test("pull raises both stabilators, yaw right swings the rudder right, gear lowe
   assert.equal(deflection("flap", "r", NEUTRAL, 0), 0);
   assert.equal(deflection("canopy", "", pull, 1), 0);
 });
+
+test("canards pitch with the stick, trailing edge down on a pull, and do not roll", () => {
+  assert.ok(deflection("canard", "l", { p: 1, r: 0, y: 0 }, 0) > 0);
+  assert.ok(deflection("canard", "r", { p: 1, r: 0, y: 0 }, 0) > 0);
+  assert.ok(deflection("canard", "r", { p: -1, r: 0, y: 0 }, 0) < 0);
+  assert.equal(deflection("canard", "r", { p: 0, r: 1, y: 1 }, 1), 0);
+  // opposite to the tail: a pull raises the stabilators' trailing edges
+  assert.ok(Math.sign(deflection("canard", "l", { p: 1, r: 0, y: 0 }, 0)) === -Math.sign(deflection("stab", "l", { p: 1, r: 0, y: 0 }, 0)));
+});
+
+test("swing wings spread slow, sweep fast, stow parked", () => {
+  assert.equal(sweepTarget(100, false), 0);
+  assert.equal(sweepTarget(300, false), 1);
+  const mid = sweepTarget(190, false);
+  assert.ok(mid > 0.4 && mid < 0.6, `${mid}`);
+  assert.equal(sweepTarget(0, true), 1);      // parked: stowed back
+  assert.equal(sweepTarget(30, true), 0);     // taxi and take-off roll: spread
+  assert.equal(sweepTarget(NaN, false), 1);
+  const f14: [number, number] = [-0.4189, 0.4189]; // 68°..20° around the modelled 44°
+  assert.equal(sweepAngle(f14, 0), 0.4189);   // forward: a positive turn
+  assert.equal(sweepAngle(f14, 1), -0.4189);
+  assert.equal(sweepAngle(f14, 0.5), 0);      // the modelled pose
+  assert.equal(sweepAngle(f14, 9), -0.4189);  // clamped
+});
+
+for (const kind of ["f14", "mig23"]) {
+  test(`${kind}.glb: the rig sweeps both wings symmetrically, the tip moving forward and back`, () => {
+    const root = readGlb(new URL(`../../static/models/${kind}.glb`, import.meta.url));
+    // readGlb drops extras; copy them from the file the way GLTFLoader does (userData)
+    const buf = readFileSync(new URL(`../../static/models/${kind}.glb`, import.meta.url));
+    const json = JSON.parse(buf.toString("utf8", 20, 20 + buf.readUInt32LE(12))) as { nodes: { name: string; extras?: object }[] };
+    for (const n of json.nodes) { const o = root.getObjectByName(n.name); if (o && n.extras) o.userData = { ...n.extras }; }
+    const rig = new Rig(root);
+    assert.ok(rig.swings);
+    const tipZ = (t: number) => {
+      rig.sweep(t);
+      root.updateMatrixWorld(true);
+      const w = root.getObjectByName("aileron_r")!.getWorldPosition(new THREE.Vector3());
+      const l = root.getObjectByName("aileron_l")!.getWorldPosition(new THREE.Vector3());
+      assert.ok(Math.abs(w.x + l.x) < 1e-6 && Math.abs(w.z - l.z) < 1e-6, "symmetric");
+      return w;
+    };
+    const fwd = tipZ(0), back = tipZ(1);
+    assert.ok(back.z > fwd.z + 1, `aileron z ${fwd.z} -> ${back.z}`); // nose is -z: back is +z
+    assert.ok(back.x < fwd.x, "swept back: narrower");
+  });
+}
 
 test("team roles take the palette, the others keep the model's colour", () => {
   assert.equal(roleColor("body", "nato", false), "#9aa3ad");
@@ -151,14 +199,20 @@ for (const [kind, want] of Object.entries(contract.kinds)) {
       samplers?: { magFilter?: number }[];
     };
     const names = new Set(json.nodes.map((n) => n.name));
-    const nodes = [...contract.nodes, ...(want.twin ? contract.twin : contract.single)];
-    for (const n of nodes) assert.ok(names.has(n), `node ${n}`);
-    for (let i = 0; i < want.missiles; i++) assert.ok(names.has(`msl_${i}`), `msl_${i}`);
+    for (const n of wantedNodes(want)) assert.ok(names.has(n), `node ${n}`);
+    assert.ok(!names.has(`ab_${want.engines}`), `${want.engines} engines`);
     assert.ok(!names.has(`msl_${want.missiles}`), `${want.missiles} missiles: sim.Spec.Missiles`);
     for (const n of json.nodes) {
       if (/^(aileron|flap|stab|elevator|rudder)/.test(n.name)) assert.equal((n.extras?.axis as number[]).length, 3, n.name);
-      // Every rudder swings its trailing edge right for a positive angle: its axis points up.
-      if (/^rudder/.test(n.name)) assert.ok((n.extras?.axis as number[])[1] > 0.9, `${n.name} axis`);
+      // Every rudder swings its trailing edge right for a positive angle: its axis points up
+      // (canted fins lean it out by up to 28 degrees, swept hinges back a little more).
+      if (/^rudder/.test(n.name)) assert.ok((n.extras?.axis as number[])[1] > 0.8, `${n.name} axis`);
+      // A swing wing turns about the vertical, with its sweep range around the modelled pose.
+      if (/^wing_[lr]$/.test(n.name)) {
+        assert.equal(Math.abs((n.extras?.axis as number[])[1]), 1, `${n.name} axis`);
+        const [lo, hi] = n.extras?.sweep as number[];
+        assert.ok(lo < 0 && hi > 0, `${n.name} sweep`);
+      }
     }
     const roles = new Set(json.materials.map((m) => m.name));
     for (const r of roles) assert.ok(["body", "secondary", "stripe", "canopy", "dark", "metal"].includes(r), r);

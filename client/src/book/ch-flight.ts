@@ -25,8 +25,21 @@ export function abArt(): SVGSVGElement {
     label(X(lockAt), y0 + 14, sec(lockAt), "mid small"), label(X(unlockAt), y0 + 14, sec(unlockAt), "mid small"));
 }
 
-/** Control authority against speed for each aircraft (the sim's own function). */
-export function authArt(list: AircraftInfo[]): SVGSVGElement {
+/**
+ * The aircraft the authority drawing shows: the lowest and highest corner
+ * speed and the lowest and highest top speed (at most four, table order), so
+ * the curves stay readable with seventeen kinds.
+ */
+export function authKinds(all: AircraftInfo[]): AircraftInfo[] {
+  if (all.length <= 4) return all;
+  const by = (f: (a: AircraftInfo) => number, hi: boolean) => all.reduce((m, a) => ((hi ? f(a) > f(m) : f(a) < f(m)) ? a : m));
+  const pick = new Set([by((a) => a.cornerSpeed, false), by((a) => a.cornerSpeed, true), by((a) => a.maxSpeedAB, false), by((a) => a.maxSpeedAB, true)]);
+  return all.filter((a) => pick.has(a));
+}
+
+/** Control authority against speed for a few aircraft (authKinds; the sim's own function). */
+export function authArt(all: AircraftInfo[]): SVGSVGElement {
+  const list = authKinds(all);
   const top = Math.max(...list.map((a) => a.maxSpeedAB));
   const W = 320, x0 = 34, y0 = 120, k = (W - x0 - 10) / top, hgt = 100;
   const X = (v: number) => x0 + v * k, Y = (a: number) => y0 - a * hgt;

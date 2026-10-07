@@ -1,5 +1,6 @@
 // Pilot's Manual (English), chapters 4–6: takeoff and landing, weapons, modes.
 import { baseArt, landArt, rotateTable } from "../../../book/ch-ground.ts";
+import { extraBombs } from "../../../book/ch-aircraft.ts";
 import { fleet, targetsArt, targetTable } from "../../../book/ch-modes.ts";
 import { ammoTable, bind, flareArt, lockArt } from "../../../book/ch-weapons.ts";
 import { b, dist, figure, kbd, kmh, list, note, num, p, pct, sec, speed, steps, sub } from "../../../book/kit.ts";
@@ -113,7 +114,7 @@ export const combat: Combat = {
         pct(R.missileAvionics), " of missile hits, ", num(R.bulletAvionics * 100, 1), "% of rounds."],
       ["Damage is gone with a new life, a rearm on your base or the repair power-up."]),
     sub("Bombs (Base Attack)"),
-    p("Key: ", b(bind(M.bomb, K.bomb, "bomb", kb)), ". ", b(String(R.bombs)), " bombs per aircraft; only rearming refills them. A bomb leaves with the plane's ",
+    p("Key: ", b(bind(M.bomb, K.bomb, "bomb", kb)), ". ", b(String(R.bombs)), ` bombs per aircraft${extraBombs()}; only rearming refills them. A bomb leaves with the plane's `,
       "velocity and falls with gravity (wind doesn't affect it): release it before you reach the target."),
     list(
       ["Blast radius ", dist(R.bombRadius), ": up to ", String(R.bombStructDmg), " damage to a structure, up to ", String(R.bombPlaneDmg),
