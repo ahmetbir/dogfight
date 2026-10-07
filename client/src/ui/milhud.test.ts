@@ -112,12 +112,13 @@ test("pipper: the lead mark uses my aircraft's muzzle, the same as the Classic l
   assert.equal(pipperMark(me, { lead: null, muzzle: 8 }), null);
 });
 
-test("planeHole: sized from the airframe's own span", () => {
+test("planeHole: sized from the airframe's own span, never below the approved 9 m half-span", () => {
   const proj = (p: { x: number; y: number; z: number }) => ({ x: 400 + p.x * 10, y: 300 - p.y * 10 });
   const hole = (span: number) => planeHole(view({ pos: v3(0, 0, 0), fwd: v3(0, 0, -1), up: v3(0, 1, 0), span, project: proj }), { x: 0, y: -1 }, 12)!;
-  const small = hole(10), big = hole(20);
-  assert.ok(small.rx < big.rx);
-  assert.ok(Math.abs(small.rx - (5 * 10 * 1.25 + 12)) < 1e-9, "half-span on screen × 1.25 + the font size");
+  const small = hole(10), mid = hole(18), big = hole(24);
+  assert.ok(Math.abs(small.rx - (9 * 10 * 1.25 + 12)) < 1e-9, "a small jet keeps the 9 m hole the look was approved with");
+  assert.equal(small.rx, mid.rx);
+  assert.ok(Math.abs(big.rx - (12 * 10 * 1.25 + 12)) < 1e-9, "a big jet: its half-span on screen × 1.25 + the font size");
   assert.equal(planeHole(view({ project: () => null }), { x: 0, y: -1 }, 12), null);
 });
 

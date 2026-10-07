@@ -29,6 +29,7 @@ export type { MilColor };
 export const MIL_COLORS: Record<MilColor, string> = MIL_PALETTE;
 
 const R = 500;            // m: every projected mark sits this far out, as the classic nose cross does
+const HOLE_MIN_HALF = 9;   // m: least half-span of the clear ellipse around my plane
 const TAPE_HALF = 25;     // deg either side of the heading tape's centre
 const LADDER_SPAN = 12;   // deg: the ladder's window either side of the flight path (it fades out at the edge)
 const LADDER_ALPHA = 0.8; // the ladder is secondary: a touch dimmer than the readouts
@@ -446,7 +447,9 @@ export function pipperMark(v: Pick<HudView, "pos" | "vel">, rv: Pick<ReticleView
  */
 export function planeHole(v: HudView, upS: Pt, fs: number): { x: number; y: number; rx: number; ry: number; rot: number } | null {
   const c = v.project(v.pos);
-  const w = cross(v.fwd, v.up), half = v.span / 2; // my airframe's real half-span
+  // My airframe's real half-span, never smaller than the 9 m the approved look was tuned on
+  // (a smaller hole lets the ladder crowd the plane again).
+  const w = cross(v.fwd, v.up), half = Math.max(v.span / 2, HOLE_MIN_HALF);
   const wing = v.project({ x: v.pos.x + w.x * half, y: v.pos.y + w.y * half, z: v.pos.z + w.z * half });
   if (!c || !wing) return null;
   const rx = Math.hypot(wing.x - c.x, wing.y - c.y) * 1.25 + fs;
