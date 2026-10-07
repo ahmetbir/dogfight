@@ -237,9 +237,10 @@ class Surface:
             j = (i + 1) % seg
             outward(part, [c, ring[i], ring[j]], role, [uv_at(0, 0.0), uvs[i], uvs[j]], inner)
 
-    def patch(self, part, s0, s1, z0, z1, side, rect, role="body", cols=4, rows=2, lift=0.01):
+    def patch(self, part, s0, s1, z0, z1, side, rect, role="body", cols=4, rows=2, lift=0.01, flip=False):
         """A rectangular decal (span s0..s1, chord z0..z1) on one side, following the
-        facets; rect (x, y, w, h) is its atlas slot, read upright from that side."""
+        facets; rect (x, y, w, h) is its atlas slot, read upright from that side.
+        flip: the surface is a mirror image (its +n side faces -x)."""
         x, y, w, h = rect
         grid = []
         for i in range(rows + 1):
@@ -247,7 +248,7 @@ class Surface:
             row = []
             for j in range(cols + 1):
                 t = j / cols
-                zz = lerp(z1, z0, t) if side > 0 else lerp(z0, z1, t)
+                zz = lerp(z1, z0, t) if (side > 0) != flip else lerp(z0, z1, t)
                 row.append((self.to_world(ss, side * (self.n_at(ss, zz) + lift), zz), A.uv_px(x + t * w, y + i / rows * h)))
             grid.append(row)
         for i in range(rows):

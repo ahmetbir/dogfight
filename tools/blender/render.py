@@ -72,10 +72,19 @@ def shots(kind, out_dir, suffix=""):
     scene = bpy.context.scene
     cam = setup(scene)
     target = Vector((0.0, 0.0, -0.3))
+    bpy.context.view_layer.update()
+    span = 0.0  # frame every jet alike: distance grows with its longest side
+    for ob in scene.objects:
+        if ob.type == "MESH":
+            for c in ob.bound_box:
+                v = ob.matrix_world @ Vector(c)
+                span = max(span, abs(v.x), abs(v.y))
+    k = max(1.0, span / 7.6)
+    print(f"RENDER {kind}: extent {span:.2f} m, camera x{k:.2f}")
     for name, (d, gear_down, deflect) in VIEWS.items():
         pose(gear_down, deflect)
         dv = Vector(to_blender(d)).normalized()
-        cam.location = target + dv * {"top": 60.0, "nose": 13.0}.get(name, 46.0)
+        cam.location = target + dv * {"top": 72.0, "nose": 13.0}.get(name, 46.0) * k
         cam.rotation_euler = (-dv).to_track_quat("-Z", "Y").to_euler()
         scene.render.filepath = os.path.join(out_dir, f"{kind}_{name}{suffix}.png")
         bpy.ops.render.render(write_still=True)
