@@ -31,6 +31,7 @@ type Player struct {
 	Kind    sim.Kind
 	Bot     bool
 	Loadout sim.Loadout // missile loadout of the next spawn
+	Skin    string      // paint scheme id (SetSkin; bots draw one per seat)
 }
 
 // teamKinds lists the aircraft a team may fly, in sim.Kinds order (the first
@@ -67,8 +68,9 @@ func cleanName(name string) string {
 func (g *Game) seat(name string, team sim.Team, kind sim.Kind, isBot bool) sim.ID {
 	g.nextID++
 	id := g.nextID
-	g.players[id] = &Player{ID: id, Name: name, Team: team, Kind: kind, Bot: isBot}
+	g.players[id] = &Player{ID: id, Name: name, Team: team, Kind: kind, Bot: isBot, Skin: StandardSkin}
 	if isBot {
+		g.players[id].Skin = botSkin(kind, g.s.Seed, id)
 		b := bot.New(id, g.s.Difficulty, g.s.Seed*7919+int64(id))
 		g.bots[id] = b
 		g.players[id].Loadout = b.Loadout(nil)
