@@ -356,7 +356,8 @@ bucket; otherwise players get kicked with `flood`. Core types (`hello`, `create`
   `.glb` from `tools/blender/kinds/<kind>.py`, an entry in `tools/blender/contract.json`, RULES
   lines and an `AIRCRAFT` entry in `client/src/book/rules.ts` (pinned by
   `internal/match/book_rules_test.go`), a role in `client/src/ui/roles.ts` with `role.*` i18n
-  lines. Kinds travel as strings; `sim.ParseKind` refuses anything else.
+  lines. Kinds travel as strings; a pick naming anything `sim.ParseKind` does not list fails
+  `front.Kit.InRoom`, and the core closes that connection with "bad".
 - **The model carries the missile load:** one `msl_i` node per `Spec.Missiles`. Changing a
   count means changing the kind's Blender build too (`contract.json` is checked by build.py,
   the client model test and `TestContractMissilesAreTheSimLoad`).

@@ -10,6 +10,7 @@ import (
 	"playground/internal/game"
 	"playground/internal/match"
 	"playground/internal/protocol"
+	"playground/internal/sim"
 )
 
 var _ server.Kit[game.Settings, protocol.ClientMsg, match.Info] = Kit{}
@@ -32,6 +33,23 @@ func TestKitClassesAndInRoom(t *testing.T) {
 	}
 	if k.Version() != 2 {
 		t.Fatal("version")
+	}
+}
+
+// Every kind of the sim is a valid pick on the wire; anything else is not in
+// the room's vocabulary, so the core closes that connection ("bad"), as it
+// always did for unknown kinds. The new jets needed no protocol version bump.
+func TestPickOfEveryKindPassesUnknownIsRefused(t *testing.T) {
+	k := Kit{}
+	for _, kind := range sim.Kinds() {
+		if !k.InRoom(protocol.ClientMsg{T: protocol.TPick, Kind: kind.String()}) {
+			t.Errorf("pick %q refused", kind)
+		}
+	}
+	for _, bad := range []string{"zeppelin", "F16", "", "su-27", "mig31 "} {
+		if k.InRoom(protocol.ClientMsg{T: protocol.TPick, Kind: bad}) {
+			t.Errorf("pick %q accepted", bad)
+		}
 	}
 }
 

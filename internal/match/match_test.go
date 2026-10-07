@@ -122,9 +122,10 @@ func TestChatScope(t *testing.T) {
 	}
 }
 
-// A pick on the wire names its kind as a string: every kind of the table is
-// accepted (FFA flies all), an unknown or wrongly cased one is ignored.
-func TestPickAcceptsEveryKindAndIgnoresUnknown(t *testing.T) {
+// Behind the server's gate (front.Kit.InRoom refuses an unknown kind and the
+// core closes that connection), the match flies every kind of the table
+// (FFA flies all) and leaves the kind alone for a pick it cannot parse.
+func TestHandlePickFliesEveryKindAndKeepsKindOnUnparsable(t *testing.T) {
 	m := New(ffa4, nil)
 	b := &box{}
 	a, _ := m.Join(room.Who{Name: "a"})
@@ -147,7 +148,7 @@ func TestPickAcceptsEveryKindAndIgnoresUnknown(t *testing.T) {
 	for _, bad := range []string{"zeppelin", "F16", "", "su-27", "mig31 "} {
 		m.Handle(a, protocol.ClientMsg{T: protocol.TPick, Kind: bad}, b)
 		if kindOf() != last {
-			t.Fatalf("pick %q changed the kind to %v", bad, kindOf())
+			t.Fatalf("unparsable pick %q changed the kind to %v", bad, kindOf())
 		}
 	}
 }
