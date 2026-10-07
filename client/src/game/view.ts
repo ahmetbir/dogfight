@@ -54,6 +54,7 @@ export function planeRenders(
       name: s.players.get(p.id)?.name ?? "", isMe,
       gear: isMe ? !!fs.gear : !!p.gr, // mine from prediction, others from the wire
       ctl: isMe ? mine.stick : ratesToControls(toFlight(p).w, s.aircraft.get(p.k)),
+      msl: p.ms + (p.rm ?? 0), // every plane's snapshot carries both kinds (rearm refills them)
     });
   }
   return out;

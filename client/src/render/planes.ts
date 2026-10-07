@@ -13,6 +13,7 @@ export type PlaneRender = {
   hp: number; maxHP: number; ab: boolean; gForce: number; name: string; isMe: boolean;
   gear: boolean; // landing gear down
   ctl?: Controls; // control surfaces: my stick, or others' turn rates (absent: neutral)
+  msl?: number;   // missiles left on the rails, IR + radar (absent: a full load)
 };
 
 const LABEL_RANGE = 3000; // m: friendly tags (enemies: game/sight.ts)
@@ -182,6 +183,7 @@ class PlaneView {
     for (const o of this.idle) o.visible = !p.ab;
     this.updateGear(p, now);
     this.updateSurfaces(p.alive ? p.ctl ?? NEUTRAL : NEUTRAL);
+    this.rig?.missiles(p.msl ?? Infinity);
     if (this.label) {
       this.label.position.set(p.pos.x, p.pos.y + 9, p.pos.z);
       this.label.visible = p.alive && showLabel;

@@ -56,11 +56,15 @@ function turn(h: Hinge, angle: number): void {
 export class Rig {
   private readonly surfaces: (Hinge & { role: string; side: string })[] = [];
   private readonly legs: (Hinge & { angle: number })[] = [];
+  private readonly stores: THREE.Object3D[]; // msl_0.. in firing order
   readonly gear: THREE.Object3D | null;
 
   constructor(root: THREE.Object3D) {
     this.gear = root.getObjectByName("gear") ?? null;
+    const msl: [number, THREE.Object3D][] = [];
     root.traverse((o) => {
+      const m = /^msl_(\d+)$/.exec(o.name);
+      if (m) msl.push([Number(m[1]), o]);
       const d = o.userData as { role?: unknown; axis?: unknown; retract?: unknown };
       if (typeof d.role === "string" && d.axis) {
         const h = hinge(o, d.axis);
@@ -72,6 +76,23 @@ export class Rig {
         if (h) this.legs.push({ ...h, angle: d.retract[3] as number });
       }
     });
+    msl.sort((a, b) => a[0] - b[0]);
+    this.stores = msl.map(([, o]) => o);
+  }
+
+  /** Missile stations on the model (the aircraft's full load). */
+  get missileSlots(): number {
+    return this.stores.length;
+  }
+
+  /**
+   * Shows the left missiles still on their rails: the first fired (msl_0)
+   * goes first, so a partial load keeps the last stations.
+   */
+  missiles(left: number): void {
+    const n = this.stores.length;
+    const keep = Number.isFinite(left) ? Math.max(0, Math.min(n, Math.floor(left))) : n;
+    this.stores.forEach((o, i) => { o.visible = i >= n - keep; });
   }
 
   /** Surfaces from c; gear 0 retracted .. 1 down (flaps follow it). */

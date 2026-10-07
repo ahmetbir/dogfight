@@ -96,6 +96,23 @@ test("dressGlb recolours by role, puts flames on the markers and rigs the moving
   assert.ok(new THREE.Vector3(0, -1, 0).applyQuaternion(leg.quaternion).y < -0.99, "gear down: rest pose");
 });
 
+test("fired missiles leave their rails in msl order; a rearm brings them back", () => {
+  const root = new THREE.Group();
+  const msl = [2, 0, 1].map((i) => Object.assign(new THREE.Object3D(), { name: `msl_${i}` }));
+  root.add(...msl);
+  const rig = new Rig(root);
+  const shown = () => [0, 1, 2].map((i) => root.getObjectByName(`msl_${i}`)!.visible);
+  assert.equal(rig.missileSlots, 3);
+  rig.missiles(2);
+  assert.deepEqual(shown(), [false, true, true]);
+  rig.missiles(0);
+  assert.deepEqual(shown(), [false, false, false]);
+  rig.missiles(9);
+  assert.deepEqual(shown(), [true, true, true]);
+  rig.missiles(Infinity); // unknown count: a full load
+  assert.deepEqual(shown(), [true, true, true]);
+});
+
 test("a rig ignores malformed axes", () => {
   const o = new THREE.Group();
   const bad = new THREE.Group();
@@ -123,9 +140,10 @@ test("f16.glb: nodes, materials, budgets", { skip: !existsSync(F16) }, () => {
   };
   const names = new Set(json.nodes.map((n) => n.name));
   for (const n of ["airframe", "canopy", "aileron_l", "aileron_r", "flap_l", "flap_r", "stab_l", "stab_r", "rudder",
-    "gear", "gear_nose", "gear_main_l", "gear_main_r", "ab_0", "idle_0"]) {
+    "gear", "gear_nose", "gear_main_l", "gear_main_r", "ab_0", "idle_0", "msl_0", "msl_4"]) {
     assert.ok(names.has(n), `node ${n}`);
   }
+  assert.ok(!names.has("msl_5"), "five missiles: sim.Spec.Missiles");
   for (const n of json.nodes) {
     if (/^(aileron|flap|stab|elevator|rudder)/.test(n.name)) assert.equal((n.extras?.axis as number[]).length, 3, n.name);
   }
