@@ -82,7 +82,7 @@ export const combat: Combat = {
       [b("IR (kısa menzil)"), ": uçağın tüm füzeleri ısı güdümlü. Ateşle-unut: attıktan sonra dönebilirsin. Flare'e kanabilir."],
       [b("Radar (orta menzil)"), ": kilit menzili ×", num(R.radarRangeMul), ", kilit ", sec(R.radarLockS), ", sayı yarıya iner (en az 1). ",
         "Yarı aktif: füze vurana dek hedefi burnunun ", `${R.radarLeashDeg}°`, " içinde tut, yoksa füze güdümsüz kalır. Flare işlemez; hedef ",
-        "füzeye dik uçarsa (füze yönündeki hızı ", speed(R.radarBeamSpeed), " altında) ", sec(R.radarBeamS), " sonra iz kopar."],
+        "füzeye dik uçarsa (füze yönündeki hızı ", speed(R.radarBeamSpeed), " altında) ", sec(R.radarBeamS), " sonra iz kopar (kopunca FÜZE ATLATILDI! yazar). Radar ", dist(R.radarMinRange), " içindeki hedefe kilitlenmez: yakında IR ya da top."],
       [b("Karışık"), ": IR füzelerin yarısı + 1 radar. Türü sen seçersin: ", b(keys(M.pick)), " (fare) ya da ", b(keys(K.pick)),
         " (klavye) IR ile radar arasında geçer; kilit menzili ve süresi seçtiğin türün olur. Seçtiğin tür bitince füze tuşu öbürünü atar. ",
         "Dokunmatikte seçim yok: kilitli hedef IR menzilinin dışındaysa radar, içindeyse IR."]),

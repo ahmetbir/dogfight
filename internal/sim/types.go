@@ -137,7 +137,7 @@ const (
 	EvStructDown // Plane: structure, Other: attacker
 	EvBombDrop   // Plane: bomb, By: owner, Pos, Vel
 	EvBombHit    // Plane: bomb, By: owner, Pos
-	EvDecoy      // Plane: missile, Other: its target (the flare's dropper), By: shooter, Pos: the flare
+	EvDecoy      // Plane: missile, Other: its target, By: shooter, Pos: the flare (a radar track lost: the missile)
 )
 
 type Event struct {

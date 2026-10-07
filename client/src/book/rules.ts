@@ -56,8 +56,9 @@ export const RULES = {
   radarRangeMul: 2.2,
   radarLockS: 2,
   radarLeashDeg: 60,
-  radarBeamSpeed: 40,
-  radarBeamS: 1.5,
+  radarBeamSpeed: 80,
+  radarBeamS: 1,
+  radarMinRange: 1000,
   radarDmg: 50,
   // base attack
   bombs: 2,

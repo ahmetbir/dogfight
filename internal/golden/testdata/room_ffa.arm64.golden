@@ -22,7 +22,7 @@
 {"t":"round","n":182,"m":{"t":"round","phase":"playing","left":25715,"nato":0,"soviet":0,"board":[{"id":6,"k":2,"d":1,"s":2},{"id":1,"k":1,"d":0,"s":1},{"id":2,"k":1,"d":1,"s":1},{"id":5,"k":0,"d":2,"s":0}]}}
 {"t":"run","c":137,"n":187584,"h":"dc6d6cbcb890ec90"}
 {"t":"round","n":182,"m":{"t":"round","phase":"playing","left":25449,"nato":0,"soviet":0,"board":[{"id":2,"k":2,"d":1,"s":2},{"id":6,"k":2,"d":1,"s":2},{"id":1,"k":1,"d":1,"s":1},{"id":5,"k":0,"d":2,"s":0}]}}
-{"t":"run","c":206,"n":282801,"h":"d04dffea22dd4c1b"}
+{"t":"run","c":206,"n":280393,"h":"8d294108398f6653"}
 ## a.ev
 {"t":"spawn","n":29,"m":{"k":"spawn","tick":31,"a":5}}
 {"t":"lock","n":35,"m":{"k":"lock","tick":394,"a":1,"b":5}}
@@ -48,7 +48,7 @@
 {"t":"kill","n":50,"m":{"k":"kill","tick":3085,"a":5,"b":1,"w":"missile"}}
 {"t":"spawn","n":31,"m":{"k":"spawn","tick":3265,"a":5}}
 {"t":"lock","n":43,"m":{"k":"lock","tick":3680,"a":5,"b":6,"mk":1}}
-{"t":"mlaunch","n":59,"m":{"k":"mlaunch","tick":3681,"a":16777229,"b":6,"o":5,"mk":1}}
+{"t":"mlaunch","n":59,"m":{"k":"mlaunch","tick":3681,"a":16777228,"b":6,"o":5,"mk":1}}
 ## b
 {"t":"welcome","n":46815,"h":"f8d9f5d1b92e9315","p":"{\"t\":\"welcome\",\"you\":6,\"code\":\"GOLD\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
 {"t":"players","n":270,"m":{"t":"players","list":[{"id":1,"name":"Maverick","team":"none","kind":"f16","bot":true},{"id":2,"name":"Iceman","team":"none","kind":"f15","bot":true},{"id":5,"name":"a","team":"none","kind":"f16","bot":false},{"id":6,"name":"b","team":"none","kind":"f16","bot":false}]}}
@@ -63,11 +63,11 @@
 {"t":"round","n":182,"m":{"t":"round","phase":"playing","left":25715,"nato":0,"soviet":0,"board":[{"id":6,"k":2,"d":1,"s":2},{"id":1,"k":1,"d":0,"s":1},{"id":2,"k":1,"d":1,"s":1},{"id":5,"k":0,"d":2,"s":0}]}}
 {"t":"run","c":137,"n":187584,"h":"0ca930dc2ea564fe"}
 {"t":"round","n":182,"m":{"t":"round","phase":"playing","left":25449,"nato":0,"soviet":0,"board":[{"id":2,"k":2,"d":1,"s":2},{"id":6,"k":2,"d":1,"s":2},{"id":1,"k":1,"d":1,"s":1},{"id":5,"k":0,"d":2,"s":0}]}}
-{"t":"run","c":207,"n":284153,"h":"72b56e1c76d13c90"}
+{"t":"run","c":207,"n":281778,"h":"b877075142f871e4"}
 {"t":"players","n":274,"m":{"t":"players","list":[{"id":1,"name":"Maverick","team":"none","kind":"f16","bot":true},{"id":2,"name":"Iceman","team":"none","kind":"f15","bot":true},{"id":6,"name":"b","team":"none","kind":"su27","bot":false},{"id":7,"name":"Viper","team":"none","kind":"f16","bot":true}]}}
-{"t":"run","c":15,"n":19627,"h":"33643831d1f1b262"}
+{"t":"run","c":15,"n":18057,"h":"144f36c9356102b4"}
 {"t":"round","n":182,"m":{"t":"round","phase":"playing","left":25020,"nato":0,"soviet":0,"board":[{"id":2,"k":2,"d":1,"s":2},{"id":6,"k":2,"d":1,"s":2},{"id":1,"k":1,"d":1,"s":1},{"id":7,"k":0,"d":0,"s":0}]}}
-{"t":"run","c":138,"n":160559,"h":"c0e88d0aa3f24626"}
+{"t":"run","c":138,"n":160138,"h":"29abb9051b16f194"}
 {"t":"close","n":13,"m":{"t":"close"}}
 ## b.ev
 {"t":"spawn","n":30,"m":{"k":"spawn","tick":750,"a":6}}
@@ -95,23 +95,16 @@
 {"t":"lock","n":43,"m":{"k":"lock","tick":3319,"a":6,"b":1,"mk":1}}
 {"t":"mlaunch","n":59,"m":{"k":"mlaunch","tick":3321,"a":16777226,"b":1,"o":6,"mk":1}}
 {"t":"hit","n":56,"m":{"k":"hit","tick":3510,"a":2,"b":6,"val":6,"w":"cannon"}}
-{"t":"lock","n":43,"m":{"k":"lock","tick":3511,"a":6,"b":2,"mk":1}}
 {"t":"hit","n":56,"m":{"k":"hit","tick":3512,"a":2,"b":6,"val":6,"w":"cannon"}}
-{"t":"mlaunch","n":59,"m":{"k":"mlaunch","tick":3513,"a":16777228,"b":2,"o":6,"mk":1}}
 {"t":"hit","n":56,"m":{"k":"hit","tick":3515,"a":2,"b":6,"val":6,"w":"cannon"}}
 {"t":"hit","n":56,"m":{"k":"hit","tick":3518,"a":2,"b":6,"val":6,"w":"cannon"}}
 {"t":"hit","n":56,"m":{"k":"hit","tick":3520,"a":2,"b":6,"val":6,"w":"cannon"}}
 {"t":"hit","n":56,"m":{"k":"hit","tick":3523,"a":2,"b":6,"val":6,"w":"cannon"}}
 {"t":"hit","n":56,"m":{"k":"hit","tick":3525,"a":2,"b":6,"val":6,"w":"cannon"}}
-{"t":"hit","n":58,"m":{"k":"hit","tick":3551,"a":2,"b":6,"val":50,"w":"missile"}}
 {"t":"lock","n":43,"m":{"k":"lock","tick":3680,"a":5,"b":6,"mk":1}}
-{"t":"mlaunch","n":59,"m":{"k":"mlaunch","tick":3681,"a":16777229,"b":6,"o":5,"mk":1}}
-{"t":"lock","n":36,"m":{"k":"lock","tick":3751,"a":1,"b":6}}
-{"t":"mlaunch","n":52,"m":{"k":"mlaunch","tick":3756,"a":16777230,"b":6,"o":1}}
-{"t":"flare","n":31,"m":{"k":"flare","tick":3769,"a":6}}
-{"t":"decoy","n":50,"m":{"k":"decoy","tick":3769,"a":16777230,"b":6,"o":1}}
+{"t":"mlaunch","n":59,"m":{"k":"mlaunch","tick":3681,"a":16777228,"b":6,"o":5,"mk":1}}
 ## sink
 {"t":"delta","n":56,"m":{"p":"pilot-a","n":"a","d":1,"t":2038,"kd":{"f16":2038}}}
 {"t":"delta","n":68,"m":{"p":"pilot-a","n":"a","d":1,"m":1,"f":1,"t":1320,"kd":{"f16":1320}}}
 {"t":"delta","n":69,"m":{"p":"pilot-b","n":"b","k":1,"f":2,"h":1,"t":1500,"kd":{"su27":1500}}}
-{"t":"delta","n":76,"m":{"p":"pilot-b","n":"b","bk":1,"d":1,"f":2,"h":1,"t":1620,"kd":{"su27":1620}}}
+{"t":"delta","n":70,"m":{"p":"pilot-b","n":"b","bk":1,"d":1,"f":1,"t":1620,"kd":{"su27":1620}}}

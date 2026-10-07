@@ -82,7 +82,7 @@ export const combat: Combat = {
       [b("IR (short range)"), ": all the aircraft's missiles are heat-seeking. Fire-and-forget: you can turn away after the shot. Can be fooled by flares."],
       [b("Radar (medium range)"), ": lock range ×", num(R.radarRangeMul), ", lock time ", sec(R.radarLockS), ", half the missiles (at least 1). ",
         "Semi-active: keep the target within ", `${R.radarLeashDeg}°`, " of your nose until the missile hits, or the missile flies blind. Flares don't work; ",
-        "if the target flies across the missile (closing speed below ", speed(R.radarBeamSpeed), "), the track breaks after ", sec(R.radarBeamS), "."],
+        "if the target flies across the missile (closing speed below ", speed(R.radarBeamSpeed), "), the track breaks after ", sec(R.radarBeamS), " (MISSILE EVADED! shows when it does). Radar does not lock a target inside ", dist(R.radarMinRange), ": up close it is IR or guns."],
       [b("Mixed"), ": half the IR missiles + 1 radar. You pick the kind: ", b(keys(M.pick)), " (mouse) or ", b(keys(K.pick)),
         " (keyboard) switches between IR and radar; the lock range and time are the picked kind's. When the picked kind runs out, the missile key fires the other. ",
         "Touch has no pick: radar when the locked target is beyond IR range, IR inside it."]),

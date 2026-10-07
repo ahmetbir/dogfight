@@ -113,7 +113,8 @@ func launchIn(t *testing.T, w *World, hold func()) Event {
 }
 
 // Karışık: the missile key fires radar when the lock is beyond IR range,
-// otherwise IR; with the IR missiles gone a close lock fires radar.
+// otherwise IR; with the IR missiles gone a close lock fires radar, but
+// never inside RadarMinRange.
 func TestMixedSelection(t *testing.T) {
 	irRange := SpecOf(F15).LockRange
 	cases := []struct {
@@ -125,7 +126,7 @@ func TestMixedSelection(t *testing.T) {
 	}{
 		{"far", -irRange * 1.8, false, MissileRadar, 3, 0},
 		{"close", -irRange * 0.6, false, MissileIR, 2, 1},
-		{"close, IR empty", -irRange * 0.6, true, MissileRadar, 0, 0},
+		{"close, IR empty", -(RadarMinRange + 40), true, MissileRadar, 0, 0},
 	}
 	for _, c := range cases {
 		w, hold := duelWorld(LoadMixed, c.dz)
@@ -154,7 +155,10 @@ func TestPickedKind(t *testing.T) {
 	}{
 		{"IR close", PickIR, -irRange * 0.6, false, false, MissileIR},
 		{"IR far", PickIR, -irRange * 1.8, false, false, noFire},
-		{"radar close", PickRadar, -irRange * 0.6, false, false, MissileRadar},
+		{"radar close", PickRadar, -(RadarMinRange + 40), false, false, MissileRadar},
+		{"radar inside its minimum range: IR", PickRadar, -irRange * 0.6, false, false, MissileIR},
+		{"radar inside its minimum range, IR empty: no lock", PickRadar, -irRange * 0.6, true, false, noFire},
+		{"auto inside the minimum range, IR empty: no lock", PickAuto, -irRange * 0.6, true, false, noFire},
 		{"radar close, radar empty", PickRadar, -irRange * 0.6, false, true, MissileIR},
 		{"IR far, IR empty", PickIR, -irRange * 1.8, true, false, MissileRadar},
 	}
@@ -259,9 +263,15 @@ func TestBeamingBreaksRadarTrack(t *testing.T) {
 		t.Fatalf("lost after %d beaming ticks, before %d", m.BeamTicks, RadarBeamTicks)
 	}
 	beam(m)(w)
-	w.Step(nil)
+	evaded := false
+	for _, e := range w.Step(nil) {
+		evaded = evaded || e.Kind == EvDecoy && e.Plane == m.ID && e.Other == 2 && e.By == 1
+	}
 	if m.Target != 0 {
 		t.Fatalf("still tracking after %d beaming ticks", RadarBeamTicks)
+	}
+	if !evaded {
+		t.Fatal("a broken radar track must tell the target it evaded (EvDecoy)")
 	}
 	w, m = radarChase(MissileIR, beam(nil))
 	for range RadarBeamTicks + 30 {
@@ -282,6 +292,38 @@ func TestBeamingBreaksRadarTrack(t *testing.T) {
 	}
 	if m.Target != 2 || m.BeamTicks != 0 {
 		t.Fatalf("dragging broke the radar track (beam ticks %d)", m.BeamTicks)
+	}
+}
+
+// The beam window: 15° off square still beams at 200 m/s (closing 52 m/s
+// under RadarBeamSpeed), 30° off does not (100 m/s).
+func TestBeamTolerance(t *testing.T) {
+	for _, c := range []struct {
+		offDeg float64
+		breaks bool
+	}{{15, true}, {30, false}} {
+		var m *Missile
+		set := func(w *World) {
+			w.setFlight(1, FlightState{Pos: geom.V(0, 2000, 0), Rot: geom.Identity(), Vel: geom.V(0, 0, -200), Throttle: 1})
+			pos := geom.V(0, 2000, -1600)
+			los := geom.V(0, 0, 1)
+			if m != nil {
+				los = m.Pos.Sub(pos).Norm()
+			}
+			side := los.Cross(geom.V(0, 1, 0)).Norm()
+			a := c.offDeg * math.Pi / 180 // tilt the beam toward the missile
+			dir := side.Scale(math.Cos(a)).Add(los.Scale(math.Sin(a)))
+			w.setFlight(2, FlightState{Pos: pos, Rot: geom.LookRotation(dir, geom.V(0, 1, 0)), Vel: dir.Scale(200), Throttle: 1})
+		}
+		var w *World
+		w, m = radarChase(MissileRadar, set)
+		for range RadarBeamTicks + 5 {
+			set(w)
+			w.Step(nil)
+		}
+		if broke := m.Target == 0; broke != c.breaks {
+			t.Errorf("%v° off square: track broken %v, want %v", c.offDeg, broke, c.breaks)
+		}
 	}
 }
 

@@ -17,8 +17,9 @@ Live demo: https://dogfight.ahmetbirinci.dev
 - **Missile loadouts**, chosen on the aircraft pick screen:
   - **IR** (short range): fire-and-forget heat seekers. Flares can decoy them.
   - **Radar** (medium range, about 2.2× the IR lock range, half the missile count):
-    semi-active, so the launcher must keep the target within 60° of its nose. Flares do nothing;
-    the target breaks the lock by *beaming* (flying perpendicular to the missile's line of sight).
+    semi-active, so the launcher must keep the target within 60° of its nose. No lock inside
+    1 km. Flares do nothing; the target breaks the track by *beaming*: about 1 s with the
+    missile at its 3 or 9 o'clock (within roughly ±18° at 250 m/s).
   - **Mixed** (*Karışık*): half the IR missiles plus one radar missile. `Q` (mouse) or `Z`
     (keyboard) picks the kind the missile key fires; the HUD frames the picked kind. When it runs
     out the other kind fires. Touch has no pick: radar beyond IR range, IR inside it.

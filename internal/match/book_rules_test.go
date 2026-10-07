@@ -122,7 +122,7 @@ func goRules(t *testing.T) map[string]float64 {
 		"flareRegenS": sim.FlareRegenTicks / ticks, "flareCooldownS": sim.FlareCooldown / ticks,
 		"flareBurnS": sim.FlareLife / ticks, "flareRange": sim.FlareRange, "flareChance": sim.FlareChance, "flareWarn": sim.FlareWarn,
 		"radarRangeMul": sim.RadarRangeMul, "radarLockS": sim.RadarLockSeconds, "radarLeashDeg": deg(sim.RadarLeash),
-		"radarBeamSpeed": sim.RadarBeamSpeed, "radarBeamS": sim.RadarBeamTicks / ticks, "radarDmg": sim.RadarDmg,
+		"radarBeamSpeed": sim.RadarBeamSpeed, "radarBeamS": sim.RadarBeamTicks / ticks, "radarDmg": sim.RadarDmg, "radarMinRange": sim.RadarMinRange,
 
 		"bombRadius": sim.BombRadius, "bombStructDmg": sim.BombStructDmg, "bombPlaneDmg": sim.BombPlaneDmg,
 		"structCannonMul": sim.StructCannonMul, "aaRange": sim.AARange, "aaDmg": sim.AADmg, "aaShotsPerS": ticks / sim.AAInterval,
