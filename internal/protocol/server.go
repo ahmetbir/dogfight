@@ -108,6 +108,7 @@ type MissileJSON struct {
 	Pos    [3]float64 `json:"p"`
 	Vel    [3]float64 `json:"v"`
 	Kind   uint8      `json:"mk,omitempty"` // 0 IR (omitted), 1 radar
+	Beam   float64    `json:"bp,omitempty"` // radar: how far its target's beaming has gone toward breaking the track, 0..1 (omitted at 0)
 }
 
 type PowerupJSON struct {
@@ -181,7 +182,8 @@ func NewSnap(s sim.Snapshot, ev []EventJSON, tick int) Snap {
 		out.Planes = append(out.Planes, newPlane(p, s.Tick))
 	}
 	for _, m := range s.Missiles {
-		out.Missiles = append(out.Missiles, MissileJSON{ID: m.ID, Target: m.Target, Pos: r3(m.Pos, 100), Vel: r3(m.Vel, 100), Kind: uint8(m.Kind)})
+		out.Missiles = append(out.Missiles, MissileJSON{ID: m.ID, Target: m.Target, Pos: r3(m.Pos, 100), Vel: r3(m.Vel, 100), Kind: uint8(m.Kind),
+			Beam: round(min(1, float64(m.BeamTicks)/sim.RadarBeamTicks), 100)})
 	}
 	for _, u := range s.Powerups {
 		out.Powerups = append(out.Powerups, PowerupJSON{Spot: u.Spot, Kind: itemName(u.Kind), Active: u.Active})
