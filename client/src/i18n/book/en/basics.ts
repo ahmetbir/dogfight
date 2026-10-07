@@ -54,6 +54,8 @@ export const basics: Basics = {
       [b("Language"), ": Türkçe or English; switch it on the home page or in Settings in the game. The browser remembers your choice."],
       [b("Invert Y axis"), ": flips nose up/down (W/S on the keyboard, up/down with the mouse, the stick on touch)."],
       [b("Mouse sensitivity"), ": mouse aim only."],
+      [b("Mouse as a lever"), ": the aim rides on the nose. Move the mouse a little left and the plane keeps turning left until you centre it again; ",
+        "a bigger move turns harder. Easy on long turns; the default mode is better for fine gun aiming."],
       [b("G effects"), ": the screen edges dim at high G and redden at negative G (visual only)."],
       [b("Missile camera"), ": follows the missile you fired in a small window."],
       [b("Performance mode"), ": fewer clouds, less rain and fewer particles, for smoother play on weaker devices."],

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { AIM_RAD_PER_PX, DEFAULT_SETTINGS, loadSettings, makeScheme, planeView, saveSettings, type Controls } from "./schemes.ts";
+import { AIM_RAD_PER_PX, DEFAULT_SETTINGS, LEVER_DEAD, loadSettings, makeScheme, planeView, saveSettings, type Controls } from "./schemes.ts";
 import { qAxisAngle, qIdentity, v3 } from "../sim/vec.ts";
 
 function controls(keys: string[] = [], buttons = 0) {
@@ -31,6 +31,46 @@ test("mouse aim starts on the nose and turns with the mouse", () => {
   c.move(0, -100); // up
   f = s.frame(c, plane, 1 / 60);
   assert.ok(f.aimDir!.y > 0.2);
+});
+
+/** Heading of a direction (rad, + left of -Z), as the scheme measures it. */
+const headingOf = (d: { x: number; z: number }) => Math.atan2(-d.x, -d.z);
+/** Whether two headings agree, wrap-around included. */
+const sameHeading = (a: number, b: number) => near(Math.atan2(Math.sin(a - b), Math.cos(a - b)), 0);
+
+test("mouse lever: the aim keeps its offset from the nose, so the turn goes on", () => {
+  const s = makeScheme({ ...DEFAULT_SETTINGS, lever: true });
+  const c = controls();
+  s.frame(c, plane, 1 / 60);
+  c.move(-100, 0); // left
+  const off = 100 * AIM_RAD_PER_PX;
+  let f = s.frame(c, plane, 1 / 60);
+  assert.ok(near(headingOf(f.aimDir!), off), "aim off the nose by the mouse move");
+  assert.ok(f.stick.r < 0, "rolls left toward the aim");
+  for (const turned of [0.5, 1.5, 3]) { // the nose came round; the mouse did not move
+    f = s.frame(c, { rot: qAxisAngle(v3(0, 1, 0), turned), th: 0.5 }, 1 / 60);
+    assert.ok(sameHeading(headingOf(f.aimDir!), turned + off), `still ${off} rad ahead after turning ${turned}`);
+  }
+  c.move(100, 0); // back to centre: the nose is held
+  f = s.frame(c, { rot: qAxisAngle(v3(0, 1, 0), 3), th: 0.5 }, 1 / 60);
+  assert.ok(sameHeading(headingOf(f.aimDir!), 3));
+  const aim = makeScheme(DEFAULT_SETTINGS); // aim mode: the aim stays put in the world
+  aim.frame(c, plane, 1 / 60);
+  c.move(-100, 0);
+  aim.frame(c, plane, 1 / 60);
+  assert.ok(near(headingOf(aim.frame(c, { rot: qAxisAngle(v3(0, 1, 0), off), th: 0.5 }, 1 / 60).aimDir!), off));
+});
+
+test("mouse lever: a tiny offset holds the nose, the offset tops out at 60°", () => {
+  const s = makeScheme({ ...DEFAULT_SETTINGS, lever: true });
+  const c = controls();
+  s.frame(c, plane, 1 / 60);
+  c.move(-(LEVER_DEAD / AIM_RAD_PER_PX) * 0.5, 0);
+  assert.ok(near(headingOf(s.frame(c, plane, 1 / 60).aimDir!), 0), "inside the dead zone");
+  c.move(-100000, 0);
+  s.frame(c, plane, 1 / 60);
+  c.move(10, 0); // pulling back answers at once: no wound-up offset to unwind
+  assert.ok(headingOf(s.frame(c, plane, 1 / 60).aimDir!) < Math.PI / 3);
 });
 
 test("aim pitch clamps at 85° and invertY flips it", () => {
@@ -121,7 +161,7 @@ test("settings round-trip through storage and survive garbage", () => {
   const mem = new Map<string, string>();
   const store = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v) };
   assert.deepEqual(loadSettings(store), DEFAULT_SETTINGS);
-  const custom = { scheme: "keyboard", sensitivity: 2, invertY: true, volume: 0.3, gfx: false, missileCam: false, perf: true, tilt: true } as const;
+  const custom = { scheme: "keyboard", sensitivity: 2, invertY: true, volume: 0.3, gfx: false, missileCam: false, perf: true, tilt: true, lever: true } as const;
   saveSettings(custom, store);
   assert.deepEqual(loadSettings(store), custom);
   mem.set("dogfight.settings", JSON.stringify({ scheme: "mouse" })); // saved before G effects existed

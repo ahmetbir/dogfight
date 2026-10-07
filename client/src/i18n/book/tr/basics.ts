@@ -54,6 +54,8 @@ export const basics: Basics = {
       [b("Dil"), ": Türkçe ya da English; ana sayfada ve oyunda Ayarlar'da değişir, seçim tarayıcıda saklanır."],
       [b("Y eksenini ters çevir"), ": burun yukarı/aşağı yönünü değiştirir (klavyede W/S, farede yukarı/aşağı, dokunmatikte çubuk)."],
       [b("Fare hassasiyeti"), ": yalnız fare ile nişanda."],
+      [b("Fare kol gibi"), ": nişan burna bağlı kalır. Fareyi biraz sola kaydırırsan uçak, fareyi geri ortalayana dek sola dönmeye devam eder; ",
+        "kaydırma büyüdükçe dönüş sertleşir. Uzun dönüşte rahattır, topla ince nişanda varsayılan mod daha iyidir."],
       [b("G efektleri"), ": yüksek G'de ekran kenarlarının kararması, eksi G'de kızarma (yalnız görsel)."],
       [b("Füze kamerası"), ": attığın füzeyi küçük bir pencerede izler."],
       [b("Performans modu"), ": daha az bulut, yağmur ve parçacık; zayıf cihazlarda akıcılık için."],

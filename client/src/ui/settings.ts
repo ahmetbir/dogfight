@@ -1,4 +1,4 @@
-// Settings menu (Esc): language, scheme, sensitivity, invert Y, G effects, missile cam,
+// Settings menu (Esc): language, scheme, sensitivity, mouse lever, invert Y, G effects, missile cam,
 // performance mode, tilt aim (touch only), volume, key list, leave.
 import { t, type Key } from "../i18n/index.ts";
 import { fixed, pct } from "../i18n/format.ts";
@@ -120,6 +120,7 @@ export class SettingsMenu {
           h("div", { class: "field" }, h("span", {}, t("lang.label")), lang),
           h("div", { class: "field" }, h("span", {}, t("settings.scheme")), scheme),
           s.scheme === "mouse" ? h("div", { class: "field" }, h("span", {}, t("settings.sens")), sens) : null,
+          s.scheme === "mouse" ? check("settings.lever", () => s.lever, (on) => { s.lever = on; }) : null,
           check("settings.invertY", () => s.invertY, (on) => { s.invertY = on; }),
           check("settings.gfx", () => s.gfx, (on) => { s.gfx = on; }),
           check("settings.missileCam", () => s.missileCam, (on) => { s.missileCam = on; }),

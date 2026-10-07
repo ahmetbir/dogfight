@@ -152,8 +152,9 @@ lock is free. Until then scores wait in memory (at most 512 records).
 ## Controls
 
 Pick the scheme in the settings menu (Esc). The default is mouse aim; touch devices start in the
-touch scheme. Settings are stored in `localStorage`: scheme, mouse sensitivity, inverted Y, G
-effects, performance mode, tilt aiming and sound. Every key list (settings menu, pilot's manual)
+touch scheme. Settings are stored in `localStorage`: scheme, mouse sensitivity, mouse as a lever,
+inverted Y, G effects, performance mode, tilt aiming and sound. With *mouse as a lever* the aim
+keeps its offset from the nose, so a mouse held off centre keeps the plane turning. Every key list (settings menu, pilot's manual)
 is generated from `client/src/input/bindings.ts`.
 
 **Mouse aim** (pointer lock; click the canvas to capture the mouse)
