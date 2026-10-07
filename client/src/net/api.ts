@@ -1,21 +1,21 @@
 // Read-only HTTP API (/api/*): same-origin JSON with a timeout; every
 // response is validated before the UI sees it.
 import { normalizeCode } from "./code.ts";
-import type { MapKind, Mode, WeatherKind } from "./protocol.ts";
+import type { MapKind, Mode, Phase, WeatherKind } from "./protocol.ts";
 
 const TIMEOUT_MS = 5000;
 const MAX_ROOMS = 50;
 
 export type RoomRow = {
   code: string; mode: Mode; map: MapKind; wx: WeatherKind;
-  humans: number; seats: number; phase: "playing" | "ended"; left: number;
+  humans: number; seats: number; phase: Phase; left: number;
   teams?: [number, number]; // humans on NATO, Soviet (team and base modes)
 };
 
 const MODES: readonly string[] = ["team", "ffa", "base"] satisfies Mode[];
 const MAPS: readonly string[] = ["ada", "sehir", "col", "dag"] satisfies MapKind[];
 const WEATHERS: readonly string[] = ["acik", "bulutlu", "sisli", "yagmurlu", "firtina", "gece"] satisfies WeatherKind[];
-const PHASES: readonly string[] = ["playing", "ended"];
+const PHASES: readonly string[] = ["playing", "ended", "lobby"] satisfies Phase[];
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);

@@ -12,6 +12,8 @@ export const ERROR_KEY: Record<ErrorCode | typeof ROOM_GONE, Key> = {
 export const NOTICE_KEY: Record<NoticeCode, Key> = {
   team_uneven: "notice.team_uneven", team_full: "notice.team_full", team_cooldown: "notice.team_cooldown",
   team_late: "notice.team_late", team_locked: "notice.team_locked", team_hurt: "notice.team_hurt", team_none: "notice.team_none",
+  not_host: "notice.not_host", not_lobby: "notice.not_lobby", side_full: "notice.side_full",
+  lobby_closed: "notice.lobby_closed",
 };
 
 /** A fatal server error in the current language. */

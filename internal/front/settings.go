@@ -20,7 +20,7 @@ func quickSettings(now time.Time) game.Settings {
 
 // settings builds room settings from a create message; missing optional
 // fields take the spec §8 defaults (ada, acik, hava, acik). Unknown values
-// of any field are refused.
+// of any field are refused. A created room opens in the pre-match lobby.
 func settings(m protocol.ClientMsg, now time.Time) (game.Settings, bool) {
 	k, ok1 := mode.ParseKind(m.Mode)
 	d, ok2 := bot.ParseDifficulty(m.Diff)
@@ -32,7 +32,7 @@ func settings(m protocol.ClientMsg, now time.Time) (game.Settings, bool) {
 	if seed == 0 {
 		seed = now.UnixNano()
 	}
-	return game.Settings{Mode: k, Size: m.Size, Difficulty: d, Seed: seed, Map: mk, Weather: wk, Start: start, Listed: listed},
+	return game.Settings{Mode: k, Size: m.Size, Difficulty: d, Seed: seed, Map: mk, Weather: wk, Start: start, Listed: listed, Lobby: true},
 		ok1 && ok2 && ok3 && ok4 && ok5 && ok6
 }
 

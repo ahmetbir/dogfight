@@ -110,7 +110,7 @@ func TestGoldenServerLimits(t *testing.T) {
 	drop := dial(t, srv, tr, "drop") // the same, without a later input: the flare is lost
 	drop.send(hello, fmt.Sprintf(ffa2, 5))
 	_, you := welcomeOf(t, drop.read("welcome"))
-	drop.send(`{"t":"pick","kind":"f16"}`)
+	drop.send(`{"t":"pick","kind":"f16"}`, `{"t":"start"}`) // a created room waits in the lobby for its host
 	for seq := 1; seq <= 6; seq++ {
 		drop.send(fmt.Sprintf(`{"t":"in","seq":%d,"th":1,"fl":%t}`, seq, seq == 6))
 	}
@@ -120,7 +120,7 @@ func TestGoldenServerLimits(t *testing.T) {
 	latch := dial(t, srv, tr, "latch")
 	latch.send(hello, fmt.Sprintf(ffa2, 2))
 	_, you = welcomeOf(t, latch.read("welcome"))
-	latch.send(`{"t":"pick","kind":"f16"}`)
+	latch.send(`{"t":"pick","kind":"f16"}`, `{"t":"start"}`)
 	for seq := 1; seq <= 6; seq++ { // the 6th is over the input burst: dropped, its flare latched
 		latch.send(fmt.Sprintf(`{"t":"in","seq":%d,"th":1,"fl":%t}`, seq, seq == 6))
 	}

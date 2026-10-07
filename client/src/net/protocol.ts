@@ -1,6 +1,6 @@
 // Wire messages; mirrors internal/protocol (JSON tags are authoritative).
 
-export const VERSION = 2;
+export const VERSION = 3;
 
 export type Team = "nato" | "soviet" | "none";
 export type AircraftKind =
@@ -50,6 +50,10 @@ export type Pick = { t: "pick"; kind: AircraftKind; lo?: Loadout };
 /** Team choice (team and base modes); "auto" lets the server balance. */
 export type TeamChoice = "nato" | "soviet" | "auto";
 export type TeamMsg = { t: "team"; team: TeamChoice };
+/** Lobby: my side (team and base modes); "auto" lets the server balance. */
+export type SideMsg = { t: "side"; team: TeamChoice };
+/** Lobby: the host starts the round. */
+export type Start = { t: "start" };
 export type In = {
   t: "in"; seq: number; // starts at 1
   p: number; r: number; y: number; th: number;
@@ -60,7 +64,7 @@ export type In = {
   sel?: number; // missile kind picked: 1 IR, 2 radar (held; missing: auto, the Karışık rule)
 };
 export type Ping = { t: "ping"; ts: number };
-export type ClientMsg = Hello | Create | Join | Quick | Pick | In | Ping | Chat | TeamMsg;
+export type ClientMsg = Hello | Create | Join | Quick | Pick | In | Ping | Chat | TeamMsg | SideMsg | Start;
 
 // Server → client.
 
@@ -166,8 +170,11 @@ export type Snap = {
 
 export type LineJSON = { id: number; k: number; d: number; s: number };
 
+/** Round phase; "lobby": a created room before its round (no world, no clock). */
+export type Phase = "playing" | "ended" | "lobby";
+
 export type RoundMsg = {
-  t: "round"; phase: "playing" | "ended"; left: number; winner?: string;
+  t: "round"; phase: Phase; left: number; winner?: string;
   nato: number; soviet: number; board: LineJSON[];
   wt?: "nato" | "soviet";                // winning team
   wid?: number;                          // FFA winner's plane id
@@ -176,13 +183,17 @@ export type RoundMsg = {
 
 export type PlayerJSON = { id: number; name: string; team: Team; kind: AircraftKind; bot: boolean };
 export type PlayersMsg = { t: "players"; list: PlayerJSON[] };
+/** A lobby room's humans (join order) with side and aircraft. */
+export type LobbyEntry = { id: number; name: string; team: Team; kind: AircraftKind };
+/** A lobby room's state: phase, host (0: none), seats per side (FFA: the room), humans. Created rooms only. */
+export type LobbyMsg = { t: "lobby"; phase: Phase; host: number; seats: number; list: LobbyEntry[] };
 export type Pong = { t: "pong"; ts: number };
 /** A fatal server error: code (net/codes.ts) picks the shown text, msg is the server's own text (fallback). */
 export type ErrorMsg = { t: "error"; msg: string; code?: string };
 /** Quick chat from plane `from`, preset `id`. */
 export type ChatMsg = { t: "chat"; from: number; id: number };
 
-/** A short, non-fatal HUD message (a refused team choice). */
+/** A short, non-fatal HUD message (a refused team choice or lobby request). */
 export type NoticeMsg = { t: "notice"; msg: string; code?: string };
 
-export type ServerMsg = Welcome | Snap | RoundMsg | PlayersMsg | Pong | ErrorMsg | ChatMsg | NoticeMsg;
+export type ServerMsg = Welcome | Snap | RoundMsg | PlayersMsg | LobbyMsg | Pong | ErrorMsg | ChatMsg | NoticeMsg;

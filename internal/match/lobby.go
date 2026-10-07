@@ -15,12 +15,13 @@ import (
 type Lobby = lobby.Lobby[game.Settings, protocol.ClientMsg, sim.Input, Info]
 
 // NewLobby is Dogfight's lobby: rooms build a Match recording into sink
-// (nil = not counted) and relay the protocol's chat presets.
-func NewLobby(ctx context.Context, maxRooms int, reg *metrics.Registry, sink StatsSink) *Lobby {
+// (nil = not counted) and watching the drain state d (nil = none), and
+// relay the protocol's chat presets.
+func NewLobby(ctx context.Context, maxRooms int, reg *metrics.Registry, sink StatsSink, d *Drain) *Lobby {
 	return lobby.New(ctx, lobby.Options[game.Settings, protocol.ClientMsg, sim.Input, Info]{
 		MaxRooms: maxRooms, Metrics: reg,
 		Room: roomOptions(),
-		New:  Factory(sink),
+		New:  Factory(sink, d),
 	})
 }
 

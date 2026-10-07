@@ -8,6 +8,8 @@ test("parseRooms keeps only well-formed rows", () => {
   assert.equal(rows.length, 50);
   assert.deepEqual(rows[0], ok);
   assert.deepEqual(parseRooms("nope"), []);
+  const lobby = { ...ok, phase: "lobby", left: 0 }; // a created room before Start
+  assert.deepEqual(parseRooms({ rooms: [lobby, { ...ok, phase: "warmup" }] }), [lobby]);
 });
 
 test("getJSON returns null on HTTP errors, bad JSON and timeouts", async () => {

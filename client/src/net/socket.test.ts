@@ -70,7 +70,7 @@ test("handshake sends hello + create, then joins by code on reconnect", () => {
   const h = harness();
   h.conns[0].open();
   assert.deepEqual(h.conns[0].sent, [
-    { t: "hello", v: 2, name: "Ace" },
+    { t: "hello", v: VERSION, name: "Ace" },
     { t: "create", mode: "ffa", size: 4, diff: "normal" },
   ]);
   h.conns[0].recv(welcome("ABCD"));
@@ -84,7 +84,7 @@ test("handshake sends hello + create, then joins by code on reconnect", () => {
   h.advance(1);
   assert.equal(h.conns.length, 2);
   h.conns[1].open();
-  assert.deepEqual(h.conns[1].sent, [{ t: "hello", v: 2, name: "Ace" }, { t: "join", code: "ABCD" }]);
+  assert.deepEqual(h.conns[1].sent, [{ t: "hello", v: VERSION, name: "Ace" }, { t: "join", code: "ABCD" }]);
   assert.deepEqual(h.status, ["connecting", "open", "connecting"]);
 });
 

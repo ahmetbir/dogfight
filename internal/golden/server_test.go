@@ -49,7 +49,7 @@ func newServer(t *testing.T, so srvOpts) (*httptest.Server, *front.Server, conte
 	if so.stats != nil {
 		o.Stats = front.NewStats(so.stats)
 	}
-	s := front.NewServer(match.NewLobby(ctx, so.maxRooms, nil, nil), o)
+	s := front.NewServer(match.NewLobby(ctx, so.maxRooms, nil, nil, nil), o)
 	srv := httptest.NewServer(s)
 	t.Cleanup(func() { cancel(); srv.Close() })
 	return srv, s, cancel
@@ -164,7 +164,7 @@ func exchange(t *testing.T, srv *httptest.Server, tr *transcript, name string, u
 	return s
 }
 
-const hello = `{"t":"hello","v":2,"name":"golden"}`
+const hello = `{"t":"hello","v":3,"name":"golden"}`
 
 func TestGoldenServerFrames(t *testing.T) {
 	tr := newTranscript()
@@ -174,9 +174,13 @@ func TestGoldenServerFrames(t *testing.T) {
 	exchange(t, srv, tr, "no_room", "", hello, `{"t":"join","code":"ZZZZ"}`)
 	exchange(t, srv, tr, "bad_room", "", hello, `{"t":"create","mode":"x","size":4,"diff":"easy"}`)
 	exchange(t, srv, tr, "timeout", "", hello)
-	exchange(t, srv, tr, "welcome", "welcome", hello, `{"t":"create","mode":"ffa","size":4,"diff":"easy","seed":1}`).ws.CloseNow()
+	w := dial(t, srv, tr, "welcome")
+	w.send(hello, `{"t":"create","mode":"ffa","size":4,"diff":"easy","seed":1}`)
+	code, _ := welcomeOf(t, w.read("welcome"))
+	w.ws.CloseNow()
+	join := `{"t":"join","code":"` + code + `"}` // a created room offers quick play no seat
 	exchange(t, srv, tr, "busy", "", hello, `{"t":"create","mode":"ffa","size":4,"diff":"easy","seed":2}`)
-	exchange(t, srv, tr, "bad_msg_in_room", "", hello, `{"t":"quick"}`, `{"t":"nope"}`)
+	exchange(t, srv, tr, "bad_msg_in_room", "", hello, join, `{"t":"nope"}`)
 	// A binary or an oversized frame before the handshake ends (in a room:
 	// TestServerInRoomBinaryCloses1003).
 	bin := dial(t, srv, tr, "binary_first")
@@ -189,7 +193,7 @@ func TestGoldenServerFrames(t *testing.T) {
 	s.Drain(true)
 	exchange(t, srv, tr, "updating", "", hello, `{"t":"quick"}`)
 	s.Drain(false)
-	exchange(t, srv, tr, "undrained", "welcome", hello, `{"t":"quick"}`).ws.CloseNow()
+	exchange(t, srv, tr, "undrained", "welcome", hello, join).ws.CloseNow()
 
 	lim := open
 	lim.CreatePerMinIP = 1

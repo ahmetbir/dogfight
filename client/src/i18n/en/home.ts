@@ -34,6 +34,7 @@ export const home: Area<typeof tr> = {
   "rooms.none": "No open rooms — Quick Play creates one.",
   "rooms.full": "Full",
   "rooms.break": "break",
+  "rooms.lobby": "in lobby",
   "lb.title": "Leaderboard",
   "lb.period": "Period",
   "lb.week": "This week",

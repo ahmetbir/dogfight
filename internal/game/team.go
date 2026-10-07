@@ -50,11 +50,15 @@ func (g *Game) HumanTeams() (nato, soviet int) {
 // counts may differ by at most 1 afterwards (or the move must narrow the
 // gap), and want must have a bot seat to take; a bot refills the seat left.
 // A switcher's plane leaves the world with no death, kill or score change,
-// and the human waits on the pick screen for the new team's aircraft.
+// and the human waits on the pick screen for the new team's aircraft. In the
+// Lobby it is SetSide.
 func (g *Game) ChooseTeam(id sim.ID, want sim.Team) error {
 	p, ok := g.players[id]
 	if !ok || p.Bot {
 		return ErrNoPlayer
+	}
+	if g.phase == Lobby {
+		return g.SetSide(id, want)
 	}
 	if g.s.Mode == mode.FFA {
 		return ErrNoTeams

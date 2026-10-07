@@ -91,8 +91,11 @@ func (g *Game) leader() string {
 
 func (g *Game) Round() Round {
 	left := g.roundEnd - g.tick
-	if g.phase == Ended {
+	switch g.phase {
+	case Ended:
 		left = g.phaseEnd - g.tick
+	case Lobby:
+		left = 0
 	}
 	return Round{
 		Phase:     g.phase,

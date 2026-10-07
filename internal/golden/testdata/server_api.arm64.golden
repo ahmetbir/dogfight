@@ -117,7 +117,7 @@
 {"t":"header","n":100,"m":"Permissions-Policy: camera=(), microphone=(), geolocation=(), accelerometer=(self), gyroscope=(self)"}
 {"t":"header","n":28,"m":"Referrer-Policy: no-referrer"}
 {"t":"header","n":31,"m":"X-Content-Type-Options: nosniff"}
-{"t":"body","n":127,"m":{"rooms":[{"code":"CODE","mode":"team","map":"ada","wx":"acik","humans":0,"seats":8,"phase":"playing","left":0,"teams":[0,0]}]}}
+{"t":"body","n":125,"m":{"rooms":[{"code":"CODE","mode":"team","map":"ada","wx":"acik","humans":0,"seats":8,"phase":"lobby","left":0,"teams":[0,0]}]}}
 ## rooms_draining
 {"t":"status","n":3,"m":503}
 {"t":"header","n":23,"m":"Cache-Control: no-store"}
@@ -129,4 +129,4 @@
 {"t":"header","n":31,"m":"X-Content-Type-Options: nosniff"}
 {"t":"body","n":68,"m":{"code":"updating","error":"sunucu güncelleniyor, yeniden bağlan"}}
 ## setup
-{"t":"welcome","n":49712,"h":"2473d0a5482b1796","p":"{\"t\":\"welcome\",\"you\":9,\"code\":\"CODE\",\"mode\":\"team\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\""}
+{"t":"welcome","n":49712,"h":"dba04e2ae6244b2b","p":"{\"t\":\"welcome\",\"you\":1,\"code\":\"CODE\",\"mode\":\"team\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\""}

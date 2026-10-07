@@ -12,13 +12,14 @@ import (
 )
 
 // Version is the wire protocol version a hello must carry; v1 clients get
-// a version error (reload the page).
-const Version = 2
+// a version error (reload the page). v3: the pre-match lobby (lobby, side,
+// start); a v2 client would not know a room that waits for Start.
+const Version = 3
 
 // MaxClientMsg is the largest client message DecodeClient accepts.
 const MaxClientMsg = 1024
 
-// Client message types: the core's, plus Dogfight's pick and team.
+// Client message types: the core's, plus Dogfight's pick, team, side and start.
 const (
 	THello  = netproto.THello
 	TCreate = netproto.TCreate
@@ -29,6 +30,8 @@ const (
 	TChat   = netproto.TChat
 	TPick   = "pick"
 	TTeam   = "team"
+	TSide   = "side"  // lobby: side choice (Team field)
+	TStart  = "start" // lobby: the host starts the round
 )
 
 // ChatMax is the highest quick chat preset ID (presets are 1..ChatMax).
@@ -36,7 +39,7 @@ const ChatMax = 6
 
 // ClientMsg is every client→server message; T selects which fields matter.
 type ClientMsg struct {
-	T     string  `json:"t"`               // hello|create|join|quick|pick|in|ping|chat
+	T     string  `json:"t"`               // hello|create|join|quick|pick|in|ping|chat|team|side|start
 	V     int     `json:"v,omitempty"`     // hello
 	Name  string  `json:"name,omitempty"`  // hello
 	Tok   string  `json:"tok,omitempty"`   // hello: pilot token
@@ -51,7 +54,7 @@ type ClientMsg struct {
 	Code  string  `json:"code,omitempty"`  // join
 	Kind  string  `json:"kind,omitempty"`  // pick
 	Lo    string  `json:"lo,omitempty"`    // pick: ir|radar|mixed (missing keeps the current loadout)
-	Team  string  `json:"team,omitempty"`  // team: nato|soviet|auto
+	Team  string  `json:"team,omitempty"`  // team, side: nato|soviet|auto
 	Seq   uint32  `json:"seq,omitempty"`   // in; starts at 1
 	P     float64 `json:"p,omitempty"`
 	R     float64 `json:"r,omitempty"`
@@ -77,8 +80,8 @@ var (
 )
 
 // DecodeClient parses one client message. It rejects oversized messages,
-// unknown types, non-finite numbers, chat IDs outside 1..ChatMax, team
-// choices other than nato|soviet|auto and pick loadouts other than
+// unknown types, non-finite numbers, chat IDs outside 1..ChatMax, team and
+// side choices other than nato|soviet|auto and pick loadouts other than
 // ir|radar|mixed (or none).
 func DecodeClient(b []byte) (ClientMsg, error) {
 	var m ClientMsg
@@ -89,11 +92,11 @@ func DecodeClient(b []byte) (ClientMsg, error) {
 		return ClientMsg{}, fmt.Errorf("protocol: %w", err)
 	}
 	switch m.T {
-	case THello, TCreate, TJoin, TQuick, TPick, TIn, TPing, TChat, TTeam:
+	case THello, TCreate, TJoin, TQuick, TPick, TIn, TPing, TChat, TTeam, TSide, TStart:
 	default:
 		return ClientMsg{}, ErrUnknownType
 	}
-	if _, ok := ParseTeam(m.Team); m.T == TTeam && !ok {
+	if _, ok := ParseTeam(m.Team); (m.T == TTeam || m.T == TSide) && !ok {
 		return ClientMsg{}, ErrBadTeam
 	}
 	if _, ok := sim.ParseLoadout(m.Lo); m.T == TPick && m.Lo != "" && !ok {

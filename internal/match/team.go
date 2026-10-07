@@ -42,7 +42,7 @@ func (m *Match) team(id room.PlayerID, choice string, out room.Outbox) {
 	out.Changed() // the lobby lists humans per team
 }
 
-// teamMsg is the notice code and Turkish text of a refused team choice ("" when err is none of them).
+// teamMsg is the notice code and Turkish text of a refused team, side or start request ("" when err is none of them).
 func teamMsg(err error) (code, msg string) {
 	switch {
 	case errors.Is(err, game.ErrUneven):
@@ -59,6 +59,47 @@ func teamMsg(err error) (code, msg string) {
 		return protocol.CodeTeamHurt, msgSecs(msgTeamHurt, game.HurtTicks)
 	case errors.Is(err, game.ErrNoTeams):
 		return protocol.CodeTeamNone, msgTeamNone
+	case errors.Is(err, game.ErrNotHost):
+		return protocol.CodeNotHost, msgNotHost
+	case errors.Is(err, game.ErrNotLobby):
+		return protocol.CodeNotLobby, msgNotLobby
+	case errors.Is(err, game.ErrSideFull):
+		return protocol.CodeSideFull, msgSideFull
 	}
 	return "", ""
+}
+
+// User-facing texts of a refused lobby request.
+const (
+	msgNotHost  = "Raundu yalnızca oda sahibi başlatır"
+	msgNotLobby = "Raund zaten başladı"
+	msgSideFull = "Bu tarafta boş yer yok"
+	// The server is being updated: the lobby closes (create a new room).
+	msgLobbyClosed = "Sunucu güncelleniyor, bekleme odası kapandı. Yeni bir oda kur."
+)
+
+// side applies a lobby side choice; a refusal is a notice to that player.
+func (m *Match) side(id room.PlayerID, choice string, out room.Outbox) {
+	want, valid := protocol.ParseTeam(choice)
+	if !valid {
+		return
+	}
+	if err := m.g.SetSide(sim.ID(id), want); err != nil {
+		if code, msg := teamMsg(err); msg != "" {
+			out.To(id, netproto.NewNotice(code, msg))
+		}
+		return
+	}
+	out.Changed() // the lobby lists humans per team
+}
+
+// start begins the round when the host asks in the lobby.
+func (m *Match) start(id room.PlayerID, out room.Outbox) {
+	if err := m.g.Start(sim.ID(id)); err != nil {
+		if code, msg := teamMsg(err); msg != "" {
+			out.To(id, netproto.NewNotice(code, msg))
+		}
+		return
+	}
+	out.Changed()
 }

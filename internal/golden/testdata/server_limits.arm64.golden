@@ -1,26 +1,26 @@
 ## ceiling
-{"t":"welcome","n":49724,"h":"1132dda3ed255210","p":"{\"t\":\"welcome\",\"you\":3,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
+{"t":"welcome","n":49724,"h":"6c3ac6f069694afd","p":"{\"t\":\"welcome\",\"you\":1,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
 {"t":"error","n":53,"m":{"t":"error","msg":"çok fazla mesaj","code":"flood"}}
 {"t":"close","n":27,"m":{"status":1008,"reason":""}}
 ## conns_ip
 {"t":"refused","n":25,"m":"429 çok fazla bağlantı"}
 ## conns_ip_held
-{"t":"welcome","n":49711,"h":"44a51b59662aa4ef","p":"{\"t\":\"welcome\",\"you\":3,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
+{"t":"welcome","n":49711,"h":"3e2432248b1ac26b","p":"{\"t\":\"welcome\",\"you\":1,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
 ## conns_total
 {"t":"refused","n":15,"m":"503 sunucu dolu"}
 ## conns_total_held
-{"t":"welcome","n":49711,"h":"44a51b59662aa4ef","p":"{\"t\":\"welcome\",\"you\":3,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
+{"t":"welcome","n":49711,"h":"3e2432248b1ac26b","p":"{\"t\":\"welcome\",\"you\":1,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
 ## drop
-{"t":"welcome","n":49687,"h":"551d7e15bc546073","p":"{\"t\":\"welcome\",\"you\":3,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
+{"t":"welcome","n":49687,"h":"4def2aeb3ed2a9f2","p":"{\"t\":\"welcome\",\"you\":1,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
 {"t":"flare","n":40,"m":{"dropped_flare_reached_the_room":false}}
 ## flood
-{"t":"welcome","n":49711,"h":"44a51b59662aa4ef","p":"{\"t\":\"welcome\",\"you\":3,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
+{"t":"welcome","n":49711,"h":"3e2432248b1ac26b","p":"{\"t\":\"welcome\",\"you\":1,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
 {"t":"error","n":53,"m":{"t":"error","msg":"çok fazla mesaj","code":"flood"}}
 {"t":"close","n":27,"m":{"status":1008,"reason":""}}
 ## full_a
-{"t":"welcome","n":49711,"h":"44a51b59662aa4ef","p":"{\"t\":\"welcome\",\"you\":3,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
+{"t":"welcome","n":49711,"h":"3e2432248b1ac26b","p":"{\"t\":\"welcome\",\"you\":1,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
 ## full_b
-{"t":"welcome","n":49711,"h":"29fac931c89e5a95","p":"{\"t\":\"welcome\",\"you\":4,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
+{"t":"welcome","n":49711,"h":"5eb342eeed804ae1","p":"{\"t\":\"welcome\",\"you\":2,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
 ## full_c
 {"t":"error","n":44,"m":{"t":"error","msg":"oda dolu","code":"full"}}
 {"t":"close","n":27,"m":{"status":1008,"reason":""}}
@@ -31,8 +31,8 @@
 {"t":"error","n":67,"m":{"t":"error","msg":"çok fazla deneme, biraz bekle","code":"joins"}}
 {"t":"close","n":27,"m":{"status":1008,"reason":""}}
 ## latch
-{"t":"welcome","n":49683,"h":"4e640bf5c055c838","p":"{\"t\":\"welcome\",\"you\":3,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
+{"t":"welcome","n":49683,"h":"1bdf5bdf75a49698","p":"{\"t\":\"welcome\",\"you\":1,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
 {"t":"flare","n":39,"m":{"dropped_flare_reached_the_room":true}}
 ## live_drain
-{"t":"welcome","n":49603,"h":"d69f3b8cf21d3070","p":"{\"t\":\"welcome\",\"you\":3,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
+{"t":"welcome","n":49603,"h":"fa2234f29e72514f","p":"{\"t\":\"welcome\",\"you\":1,\"code\":\"CODE\",\"mode\":\"ffa\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\"r"}
 {"t":"close","n":65,"m":{"status":1012,"reason":"sunucu güncelleniyor, yeniden bağlan"}}
