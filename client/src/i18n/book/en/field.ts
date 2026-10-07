@@ -50,7 +50,7 @@ export const field: Field = {
       "When someone has locked you before firing, it reads ", b(t("hud.lockWarn")), " and the arrow turns amber. Run, turn, get ready to flare."),
     item(4, `${t("flare.cue")} / ${t("flare.beam")}`, "An IR missile tracking you is within ", b(dist(R.flareWarn)), " and a flare is ready: drop it now (the flare key is shown next to it; ",
       "on touch the FLARE button lights up). When a flare fools the missile, ", b(t("flare.evaded")), " appears. Against a radar missile it shows a blue ", b(t("flare.beam")),
-      ": flares don't work; keep the missile at your 3 or 9 o'clock to break its track. Next to it, the way to turn (← TURN LEFT / TURN RIGHT →); HOLD once the missile sits at 3 or 9."),
+      ": flares don't work; keep the missile at your 3 or 9 o'clock to break its track. Next to it, the way to turn (← TURN LEFT / TURN RIGHT →); HOLD once the missile sits at 3 or 9. The bar under it fills while you hold the angle and empties when it slips; full, the track breaks."),
     item(5, "Event feed", "Who shot down whom, with what; quick chat messages show up here too."),
     item(6, "Aim circle", "With mouse aim, the direction you want to go. The autopilot turns the nose here."),
     item(7, "Nose cross", "The plane's nose, which is where the gun fires."),

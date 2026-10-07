@@ -25,7 +25,8 @@ Live demo: https://dogfight.ahmetbirinci.dev
     out the other kind fires. Touch has no pick: radar beyond IR range, IR inside it.
   - The HUD warns of incoming missiles with their kind, distance and clock position, an arrow
     round the reticle toward the nearest one and a ringed red dot on the radar: a blinking `FLARE!`
-    against an IR missile, `DİK UÇ!` ("beam it!") with the way to turn against a radar missile.
+    against an IR missile, `DİK UÇ!` ("beam it!") with the way to turn against a radar missile and
+    a bar that fills while the beam holds (full: the track breaks).
     A lock on you before any missile is fired reads `KİLİTLENDİN` ("locked on").
 - **Hit zones:** every missile and gun hit rolls where it struck: a critical hit downs the plane
   outright (15 % of missile hits, 0.5 % of rounds), engine, controls and avionics hits leave

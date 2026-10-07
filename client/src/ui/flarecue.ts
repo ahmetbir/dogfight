@@ -35,7 +35,9 @@ export class FlareHud {
   readonly cue: HTMLElement;
   /** The beam cue against a radar missile: fly across its line of sight (flares do nothing). */
   private readonly turn = h("span", { class: "beam-turn" });
-  readonly beam = h("div", { class: "hud-flarecue beam", hidden: true }, lt("flare.beam"), this.turn);
+  private readonly beamFill = h("div", { class: "beam-fill" });
+  readonly beam = h("div", { class: "hud-flarecue beam", hidden: true }, lt("flare.beam"), this.turn,
+    h("div", { class: "beam-bar" }, this.beamFill));
   readonly note = h("div", { class: "hud-decoy", hidden: true });
   private readonly key = h("span", { class: "hud-key" });
   private noteUntil = 0;
@@ -47,13 +49,16 @@ export class FlareHud {
   /**
    * on: show the cue; scheme picks the key cap; the touch FLARE button lights
    * through `host`'s class; beam: a radar missile tracks me; turn: the way to
-   * turn to beam it (threat.ts beamTurn).
+   * turn to beam it (threat.ts beamTurn); progress: how far the beaming has
+   * gone toward breaking its track, 0..1 (the bar under the cue).
    */
-  update(on: boolean, scheme: string, host: HTMLElement | null, now: number, beam = false, turn: "left" | "right" | "hold" | null = null): void {
+  update(on: boolean, scheme: string, host: HTMLElement | null, now: number, beam = false, turn: "left" | "right" | "hold" | null = null,
+    progress = 0): void {
     this.cue.hidden = !on;
     this.beam.hidden = !beam;
     text(this.turn, turn ? t(turn === "left" ? "flare.beamLeft" : turn === "right" ? "flare.beamRight" : "flare.beamHold") : "");
     this.turn.hidden = !turn;
+    this.beamFill.style.width = `${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%`;
     const k = flareKey(scheme);
     text(this.key, k);
     this.key.hidden = !k;

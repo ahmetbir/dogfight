@@ -133,8 +133,8 @@ export type PlaneJSON = {
   dm?: number;   // lasting damage levels: engine bits 0–1, controls 2–3, avionics 4–5 (missing: intact)
 };
 
-/** mk: 1 radar (missing: IR). */
-export type MissileJSON = { id: number; tg: number; p: Vec3; v: Vec3; mk?: number };
+/** mk: 1 radar (missing: IR); bp: radar beam progress toward a broken track, 0..1 (missing: 0). */
+export type MissileJSON = { id: number; tg: number; p: Vec3; v: Vec3; mk?: number; bp?: number };
 export type BombJSON = { id: number; p: Vec3; v: Vec3 };
 /** A burning flare (position to 10 cm); gone from the snapshot once it burns out. */
 export type FlareJSON = { id: number; p: Vec3 };

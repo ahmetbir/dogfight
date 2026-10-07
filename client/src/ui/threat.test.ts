@@ -42,11 +42,13 @@ test("the arrow points at the threat in my body frame, straight behind is down",
 });
 
 test("the threat is the nearest missile tracking me, else a plane locked on me", () => {
-  const m = (id: number, tg: number, z: number, mk = 0): MissileJSON => ({ id, tg, p: [0, 1000, z], v: [0, 0, 0], mk });
+  const m = (id: number, tg: number, z: number, mk = 0, bp?: number): MissileJSON => ({ id, tg, p: [0, 1000, z], v: [0, 0, 0], mk, bp });
   const plane = (id: number, lk: number, ld: boolean): PlaneJSON =>
     ({ id, p: [0, 1000, 900], a: true, lk, ld } as unknown as PlaneJSON);
   assert.deepEqual(threatSource(me, 1, [m(10, 2, 300), m(11, 1, 800), m(12, 1, 500, 1)], [])?.kind, "radar");
   assert.equal(threatSource(me, 1, [m(11, 1, 800), m(12, 1, 500, 1)], [], "ir")?.dist, 800);
+  assert.equal(threatSource(me, 1, [m(12, 1, 500, 1, 0.4)], [], "radar")?.beam, 0.4, "the beam progress rides along");
+  assert.equal(threatSource(me, 1, [m(12, 1, 500, 1)], [], "radar")?.beam, 0, "missing bp is 0");
   assert.equal(threatSource(me, 1, [], [plane(5, 1, true)])?.kind, "lock");
   assert.equal(threatSource(me, 1, [], [plane(5, 1, false)]), null, "a lock still building is no threat yet");
   assert.equal(threatSource(me, 1, [], [plane(5, 1, true)], "radar"), null, "a kind filter skips locks");

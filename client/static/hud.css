@@ -123,6 +123,10 @@
 .hud-flarecue { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 900; letter-spacing: 0.16em; color: #1a1200; background: #ffcc33; padding: 5px 16px; border-radius: 8px; animation: blink 0.4s steps(2, start) infinite; text-shadow: none; }
 .hud-flarecue.beam { color: #001a33; background: #6fb6ff; } /* DİK UÇ! against a radar missile */
 .beam-turn { font-size: 16px; letter-spacing: 0.08em; }
+/* Beam progress: fills over the 1 s that breaks the radar track, resets when the angle slips. */
+.hud-flarecue.beam { flex-wrap: wrap; }
+.beam-bar { flex-basis: 100%; height: 6px; border-radius: 3px; background: rgba(0, 26, 51, 0.25); overflow: hidden; }
+.beam-fill { height: 100%; width: 0; background: #001a33; transition: width 0.1s linear; }
 .hud-key { font-size: 13px; letter-spacing: 0.08em; padding: 2px 8px; border: 2px solid #1a1200; border-radius: 5px; background: #fff3c4; }
 .flare-cue .tp-flare { background: rgba(255, 204, 51, 0.85); border-color: #fff; color: #1a1200; animation: blink 0.4s steps(2, start) infinite; }
 .hud-decoy { font-size: 18px; font-weight: 800; letter-spacing: 0.06em; color: #ff8a8a; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
