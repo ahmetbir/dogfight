@@ -13,9 +13,14 @@ const (
 	CodeTeamLocked   = "team_locked"
 	CodeTeamHurt     = "team_hurt"
 	CodeTeamNone     = "team_none"
+	// "notice" messages (a refused lobby request).
+	CodeNotHost  = "not_host"  // start: only the host starts
+	CodeNotLobby = "not_lobby" // side, start: the round is already running
+	CodeSideFull = "side_full" // side: every seat of that side holds a human
 )
 
 // NoticeCodes are the codes a "notice" message may carry, in the client's order.
 func NoticeCodes() []string {
-	return []string{CodeTeamUneven, CodeTeamFull, CodeTeamCooldown, CodeTeamLate, CodeTeamLocked, CodeTeamHurt, CodeTeamNone}
+	return []string{CodeTeamUneven, CodeTeamFull, CodeTeamCooldown, CodeTeamLate, CodeTeamLocked, CodeTeamHurt, CodeTeamNone,
+		CodeNotHost, CodeNotLobby, CodeSideFull}
 }

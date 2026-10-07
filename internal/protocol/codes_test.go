@@ -5,6 +5,7 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"strconv"
 	"testing"
 
 	"github.com/ahmetbir/roomkit/netproto"
@@ -29,6 +30,20 @@ func TestNoticeCodesMatchClient(t *testing.T) {
 	}
 	if !slices.Equal(got, NoticeCodes()) {
 		t.Fatalf("NOTICE_CODES: client %v, server %v", got, NoticeCodes())
+	}
+}
+
+// The client says the same protocol version in its hello
+// (client/src/net/protocol.ts VERSION); both move together.
+func TestVersionMatchesClient(t *testing.T) {
+	const file = "../../client/src/net/protocol.ts"
+	b, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`export const VERSION = (\d+);`).FindSubmatch(b)
+	if m == nil || string(m[1]) != strconv.Itoa(Version) {
+		t.Fatalf("%s VERSION %q, server %d", file, m, Version)
 	}
 }
 

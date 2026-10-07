@@ -26,18 +26,20 @@ func (Kit) Settings(m protocol.ClientMsg, now time.Time) (game.Settings, bool) {
 func (Kit) QuickSettings(now time.Time) game.Settings { return quickSettings(now) }
 
 // Class: a team choice opens the pick screen, so pick and team share the
-// choice bucket.
+// choice bucket; the lobby's side and start are choices too.
 func (Kit) Class(t string) server.Class {
-	if t == protocol.TPick || t == protocol.TTeam {
+	switch t {
+	case protocol.TPick, protocol.TTeam, protocol.TSide, protocol.TStart:
 		return server.ClassChoice
 	}
 	return server.ClassAll
 }
 
-// InRoom: team (DecodeClient whitelisted its value) and pick of a known kind.
+// InRoom: team and side (DecodeClient whitelisted their value), start, and
+// pick of a known kind.
 func (Kit) InRoom(m protocol.ClientMsg) bool {
 	switch m.T {
-	case protocol.TTeam:
+	case protocol.TTeam, protocol.TSide, protocol.TStart:
 		return true
 	case protocol.TPick:
 		_, ok := sim.ParseKind(m.Kind)
@@ -53,7 +55,7 @@ type roomJSON struct {
 	Wx     string  `json:"wx"`
 	Humans int     `json:"humans"`
 	Seats  int     `json:"seats"`
-	Phase  string  `json:"phase"`
+	Phase  string  `json:"phase"`           // playing|ended|lobby
 	Left   int     `json:"left"`            // seconds left in the round
 	Teams  *[2]int `json:"teams,omitempty"` // humans on NATO, Soviet (team and base modes)
 }

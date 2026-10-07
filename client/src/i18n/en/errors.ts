@@ -25,4 +25,7 @@ export const errors: Area<typeof tr> = {
   "notice.team_locked": "You can't switch teams while a missile is locked on you",
   "notice.team_hurt": "Wait {n} s after taking damage",
   "notice.team_none": "This mode has no teams",
+  "notice.not_host": "Only the host can start the round",
+  "notice.not_lobby": "The round has already started",
+  "notice.side_full": "No free seat on that side",
 };

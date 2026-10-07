@@ -22,4 +22,7 @@ export const errors = {
   "notice.team_locked": "Kilitliyken takım değiştiremezsin",
   "notice.team_hurt": "Hasar aldıktan sonra {n} sn bekle",
   "notice.team_none": "Bu modda takım yok",
+  "notice.not_host": "Raundu yalnızca oda sahibi başlatır",
+  "notice.not_lobby": "Raund zaten başladı",
+  "notice.side_full": "Bu tarafta boş yer yok",
 } as const;

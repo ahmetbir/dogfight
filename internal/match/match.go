@@ -29,7 +29,7 @@ type StatsSink interface{ Record(stats.Delta) bool }
 
 // Info is Dogfight's part of the lobby summary.
 type Info struct {
-	Mode, Map, Weather, Phase string // phase: playing|ended
+	Mode, Map, Weather, Phase string // phase: playing|ended|lobby
 	LeftS                     int    // seconds left in the round
 	NATO, Soviet              int    // humans per team (team and base modes)
 }
@@ -60,6 +60,14 @@ type Match struct {
 	events    []protocol.EventJSON
 	rosterVer int
 	round     roundKey
+	lobby     lobbyKey // last lobby state sent (lobby rooms only)
+}
+
+// lobbyKey is what a lobby message carries, as a change detector.
+type lobbyKey struct {
+	phase     game.Phase
+	host      sim.ID
+	rosterVer int
 }
 
 var (
@@ -70,10 +78,11 @@ var (
 	_ wsconn.Carrier = protocol.Snap{}
 )
 
-// New builds the game (every seat a bot). sink nil: nothing is counted.
+// New builds the game (every seat a bot, or an empty lobby). sink nil:
+// nothing is counted.
 func New(s game.Settings, sink StatsSink) *Match {
 	g := game.New(s)
-	return &Match{g: g, static: protocol.NewStatic(g), stats: sink, seats: len(g.Players()),
+	return &Match{g: g, static: protocol.NewStatic(g), stats: sink, seats: g.Seats(),
 		humans: map[sim.ID]*human{}, rosterVer: g.RosterVersion()}
 }
 
@@ -108,6 +117,9 @@ func (m *Match) Welcome(id room.PlayerID, code, newToken string, out room.Outbox
 	out.To(id, w)
 	m.broadcastPlayers(out)
 	out.To(id, protocol.NewRound(m.g.Round()))
+	if m.g.Settings().Lobby {
+		m.broadcastLobby(out)
+	}
 }
 
 func (m *Match) Leave(id room.PlayerID) {
@@ -131,6 +143,10 @@ func (m *Match) Handle(id room.PlayerID, msg protocol.ClientMsg, out room.Outbox
 		}
 	case protocol.TTeam:
 		m.team(id, msg.Team, out)
+	case protocol.TSide:
+		m.side(id, msg.Team, out)
+	case protocol.TStart:
+		m.start(id, out)
 	}
 }
 
@@ -153,6 +169,9 @@ func (m *Match) Step(inputs map[room.PlayerID]sim.Input, out room.Outbox) {
 	if m.g.RosterVersion() != m.rosterVer {
 		m.broadcastPlayers(out)
 	}
+	if m.g.Settings().Lobby && m.lobbyKey() != m.lobby {
+		m.broadcastLobby(out)
+	}
 	key := roundKey{phase: rd.Phase, nato: rd.NATO, soviet: rd.Soviet,
 		objNATO: int(math.Ceil(rd.ObjNATO / 10)), objSoviet: int(math.Ceil(rd.ObjSoviet / 10))}
 	for _, l := range rd.Board {
@@ -165,10 +184,23 @@ func (m *Match) Step(inputs map[room.PlayerID]sim.Input, out room.Outbox) {
 	if m.round.phase == game.Playing && rd.Phase == game.Ended {
 		m.roundOver(rd)
 	}
+	if m.round.phase != 0 && key.phase != m.round.phase {
+		out.Changed() // the room list shows the phase
+	}
 	if key != m.round || tick%RoundEvery == 0 {
 		m.round = key
 		out.All(protocol.NewRound(rd))
 	}
+}
+
+func (m *Match) lobbyKey() lobbyKey {
+	return lobbyKey{phase: m.g.Round().Phase, host: m.g.Host(), rosterVer: m.g.RosterVersion()}
+}
+
+// broadcastLobby sends the lobby state to everyone (lobby rooms only).
+func (m *Match) broadcastLobby(out room.Outbox) {
+	m.lobby = m.lobbyKey()
+	out.All(protocol.NewLobby(m.lobby.phase, m.lobby.host, m.g.SideSeats(), m.g.Players()))
 }
 
 func (m *Match) broadcastPlayers(out room.Outbox) {
@@ -198,14 +230,9 @@ func (m *Match) teams() map[sim.ID]sim.Team {
 func (m *Match) Info() room.Info[Info] {
 	st := m.g.Settings()
 	rd := m.g.Round()
-	phase := "playing"
-	if rd.Phase == game.Ended {
-		phase = "ended"
-	}
 	nato, soviet := m.g.HumanTeams()
-	humans := m.g.Humans()
-	return room.Info[Info]{Humans: humans, Seats: m.seats, Bots: m.seats - humans, Listed: st.Listed, Game: Info{
-		Mode: st.Mode.String(), Map: st.Map.String(), Weather: st.Weather.String(), Phase: phase,
+	return room.Info[Info]{Humans: m.g.Humans(), Seats: m.seats, Bots: m.g.Bots(), Listed: st.Listed, Game: Info{
+		Mode: st.Mode.String(), Map: st.Map.String(), Weather: st.Weather.String(), Phase: protocol.PhaseName(rd.Phase),
 		LeftS: rd.TicksLeft / tickRate, NATO: nato, Soviet: soviet}}
 }
 

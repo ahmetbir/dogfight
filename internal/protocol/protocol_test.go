@@ -324,8 +324,39 @@ func TestDecodeV2Messages(t *testing.T) {
 			t.Fatalf("%s accepted", bad)
 		}
 	}
-	if Version != 2 {
-		t.Fatal("protocol version must be 2")
+	if Version != 3 {
+		t.Fatal("protocol version must be 3")
+	}
+}
+
+// v3 adds the lobby's side and start: side takes a team choice, start
+// nothing; an unknown side is refused like an unknown team.
+func TestDecodeLobbyMessages(t *testing.T) {
+	for _, ok := range []string{`{"t":"side","team":"nato"}`, `{"t":"side","team":"soviet"}`, `{"t":"side","team":"auto"}`, `{"t":"start"}`} {
+		if _, err := DecodeClient([]byte(ok)); err != nil {
+			t.Fatalf("%s: %v", ok, err)
+		}
+	}
+	for _, bad := range []string{`{"t":"side"}`, `{"t":"side","team":"none"}`, `{"t":"side","team":"red"}`} {
+		if _, err := DecodeClient([]byte(bad)); err == nil {
+			t.Fatalf("%s accepted", bad)
+		}
+	}
+}
+
+// The lobby message lists the humans only, in roster order, with the host
+// and the phase.
+func TestLobbyWire(t *testing.T) {
+	ps := []game.Player{{ID: 2, Name: "a", Team: sim.TeamNATO, Kind: sim.F15}, {ID: 3, Name: "Ivan", Team: sim.TeamSoviet, Kind: sim.MiG29, Bot: true},
+		{ID: 5, Name: "b", Team: sim.TeamSoviet, Kind: sim.Su27}}
+	b, _ := json.Marshal(NewLobby(game.Lobby, 2, 3, ps))
+	want := `{"t":"lobby","phase":"lobby","host":2,"seats":3,"list":[{"id":2,"name":"a","team":"nato","kind":"f15"},{"id":5,"name":"b","team":"soviet","kind":"su27"}]}`
+	if string(b) != want {
+		t.Fatalf("lobby\n got %s\nwant %s", b, want)
+	}
+	r, _ := json.Marshal(NewRound(game.Round{Phase: game.Lobby}))
+	if !strings.Contains(string(r), `"phase":"lobby"`) {
+		t.Fatalf("round: %s", r)
 	}
 }
 
