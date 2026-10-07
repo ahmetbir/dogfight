@@ -163,8 +163,8 @@ func TestNextJetPaintLeavesTheFlyingJetAlone(t *testing.T) {
 		g.SetSkin(a, skin)
 		return player(t, g, a)
 	}
-	pick(sim.F14, "blackband") // spawns
-	pick(sim.F4, "night")      // in spawn protection: reseated in an F-4 at once (once per life)
+	pick(sim.F14, "blackband")  // spawns
+	pick(sim.F4, "night")       // in spawn protection: reseated in an F-4 at once (once per life)
 	p := pick(sim.F14, "naval") // the F-4 flies on; the F-14 waits for the next spawn
 	if pl, _ := g.world.Plane(a); pl.Kind != sim.F4 {
 		t.Fatalf("flying %v", pl.Kind)
