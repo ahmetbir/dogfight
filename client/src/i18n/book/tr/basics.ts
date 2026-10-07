@@ -9,7 +9,21 @@ import { keys, MOUSE_KEYS as M, touchLabel as T } from "../../../input/bindings.
 import { MAX_AIM_OFF } from "../../../input/schemes.ts";
 import { BLACK_AFTER_S, BLACK_G, RED_G } from "../../../ui/gfx.ts";
 import { CHAT_IDS, chatText } from "../../../ui/chat.ts";
+import { ROLE_ORDER, roleNames, rosterTable } from "../../../book/ch-aircraft.ts";
+import { t, type Key } from "../../index.ts";
+import type { RoleGroup } from "../../../ui/roles.ts";
 import type { Basics } from "../types.ts";
+
+const ROLE_TEXT: Record<RoleGroup, string> = {
+  light: "hızlı yatış ve sıkı dönüş; it dalaşının ustaları.",
+  multi: "sağlam gövde, bol füze; her işe yarar.",
+  stealth: "hızlı ve çevik ama dört füze: atışını seç.",
+  interceptor: "en hızlılar, kilit menzili en uzun; yavaş yatarlar, dönüş kavgasından uzak dur.",
+  attack: "yavaş ama çok dayanıklı, on iki flare; üs baskınında sortide iki fazla bomba.",
+  cheap: "küçük ve atik ama kırılgan, iki füze; ilk atışı kaçırma.",
+  heavy: "yüksek hız, geniş dönüş; vur ve uzaklaş.",
+};
+
 
 export const basics: Basics = {
   start: () => [
@@ -97,5 +111,18 @@ export const basics: Basics = {
     sub("Rüzgâr"),
     p("Rüzgâr havadaki uçağı sürükler (pistte etkisizdir); mermi, füze ve bomba rüzgârdan etkilenmez. Fırtınada esintiler değişkendir. ",
       "Hava durumlarının rüzgârları: Haritalar ve hava bölümü."),
+  ],
+  aircraft: ({ aircraft }) => [
+    p("İki taraf aynı rolleri kendi uçaklarıyla doldurur. Sayılar botların her uçak çiftiyle uçtuğu bir turnuvayla dengelendi: ",
+      "hiçbir uçak ötekilerden belirgin üstün değildir, her biri kendi işinde iyidir. Takımlı modlarda kendi tarafının uçaklarını, ",
+      "herkese karşı modunda hepsini seçebilirsin."),
+    sub("Roller"),
+    list(...ROLE_ORDER.map((g) => [b(t(`role.${g}` as Key)), ` (${roleNames(aircraft, g)}): `, ROLE_TEXT[g]])),
+    sub("NATO"), rosterTable(aircraft, "nato"),
+    sub("Sovyet"), rosterTable(aircraft, "soviet"),
+    note("tip", "F-14 ile MiG-23'ün kanatları hızla oynar: yavaşken açık, hızlanınca geriye ok; parkta geriye toplu. ",
+      "Rafale, Typhoon ve Su-30'un burnundaki kanardlar burnu kaldırırken döner."),
+    p("Büyük uçak büyük hedeftir: mermi ve çarpışma küresi uçağın burnuna, kuyruğuna ya da kanat ucuna kadar uzanır. ",
+      "Aynı takımdan uçaklar birbirine çarpmaz (dost ateşi kapalıyken)."),
   ],
 };

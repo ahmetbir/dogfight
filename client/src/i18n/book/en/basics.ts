@@ -9,7 +9,21 @@ import { keys, MOUSE_KEYS as M, touchLabel as T } from "../../../input/bindings.
 import { MAX_AIM_OFF } from "../../../input/schemes.ts";
 import { BLACK_AFTER_S, BLACK_G, RED_G } from "../../../ui/gfx.ts";
 import { CHAT_IDS, chatText } from "../../../ui/chat.ts";
+import { ROLE_ORDER, roleNames, rosterTable } from "../../../book/ch-aircraft.ts";
+import { t, type Key } from "../../index.ts";
+import type { RoleGroup } from "../../../ui/roles.ts";
 import type { Basics } from "../types.ts";
+
+const ROLE_TEXT: Record<RoleGroup, string> = {
+  light: "quick roll and tight turns; the dogfight specialists.",
+  multi: "a tough airframe and plenty of missiles; good at everything.",
+  stealth: "fast and agile but four missiles: pick your shots.",
+  interceptor: "the fastest, with the longest lock; slow to roll, so stay out of turning fights.",
+  attack: "slow but very tough, twelve flares; two extra bombs per sortie in base attack.",
+  cheap: "small and nimble but fragile, two missiles; make the first shot count.",
+  heavy: "high speed, wide turns; strike and extend.",
+};
+
 
 export const basics: Basics = {
   start: () => [
@@ -97,5 +111,18 @@ export const basics: Basics = {
     sub("Wind"),
     p("Wind drifts a plane in the air (not on the runway); bullets, missiles and bombs ignore it. In a storm the gusts vary. ",
       "Each weather's wind: see the Maps and weather chapter."),
+  ],
+  aircraft: ({ aircraft }) => [
+    p("Both sides fill the same roles with their own aircraft. The numbers were balanced by a tournament in which bots fly every pair of ",
+      "aircraft: none is clearly better than the rest, each is good at its own job. In team modes you fly your side's aircraft; ",
+      "in free-for-all, any of them."),
+    sub("Roles"),
+    list(...ROLE_ORDER.map((g) => [b(t(`role.${g}` as Key)), ` (${roleNames(aircraft, g)}): `, ROLE_TEXT[g]])),
+    sub("NATO"), rosterTable(aircraft, "nato"),
+    sub("Soviet"), rosterTable(aircraft, "soviet"),
+    note("tip", "The F-14's and the MiG-23's wings move with speed: spread when slow, swept back when fast, folded back when parked. ",
+      "The canards on the Rafale, Typhoon and Su-30 turn as the nose comes up."),
+    p("A big jet is a big target: the bullet and collision sphere reaches its nose, tail or wingtip. ",
+      "Planes of the same team do not collide (with friendly fire off)."),
   ],
 };

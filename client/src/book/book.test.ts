@@ -119,3 +119,23 @@ test("every chapter has an English version with the same structure and no Turkis
     setLang("tr", null);
   }
 });
+
+test("the aircraft chapter lists all seventeen with their roles, by side", () => {
+  const all = builtinAircraft();
+  const text = textOf("ucaklar", all);
+  for (const a of all) assert.ok(text.includes(a.name) && text.includes(kmh(a.maxSpeedAB)), a.name);
+  for (const tag of ["Hafif, çevik", "Çok amaçlı", "Gizli, 5. nesil", "Önleme", "Taarruz", "Ucuz, hafif", "Eski, hızlı"]) assert.ok(text.includes(tag), tag);
+  assert.ok(text.includes("(F-14, MiG-31)") && text.includes("(A-10, Su-25)"), "role groups name their aircraft");
+  const tables = (CHAPTERS.find((c) => c.id === "ucaklar")!.render({ aircraft: all }) as unknown as { tag: string }[]).filter((n) => n.tag === "div");
+  assert.ok(tables.length >= 2, "a table per side");
+});
+
+test("the authority drawing keeps at most four curves: the corner and top speed extremes", async () => {
+  const { authKinds } = await import("./ch-flight.ts");
+  const all = builtinAircraft();
+  const pick = authKinds(all).map((a) => a.kind);
+  assert.ok(pick.length >= 2 && pick.length <= 4, pick.join());
+  assert.ok(pick.includes("mig31"), "fastest and highest corner speed");
+  assert.ok(pick.includes("a10"), "slowest");
+  assert.deepEqual(authKinds(PLANES), PLANES);
+});

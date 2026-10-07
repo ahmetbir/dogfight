@@ -3,7 +3,7 @@
 // missing or an extra chapter fails to compile.
 import type { ChapterBody } from "../../book/kit.ts";
 
-export type Basics = { readonly start: ChapterBody; readonly controls: ChapterBody; readonly flight: ChapterBody };
+export type Basics = { readonly start: ChapterBody; readonly controls: ChapterBody; readonly flight: ChapterBody; readonly aircraft: ChapterBody };
 export type Combat = { readonly ground: ChapterBody; readonly weapons: ChapterBody; readonly modes: ChapterBody };
 export type Field = { readonly world: ChapterBody; readonly hud: ChapterBody; readonly tips: ChapterBody };
 export type BookText = Basics & Combat & Field;
