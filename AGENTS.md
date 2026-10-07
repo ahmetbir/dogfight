@@ -226,7 +226,7 @@ dependencies to this repo.
   replayed (`roomkit/ts/predict/reconcile.ts`, baseline = median offset over ~30 snapshots),
   corrections are smoothed with a time constant that grows with their size (0.15 s up to 1 m,
   0.6 s from 40 m) and never faster than 150 m/s, attitude corrections are rate limited to
-  120°/s, and only position corrections over 300 m snap (`client/src/predict/predictor.ts`).
+  120°/s, and only corrections over 300 m snap (position and attitude together) (`client/src/predict/predictor.ts`).
   Other planes are interpolated 100 ms behind (`INTERP_DELAY_MS`).
 - **Snapshots are reconciled once per frame**, on the newest one that arrived
   (`client/src/game/own.ts`, `flush()`). After a stall the queued snapshots arrive in one burst
@@ -242,10 +242,15 @@ dependencies to this repo.
   and repeated stalls; its bounds are the pre-v3 client's numbers where that did better.
 - **Connection indicator** (`client/src/net/link.ts`, `client/src/ui/conn.ts`): a 1 Hz ping in a
   match gives the RTT (pong echoes the ping's `performance.now()`); **at most one link ping is
-  in flight** (next only after its pong or 20 s): the server kicks a connection whose pings come
-  faster than 2/s beyond a burst of 4, and a stall releases held pings back to back. Pongs of
-  pings sent before a ≥ 1 s silence ended are not RTT samples. Silence and gaps in the snapshot
-  ticks grade the link; the banner shows after 1 s of silence and stays 600 ms after recovery.
+  in flight** (the next one a second after its pong, or after 30 s): the server kicks a
+  connection whose pings come faster than 2/s beyond a burst of 4, and a stall releases held pings
+  back to back; any stall under the 30 s idle close releases at most 1 link ping and 2 keepalives,
+  and the next waits until the bucket refilled (`link.test.ts` sweeps stall lengths, keepalive
+  phases and RTTs against the bucket). Pongs of pings sent before a stall ended (≥ 1 s of
+  silence, or a sudden wait of ≥ 1 s with the downlink flowing) are not RTT samples; a second
+  slow ping in a row is believed. Silence and gaps in the snapshot ticks grade the link; the
+  banner shows after 1 s of silence and stays 600 ms after recovery. The bars sit in the
+  top-centre column under the score line.
 - **Instant mocks hide ordering races.** Netcode that passes with zero-latency fakes can still
   fail under real delay. Test it with latency: `client/src/predict/converge.test.ts` and
   `jitter.test.ts` (delay steps, stalls, bursty delivery), and `SERVER_ARGS="-lag 100ms"
