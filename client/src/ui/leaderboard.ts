@@ -1,12 +1,12 @@
 // Home page: weekly / all-time leaderboard and my pilot card. Names are
 // user input: they only ever reach the DOM as text nodes (h/text).
+import { AIRCRAFT } from "../book/rules.ts";
 import { t } from "../i18n/index.ts";
 import { fixed, pct } from "../i18n/format.ts";
 import { fetchLeaderboard, fetchMe, STATS_OFF, type Board, type Me, type Off } from "../net/api.ts";
 import { segmented } from "./create.ts";
 import { fill, h } from "./dom.ts";
 
-const FAVORITE: Record<string, string> = { f16: "F-16", f15: "F-15", mig29: "MiG-29", su27: "Su-27" };
 const TICKS_PER_MIN = 60 * 60;
 
 /** Airborne ticks as "12 dk" or "3 sa 12 dk" ("12 min", "3 h 12 min"). */
@@ -17,7 +17,7 @@ export function formatFlight(ticks: number): string {
 
 /** Aircraft kind → display name; "—" when unknown or none. */
 export function favoriteName(kind: string): string {
-  return FAVORITE[kind] ?? "—";
+  return (AIRCRAFT as Record<string, readonly [string, string]>)[kind]?.[0] ?? "—";
 }
 
 /** "2026-W41" → "41. hafta" / "Week 41"; "" when not that shape. */

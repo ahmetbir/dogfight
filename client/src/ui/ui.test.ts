@@ -13,7 +13,7 @@ import { Refresher, roomLabel } from "./rooms.ts";
 import { gearLight, ParkBrake, rearmText } from "./flightlights.ts";
 import { loadToken, storeToken } from "../net/pilot.ts";
 import { favoriteName, formatFlight } from "./leaderboard.ts";
-import { kindsFor, PICK_TIMEOUT_S, pickKey, pickNote, statFill, waitLeft, waitWhen } from "./pick.ts";
+import { kindsFor, PICK_TIMEOUT_S, pickKey, pickNote, waitLeft, waitWhen } from "./pick.ts";
 import { radarPoint } from "./radar.ts";
 import { boxSize, formatDist, inCone, leadDir } from "./reticle.ts";
 import { boardRows, scoreLine } from "./scoreboard.ts";
@@ -60,14 +60,12 @@ test("home: room code, seed and size rules", () => {
   assert.deepEqual(sizeRange("ffa"), { min: 2, max: 12, def: 6 });
 });
 
-test("pick: team kinds and stat bars", () => {
+test("pick: team kinds", () => {
   const a = (kind: AircraftInfo["kind"], team: AircraftInfo["team"], maxHP: number) =>
     ({ kind, team, maxHP, name: kind, maxSpeed: 1, maxSpeedAB: 1, accel: 1, rollRate: 1, pitchRate: 1, yawRate: 1, cornerSpeed: 1, lockRange: 1, missiles: 2, flares: 6, rotateSpeed: 1 });
   const all = [a("f16", "nato", 90), a("f15", "nato", 120), a("mig29", "soviet", 100), a("su27", "soviet", 110)];
   assert.deepEqual(kindsFor("soviet", all).map((x) => x.kind), ["mig29", "su27"]);
   assert.equal(kindsFor("none", all).length, 4);
-  assert.equal(statFill(all[1], all, (x) => x.maxHP), 1);
-  assert.equal(statFill(all[0], all, (x) => x.maxHP), 0.75);
 });
 
 test("radar: north up, east right, clamped to the rim", () => {
@@ -152,6 +150,8 @@ test("pilot token storage and card formats", () => {
   assert.equal(formatFlight(60 * 60 * 12), "12 dk");
   assert.equal(formatFlight(60 * 60 * 192), "3 sa 12 dk");
   assert.equal(favoriteName("mig29"), "MiG-29");
+  assert.equal(favoriteName("f18"), "F/A-18");
+  assert.equal(favoriteName("zeppelin"), "—");
   assert.equal(favoriteName(""), "—");
 });
 

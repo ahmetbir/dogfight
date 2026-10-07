@@ -51,8 +51,21 @@ export function readGlb(file: URL | string): THREE.Group {
 }
 
 /** tools/blender/contract.json: the node names and missile counts build.py enforces. */
+export type KindContract = { missiles: number; twin: boolean; engines: number; tail?: boolean; swing?: boolean; canard?: boolean };
 export type Contract = {
-  nodes: string[]; single: string[]; twin: string[];
-  kinds: Record<string, { missiles: number; twin: boolean }>;
+  nodes: string[]; tail: string[]; single: string[]; twin: string[]; swing: string[]; canard: string[];
+  kinds: Record<string, KindContract>;
 };
 export const contract: Contract = JSON.parse(readFileSync(new URL("../../../tools/blender/contract.json", import.meta.url), "utf8"));
+
+/** The nodes a kind must have (build.py wanted_nodes, same rules). */
+export function wantedNodes(k: KindContract): string[] {
+  const want = [...contract.nodes];
+  if (k.tail !== false) want.push(...contract.tail);
+  want.push(...(k.twin ? contract.twin : contract.single));
+  if (k.swing) want.push(...contract.swing);
+  if (k.canard) want.push(...contract.canard);
+  for (let i = 1; i < k.engines; i++) want.push(`ab_${i}`, `idle_${i}`);
+  for (let i = 0; i < k.missiles; i++) want.push(`msl_${i}`);
+  return want;
+}

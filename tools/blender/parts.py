@@ -107,19 +107,23 @@ def duct_ring(st, seg):
     """Closed ring of a duct station: z, cx, cy, half width, half height,
     top and bottom superellipse exponents, mouth slant (dz per unit of y
     above the centre, dz per unit of x outboard of the centre, smile: how far
-    the top edge's corners rise)."""
+    the top edge's corners rise, taper: the top's half width over the
+    bottom's, lean: x shift per unit of y above the centre, outboard positive)."""
     z, cx, cy, hw, hh, et, eb = st[:7]
-    sy, sx, smile = (list(st[7:10]) + [0.0, 0.0, 0.0])[:3]
+    sy, sx, smile, taper, lean = (list(st[7:12]) + [0.0, 0.0, 0.0, 1.0, 0.0][len(st[7:12]):])[:5]
+    side = 1 if cx >= 0 else -1
     pts = []
     for j in range(seg):
         t = math.pi / 2 - j / seg * 2 * math.pi  # start on top, clockwise seen from the front
         c, sn = math.cos(t), math.sin(t)
         e = et if sn >= 0 else eb
-        x = cx + hw * math.copysign(abs(c) ** (2 / e), c)
-        y = cy + hh * math.copysign(abs(sn) ** (2 / e), sn)
+        u = math.copysign(abs(sn) ** (2 / e), sn)
+        k = lerp(1.0, taper, (u + 1) / 2) if taper != 1.0 else 1.0
+        x = cx + hw * k * math.copysign(abs(c) ** (2 / e), c)
+        y = cy + hh * u
         if sn > 0:  # smile: the top edge rises toward the corners
             y += smile * ((x - cx) / hw) ** 2
-        side = 1 if cx >= 0 else -1
+        x += side * lean * (y - cy)
         pts.append((x, y, z + sy * (y - cy) / hh + sx * side * (x - cx) / hw))
     return pts
 
@@ -165,21 +169,28 @@ def bubble(part, stations, reg_uv, seg=6, role="canopy", frame_at=None, frame_ro
         uvs.append(u)
     loft(part, rings, uvs, role, closed=False,
          inside=lambda i: (0.0, stations[i][1], (stations[i][0] + stations[i + 1][0]) / 2))
-    if frame_at is not None:
-        # A bow just outside the glass at z frame_at.
-        for k in range(len(stations) - 1):
-            z0, z1 = stations[k][0], stations[k + 1][0]
-            if z0 <= frame_at <= z1:
-                t = (frame_at - z0) / (z1 - z0)
-                st = [lerp(stations[k][i], stations[k + 1][i], t) for i in range(4)]
-                bow = []
-                for dz, grow in ((-0.05, 1.05), (0.05, 1.05)):
-                    bow.append([(st[2] * grow * math.cos(i / seg * math.pi), st[1] + st[3] * grow * math.sin(i / seg * math.pi), frame_at + dz) for i in range(seg + 1)])
-                inner = [[(x / 1.05 * 0.98, st[1] + (y - st[1]) / 1.05 * 0.98, z) for x, y, z in ring] for ring in bow]
-                rows = [inner[0], bow[0], bow[1], inner[1]]
-                loft(part, rows, [[A.PLAIN_UV] * (seg + 1)] * 4, frame_role, closed=False,
-                     inside=lambda i: (0.0, st[1], frame_at))
-                break
+    if isinstance(frame_at, (list, tuple)):
+        for f in frame_at:
+            bubble_frame(part, stations, seg, f, frame_role)
+    elif frame_at is not None:
+        bubble_frame(part, stations, seg, frame_at, frame_role)
+
+
+def bubble_frame(part, stations, seg, frame_at, frame_role="secondary"):
+    """A bow just outside the glass at z frame_at."""
+    for k in range(len(stations) - 1):
+        z0, z1 = stations[k][0], stations[k + 1][0]
+        if z0 <= frame_at <= z1:
+            t = (frame_at - z0) / (z1 - z0)
+            st = [lerp(stations[k][i], stations[k + 1][i], t) for i in range(4)]
+            bow = []
+            for dz, grow in ((-0.05, 1.05), (0.05, 1.05)):
+                bow.append([(st[2] * grow * math.cos(i / seg * math.pi), st[1] + st[3] * grow * math.sin(i / seg * math.pi), frame_at + dz) for i in range(seg + 1)])
+            inner = [[(x / 1.05 * 0.98, st[1] + (y - st[1]) / 1.05 * 0.98, z) for x, y, z in ring] for ring in bow]
+            rows = [inner[0], bow[0], bow[1], inner[1]]
+            loft(part, rows, [[A.PLAIN_UV] * (seg + 1)] * 4, frame_role, closed=False,
+                 inside=lambda i: (0.0, st[1], frame_at))
+            break
 
 
 # --- Lifting surfaces ---------------------------------------------------------

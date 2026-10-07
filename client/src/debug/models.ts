@@ -2,7 +2,9 @@
 // &view=top|side|front|quarter freezes them; &team=nato|soviet|none|own; &ab=1 lights afterburners.
 // &glb=1 shows the .glb models where the build has one; &pair=<kind> shows that kind's
 // built-in model (left) next to its .glb (right); &gear=1 lowers the .glb gear;
-// &wiggle=1 sweeps the .glb control surfaces.
+// &wiggle=1 sweeps the .glb control surfaces; &kinds=f22,su57,... lines up those kinds instead
+// of the four (kinds without a built-in model show the F-16 until their .glb loads);
+// &sweep=0,1,... sets each slot's swing wings (0 forward .. 1 back; F-14, MiG-23).
 import * as THREE from "three";
 import { dressGlb, type Rig } from "../render/glb.ts";
 import { buildModel, tryLoadGlb } from "../render/models.ts";
@@ -25,9 +27,11 @@ export function debugModels(canvas: HTMLCanvasElement, params: URLSearchParams):
   const wiggle = params.get("wiggle") === "1";
   const tm = (team === "own" ? "none" : team) as Team;
   const own = team === "own";
+  const kinds = params.get("kinds")?.split(",").filter(Boolean) ?? KINDS;
+  const sweeps = params.get("sweep")?.split(",").map(Number) ?? [];
   const slots: { kind: string; glb: boolean }[] = pair
     ? [{ kind: pair, glb: false }, { kind: pair, glb: true }]
-    : KINDS.map((kind) => ({ kind, glb: useGlb }));
+    : kinds.map((kind) => ({ kind, glb: useGlb }));
   const rigs: Rig[] = [];
   const models = slots.map(({ kind, glb }, i) => {
     const m = buildModel(kind, tm, own);
@@ -48,6 +52,7 @@ export function debugModels(canvas: HTMLCanvasElement, params: URLSearchParams):
         m.add(d.body);
         lights(d.body);
         d.rig.pose({ p: 0, r: 0, y: 0 }, gear ? 1 : 0);
+        if (Number.isFinite(sweeps[i])) d.rig.sweep(sweeps[i]!);
         rigs.push(d.rig);
       });
     }
@@ -61,6 +66,7 @@ export function debugModels(canvas: HTMLCanvasElement, params: URLSearchParams):
   else if (view === "quarter") r.camera.position.set(0, 1016, -30);
   else r.camera.position.set(0, 1012, 30);
   if (pair) r.camera.position.lerp(center, 0.45); // two jets: come closer
+  else if (slots.length > 4) r.camera.position.sub(center).multiplyScalar(slots.length / 4).add(center); // a longer row: back off
   r.camera.lookAt(center);
   if (view === "side") for (const m of models) m.rotation.y = -Math.PI / 2; // nose toward +X
   const t0 = performance.now();

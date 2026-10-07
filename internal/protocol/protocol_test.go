@@ -88,7 +88,7 @@ func TestWelcomeTerrainRoundTrip(t *testing.T) {
 	if err := json.Unmarshal(b, &w); err != nil {
 		t.Fatal(err)
 	}
-	if w.T != "welcome" || w.Mode != "team" || w.Terrain.Seed != "42" || len(w.Aircraft) != 4 || len(w.Terrain.Spots) != 8 {
+	if w.T != "welcome" || w.Mode != "team" || w.Terrain.Seed != "42" || len(w.Aircraft) != len(sim.Kinds()) || len(w.Terrain.Spots) != 8 {
 		t.Fatalf("welcome: %+v", w.Aircraft)
 	}
 	raw, err := base64.StdEncoding.DecodeString(w.Terrain.Heights)

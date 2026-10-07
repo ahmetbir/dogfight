@@ -1,5 +1,6 @@
 // Pilot El Kitabı (Türkçe), bölüm 4–6: kalkış ve iniş, silahlar, modlar.
 import { baseArt, landArt, rotateTable } from "../../../book/ch-ground.ts";
+import { extraBombs } from "../../../book/ch-aircraft.ts";
 import { fleet, targetsArt, targetTable } from "../../../book/ch-modes.ts";
 import { ammoTable, bind, flareArt, lockArt } from "../../../book/ch-weapons.ts";
 import { b, dist, figure, kbd, kmh, list, note, num, p, pct, sec, speed, steps, sub } from "../../../book/kit.ts";
@@ -113,7 +114,7 @@ export const combat: Combat = {
         pct(R.missileAvionics), ", top mermisinde %", num(R.bulletAvionics * 100, 1), "."],
       ["Hasar yeni doğuşta, üste ikmalde ve tamir paketiyle tamamen geçer."]),
     sub("Bomba (Üs Saldırısı)"),
-    p("Tuş: ", b(bind(M.bomb, K.bomb, "bomb", kb)), ". Uçak başına ", b(String(R.bombs)), " bomba; yalnız ikmalle dolar. Bomba uçağın hızıyla ",
+    p("Tuş: ", b(bind(M.bomb, K.bomb, "bomb", kb)), ". Uçak başına ", b(String(R.bombs)), ` bomba${extraBombs()}; yalnız ikmalle dolar. Bomba uçağın hızıyla `,
       "ayrılır ve yerçekimiyle düşer (rüzgâr etkilemez): hedefin önünden bırak."),
     list(
       ["Patlama yarıçapı ", dist(R.bombRadius), ": yapıya en çok ", String(R.bombStructDmg), ", düşman uçağa en çok ", String(R.bombPlaneDmg),

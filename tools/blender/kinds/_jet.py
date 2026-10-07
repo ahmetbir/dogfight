@@ -72,6 +72,18 @@ AIM120 = dict(length=3.65, r=0.085, uv=missile_uv, fins=((0.36, 0.11, 0.34), (0.
 AIM7 = dict(length=3.66, r=0.10, uv=missile_uv, fins=((0.40, 0.20, 0.42), (0.88, 0.17, 0.32)))
 R73 = dict(length=2.90, r=0.085, uv=missile_uv, fins=((0.07, 0.10, 0.12), (0.84, 0.15, 0.30)))
 R27 = dict(length=4.00, r=0.115, uv=missile_uv, fins=((0.30, 0.24, 0.30), (0.86, 0.16, 0.36)))
+AIM54 = dict(length=3.96, r=0.19, uv=missile_uv, fins=((0.42, 0.20, 0.62), (0.88, 0.24, 0.40)))
+AGM65 = dict(length=2.49, r=0.15, uv=missile_uv, fins=((0.50, 0.20, 0.90),))
+R60 = dict(length=2.09, r=0.06, uv=missile_uv, fins=((0.08, 0.07, 0.08), (0.85, 0.10, 0.22)))
+R77 = dict(length=3.60, r=0.10, uv=missile_uv, fins=((0.40, 0.10, 0.30), (0.93, 0.15, 0.08)))
+R33 = dict(length=4.15, r=0.19, uv=missile_uv, fins=((0.45, 0.24, 0.72), (0.88, 0.22, 0.40)))
+R24 = dict(length=4.46, r=0.12, uv=missile_uv, fins=((0.30, 0.30, 0.46), (0.88, 0.18, 0.36)))
+R3S = dict(length=2.84, r=0.064, uv=missile_uv, fins=((0.10, 0.09, 0.14), (0.86, 0.13, 0.26)))
+KH25 = dict(length=3.70, r=0.14, uv=missile_uv, fins=((0.10, 0.10, 0.20), (0.80, 0.24, 0.46)))
+MICA = dict(length=3.10, r=0.08, uv=missile_uv, fins=((0.22, 0.05, 1.50), (0.88, 0.13, 0.30)))
+METEOR = dict(length=3.65, r=0.089, uv=missile_uv, fins=((0.86, 0.15, 0.36),))
+R40 = dict(length=6.20, r=0.155, uv=missile_uv, fins=((0.08, 0.16, 0.26), (0.80, 0.36, 0.80)))
+IRIST = dict(length=2.94, r=0.064, uv=missile_uv, fins=((0.10, 0.05, 0.10), (0.87, 0.12, 0.28)))
 
 
 def wing(s0, s1, le, te, thick, y, uv, hinge=None, dihedral=0.0, ridge=0.35):
@@ -92,9 +104,9 @@ def fin(s0, s1, le, te, thick, uv, x0=0.0, y0=0.0, cant=0.0, hinge=None, mirror=
     return Surface(s0, s1, le, te, thick, w, uv, hinge=hinge)
 
 
-def stabilator(surface, pivot, axis, name="stab_r", stations=()):
-    """All-moving tail: its own Part pivoting at pivot about axis."""
-    p = Part(name, pivot, {"role": "stab"})
+def stabilator(surface, pivot, axis, name="stab_r", stations=(), role="stab"):
+    """All-moving surface (tail, canard, fin): its own Part pivoting at pivot about axis."""
+    p = Part(name, pivot, {"role": role})
     surface.build(p, list(stations), root_cap=False)
     n = math.sqrt(sum(a * a for a in axis))
     p.props["axis"] = [round(a / n, 4) for a in axis]
@@ -258,3 +270,52 @@ def nozzles(part, xs, z0, z1, r0, r1, cy, seg=16):
         nozzle(p, z0, z1, r0, r1, cy, seg, True, metal_uv)
         p.faces = [(tuple((px + x, py, pz) for px, py, pz in pts), r, u) for pts, r, u in p.faces]
         part.add(p)
+
+
+def swing(pivot, sweep):
+    """The pivot of a swing wing (wing_r; mirror it for wing_l). The panel is
+    modelled at mid sweep; sweep = [lo, hi] is the turn range in radians about
+    axis from that pose, positive swinging the tip forward (hi: fully
+    spread, lo: fully swept). Its flap and aileron nodes are its children."""
+    return Part("wing_r", pivot, {"role": "sweep", "axis": [0.0, 1.0, 0.0], "sweep": [round(a, 4) for a in sweep]})
+
+
+def shaped_nozzle(part, stations, seg=12, depth=0.5, uv=metal_uv):
+    """A nozzle of duct-ring stations (see parts.duct_ring), front to exit:
+    metal walls, an inner lip and a dark recess."""
+    from parts import centroid, duct_ring, loft, outward
+    rings = [duct_ring(st, seg) for st in stations]
+    uvs = [[uv(j / seg, i / max(1, len(rings) - 1)) for j in range(seg)] for i in range(len(rings))]
+    axis = lambda i: (stations[i][1], stations[i][2], stations[i][0])
+    loft(part, rings, uvs, "metal", closed=True, inside=lambda i: tuple((axis(i)[k] + axis(i + 1)[k]) / 2 for k in range(3)))
+    cx, cy, z1 = stations[-1][1], stations[-1][2], stations[-1][0]
+    exit_ = rings[-1]
+    inner = [(cx + (x - cx) * 0.86, cy + (y - cy) * 0.86, z - 0.04) for x, y, z in exit_]
+    deep = [(cx + (x - cx) * 0.7, cy + (y - cy) * 0.7, z - depth) for x, y, z in exit_]
+    for j in range(seg):
+        k = (j + 1) % seg
+        outward(part, [exit_[j], exit_[k], inner[k], inner[j]], "metal", [uv(0.5, 1.0)] * 4, (cx, cy, z1 - 1.0))
+        q = [inner[j], inner[k], deep[k], deep[j]]
+        c = centroid(q)
+        outward(part, q, "dark", [A.PLAIN_UV] * 4, (cx + (c[0] - cx) * 3, cy + (c[1] - cy) * 3, c[2]))
+    outward(part, deep, "dark", [A.PLAIN_UV] * seg, (cx, cy, z1 - depth - 1.0))
+
+
+def nose_intake(part, z, cy, r, lip=0.06, depth=1.2, cone=(0.9, 0.55), seg=16, uv=plain):
+    """A pitot nose intake at z (the lip) with a shock cone: cone = (how far its
+    tip stands ahead of the lip, base radius as a fraction of r)."""
+    from parts import centroid, outward
+    ring = lambda rr, zz: [(rr * math.cos(t), cy + rr * math.sin(t), zz) for t in [j / seg * 2 * math.pi for j in range(seg)]]
+    outer, inner = ring(r, z), ring(r - lip, z + 0.04)
+    throat = ring((r - lip) * 0.9, z + depth)
+    for j in range(seg):
+        k = (j + 1) % seg
+        outward(part, [outer[j], outer[k], inner[k], inner[j]], "secondary", [uv(None)] * 4, (0.0, cy, z + 1.0))
+        q = [inner[j], inner[k], throat[k], throat[j]]
+        c = centroid(q)
+        outward(part, q, "dark", [A.PLAIN_UV] * 4, (c[0] * 3, cy + (c[1] - cy) * 3, c[2]))
+    outward(part, throat, "dark", [A.PLAIN_UV] * seg, (0.0, cy, z + depth + 1.0))
+    ahead, base = cone
+    rb = r * base
+    tube(part, (0.0, cy, z - ahead), (0.0, cy, z + depth * 0.8), [0.0, rb * 0.55, rb, rb * 0.9], 12, "secondary",
+         lambda a, l: A.PLAIN_UV, at=[0.0, 0.45, 0.75, 1.0])

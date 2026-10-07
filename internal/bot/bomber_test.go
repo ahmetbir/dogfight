@@ -112,9 +112,20 @@ func TestBomberReturnsForBombs(t *testing.T) {
 	if wantsRTB(self, []sim.Plane{self}, true) {
 		t.Fatal("a bomber with a bomb left keeps bombing")
 	}
-	env := &Env{Mode: mode.Base}
+	env := &Env{Mode: mode.Base, Bombs: 2}
 	if !needsAmmo(self, env) || needsAmmo(self, &Env{Mode: mode.Team}) {
 		t.Fatal("base attack rearm waits for the bombs")
+	}
+	// The wait follows the room's load and the kind's extra bombs, as the sim refills them.
+	a10 := sim.Plane{Kind: sim.A10, Alive: true, HP: sim.SpecOf(sim.A10).MaxHP, Missiles: sim.SpecOf(sim.A10).Missiles}
+	for _, c := range []struct {
+		room, bombs int
+		wait        bool
+	}{{2, 3, true}, {2, 4, false}, {3, 4, true}, {3, 5, false}, {0, 0, false}} {
+		a10.Bombs = c.bombs
+		if got := needsAmmo(a10, &Env{Mode: mode.Base, Bombs: c.room}); got != c.wait {
+			t.Errorf("A-10 with %d bombs, room load %d: waits %v, want %v", c.bombs, c.room, got, c.wait)
+		}
 	}
 }
 

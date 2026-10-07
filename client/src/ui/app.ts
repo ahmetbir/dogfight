@@ -64,6 +64,7 @@ export function play(o: PlayOpts): void {
     resume: () => closeMenus(true),
     leave: () => {
       clearInterval(uiTimer);
+      pick.dispose(); // the hangar's renderer and thumbnails
       socket.close();
       location.assign("/");
     },
@@ -215,7 +216,10 @@ export function play(o: PlayOpts): void {
     board: showBoard,
     escape: () => {
       const act = escapeAction({ sinceLockMenuMs: performance.now() - lockMenuAt, blocked: blocked(), replaying: !!game?.replaying() });
-      if (act === "close") closeMenus(false);
+      if (act === "close") {
+        if (pick.isOpen()) pick.leave(() => closeMenus(false)); // waiting: Esc flies the selected card, like Back
+        else closeMenus(false);
+      }
       else if (act === "menu") openMenu();
       else if (act === "skip") {
         game?.skipReplay();

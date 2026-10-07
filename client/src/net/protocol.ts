@@ -3,7 +3,9 @@
 export const VERSION = 2;
 
 export type Team = "nato" | "soviet" | "none";
-export type AircraftKind = "f16" | "f15" | "mig29" | "su27";
+export type AircraftKind =
+  | "f16" | "f15" | "mig29" | "su27" | "f22" | "su57" | "f14" | "mig31" | "a10" | "su25"
+  | "rafale" | "typhoon" | "mig21" | "f18" | "su30" | "f4" | "mig23";
 export type Mode = "team" | "ffa" | "base";
 export type Difficulty = "easy" | "normal" | "hard";
 export type Weapon = "cannon" | "missile" | "crash" | "ram" | "bounds" | "aa" | "bomb";

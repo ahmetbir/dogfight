@@ -1,11 +1,12 @@
-// Aircraft pick screen: cards for the kinds my team may fly, with stat bars,
-// the missile loadout and (team modes) the team.
+// Aircraft pick screen: the hangar (ui/hangar.ts) with the kinds my team may
+// fly, the missile loadout and (team modes) the team.
 import type { AircraftInfo, AircraftKind, Loadout, Team, TeamChoice } from "../net/protocol.ts";
 import { RULES } from "../book/rules.ts";
-import { lt, t, type Key } from "../i18n/index.ts";
+import { lt, t } from "../i18n/index.ts";
 import { fill, h, text } from "./dom.ts";
 import { roomLink } from "./link.ts";
-import { loadoutCounts, LoadoutSelector, missileText } from "./loadout.ts";
+import { Hangar } from "./hangar.ts";
+import { LoadoutSelector } from "./loadout.ts";
 import { TeamSelector, type TeamPickView } from "./team.ts";
 
 export type PickView = {
@@ -32,25 +33,9 @@ export function waitWhen(left: number): string {
   return left > 0 ? t("pick.in", { n: left }) : t("pick.soon");
 }
 
-type Stat = { label: Key; get(a: AircraftInfo): number; fmt(a: AircraftInfo): string };
-
-const MISSILE_STAT: Key = "pick.missiles";
-const STATS: Stat[] = [
-  { label: "pick.hp", get: (a) => a.maxHP, fmt: (a) => String(a.maxHP) },
-  { label: "pick.speed", get: (a) => a.maxSpeedAB, fmt: (a) => `${Math.round(a.maxSpeedAB * 3.6)} km/h` },
-  { label: "pick.turn", get: (a) => a.pitchRate, fmt: (a) => `${Math.round((a.pitchRate * 180) / Math.PI)}°/s` },
-  { label: MISSILE_STAT, get: (a) => a.missiles, fmt: (a) => String(a.missiles) },
-];
-
 /** Kinds a team may fly (FFA flies all), in the welcome's order. */
 export function kindsFor(team: Team, aircraft: AircraftInfo[]): AircraftInfo[] {
   return aircraft.filter((a) => team === "none" || a.team === team);
-}
-
-/** Bar fill 0..1 of each stat against the best aircraft in the table. */
-export function statFill(a: AircraftInfo, all: AircraftInfo[], get: (a: AircraftInfo) => number): number {
-  const best = Math.max(...all.map(get));
-  return best > 0 ? Math.max(0, Math.min(1, get(a) / best)) : 0;
 }
 
 /** What the cards are built from; anything else is updated in place. */
@@ -58,37 +43,55 @@ export function pickKey(v: PickView): string {
   return JSON.stringify([v.code, v.team, v.aircraft.map((a) => a.kind), !!v.teamPick]);
 }
 
+/**
+ * What leaving the screen without the Fly button sends: before the first
+ * plane, the selected card (else the default kind would spawn, silently);
+ * flying, nothing (the selection is only a look until it is flown).
+ */
+export function pickOnLeave(v: Pick<PickView, "waiting">, selected: AircraftKind | null): AircraftKind | null {
+  return v.waiting ? selected : null;
+}
+
+/** The name of a selected card that leaving would not fly (flying, another jet selected), else "". */
+export function unpickedName(v: Pick<PickView, "waiting" | "chosen" | "current" | "aircraft">, selected: AircraftKind | null): string {
+  if (v.waiting || !selected || selected === (v.chosen ?? v.current)) return "";
+  return v.aircraft.find((a) => a.kind === selected)?.name ?? "";
+}
+
 export function pickNote(v: PickView): string {
   if (v.waiting) return t("pick.noteWait", { when: waitWhen(v.waitLeft) });
   return t(v.protectedNow ? "pick.noteProt" : "pick.noteNext");
 }
 
-type Card = { card: HTMLElement; flag: HTMLElement; ms: HTMLElement | null; missiles: number };
-
 /**
- * The cards are built once per (room, team, aircraft table) and then only
- * updated in place, so a click (mousedown + mouseup on the same element),
- * hover, focus and the copy-link feedback survive the 10 Hz refresh.
+ * The frame (team and loadout selectors, room link, note) is built once per
+ * (room, team, aircraft table) and then only updated in place, so a click,
+ * hover, focus and the copy-link feedback survive the 10 Hz refresh; the
+ * hangar inside keeps its own cards and selection the same way.
  */
 export class PickScreen {
   readonly el = h("div", { class: "overlay pick", hidden: true });
-  private readonly onPick: (k: AircraftKind) => void;
   private readonly onClose: () => void;
+  private readonly onPick: (k: AircraftKind) => void;
+  private v: PickView | null = null;
+  private readonly unpicked = h("span", { class: "pick-unpicked", hidden: true });
   private readonly onTeam: (c: TeamChoice) => void;
   private readonly onLoadout: (lo: Loadout) => void;
+  private readonly hangar: Hangar;
   private teams: TeamSelector | null = null;
   private loadouts: LoadoutSelector | null = null;
   private readonly note = h("span", { class: "muted" });
-  private cards = new Map<AircraftKind, Card>();
   private key = "";
 
   constructor(onPick: (k: AircraftKind) => void, onClose: () => void, onTeam: (c: TeamChoice) => void = () => {},
     onLoadout: (lo: Loadout) => void = () => {}) {
+    this.hangar = new Hangar(onPick);
     this.onPick = onPick;
     this.onClose = onClose;
     this.onTeam = onTeam;
     this.onLoadout = onLoadout;
-    this.el.addEventListener("click", (e) => { if (e.target === this.el) this.onClose(); });
+    this.el.addEventListener("click", (e) => { if (e.target === this.el) this.leave(); });
+    this.el.addEventListener("keydown", (e) => this.hangar.handleKey(e));
   }
 
   isOpen(): boolean {
@@ -97,63 +100,68 @@ export class PickScreen {
 
   close(): void {
     this.el.hidden = true;
+    this.hangar.close(); // the preview's renderer goes with the screen
+  }
+
+  /** Frees the hangar's thumbnails too (leaving the match). */
+  dispose(): void {
+    this.close();
+    this.hangar.dispose();
+    this.key = "";
+  }
+
+  /**
+   * Back to flight, a click beside the panel or Esc: flies the selection while
+   * waiting (pickOnLeave), else closes (close: the caller's way, default onClose).
+   */
+  leave(close: () => void = this.onClose): void {
+    const k = this.v ? pickOnLeave(this.v, this.hangar.selected()) : null;
+    if (k) this.onPick(k);
+    else close();
   }
 
   /** Opens (or refreshes, when open) the screen for v. */
   show(v: PickView): void {
+    this.v = v;
     const key = pickKey(v);
+    let refocus = false;
     if (key !== this.key) {
       this.key = key;
+      refocus = !this.el.hidden && this.el.contains(document.activeElement); // re-parenting the hangar drops its focus
       this.build(v);
     }
-    const selected = v.chosen ?? v.current;
     const lo = v.loadout ?? "ir";
-    for (const [kind, c] of this.cards) {
-      const on = String(kind === selected);
-      if (c.card.getAttribute("aria-pressed") !== on) c.card.setAttribute("aria-pressed", on);
-      c.flag.hidden = v.waiting || kind !== v.current;
-      if (c.ms) text(c.ms, missileText(...loadoutCounts(c.missiles, lo), lo));
-    }
+    this.hangar.update({ team: v.team, kinds: kindsFor(v.team, v.aircraft), all: v.aircraft, current: v.current, chosen: v.chosen, waiting: v.waiting, loadout: lo });
     if (v.teamPick) this.teams?.update(v.teamPick);
     this.loadouts?.update(lo);
     text(this.note, pickNote(v));
-    this.el.hidden = false;
+    this.syncUnpicked();
+    if (this.el.hidden) {
+      this.el.hidden = false;
+      this.hangar.open();
+      this.hangar.focus();
+    } else if (refocus) this.hangar.focus();
   }
 
   private build(v: PickView): void {
-    const all = v.aircraft;
-    this.cards = new Map();
-    const cards = kindsFor(v.team, all).map((a) => {
-      const flag = h("div", { class: "plane-flag", hidden: true }, lt("pick.flying"));
-      let ms: HTMLElement | null = null;
-      const card = h("button", { type: "button", class: "plane-card", "aria-pressed": "false" },
-        h("div", { class: "plane-head" }, h("span", { class: "plane-name" }, a.name),
-          h("span", { class: `team-tag ${a.team}` }, lt(a.team === "nato" ? "team.nato" : "team.soviet"))),
-        ...STATS.map((s) => {
-          const value = h("span", { class: "stat-value" }, s.fmt(a));
-          if (s.label === MISSILE_STAT) ms = value; // follows the loadout (show)
-          return h("div", { class: "stat" }, h("span", { class: "stat-label" }, lt(s.label)), bar(statFill(a, all, s.get)), value);
-        }),
-        flag);
-      card.addEventListener("click", () => this.onPick(a.kind));
-      this.cards.set(a.kind, { card, flag, ms, missiles: a.missiles });
-      return card;
-    });
     this.teams = v.teamPick ? new TeamSelector(this.onTeam) : null;
     this.loadouts = new LoadoutSelector(this.onLoadout);
-    const go = h("button", { type: "button", class: "btn primary" }, lt("pick.back"));
-    go.addEventListener("click", () => this.onClose());
-    fill(this.el, h("div", { class: "panel wide" },
+    const go = h("button", { type: "button", class: "btn" }, lt("pick.back"));
+    go.addEventListener("click", () => this.leave());
+    this.hangar.el.addEventListener("click", () => this.syncUnpicked());
+    this.hangar.el.addEventListener("keyup", () => this.syncUnpicked());
+    fill(this.el, h("div", { class: "panel wide pick-panel" },
       h("div", { class: "panel-head" }, h("h2", {}, lt("pick.title")), roomLink(v.code)),
-      this.teams?.el,
-      this.loadouts.el,
-      h("div", { class: "plane-grid" }, ...cards),
-      h("div", { class: "panel-foot" }, h("span", { class: "muted" }, this.note, lt("pick.reopen")), go)));
+      h("div", { class: "pick-opts" }, this.teams?.el, this.loadouts.el),
+      this.hangar.el,
+      h("div", { class: "panel-foot" }, h("span", { class: "muted" }, this.note, lt("pick.reopen"), this.unpicked),
+        h("div", { class: "pick-foot-btns" }, go, this.hangar.footFly))));
   }
-}
 
-function bar(f: number): HTMLElement {
-  const fillEl = h("div", { class: "bar-fill" });
-  fillEl.style.width = `${Math.round(f * 100)}%`;
-  return h("div", { class: "bar" }, fillEl);
+  /** "F-22 is selected, not flown: Fly this jet switches." while flying with another card selected. */
+  private syncUnpicked(): void {
+    const name = this.v ? unpickedName(this.v, this.hangar.selected()) : "";
+    this.unpicked.hidden = !name;
+    if (name) text(this.unpicked, t("pick.unpicked", { name }));
+  }
 }

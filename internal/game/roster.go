@@ -33,15 +33,20 @@ type Player struct {
 	Loadout sim.Loadout // missile loadout of the next spawn
 }
 
-// teamKinds lists the aircraft a team may fly; TeamNone (FFA) flies all.
+// teamKinds lists the aircraft a team may fly, in sim.Kinds order (the first
+// is a new human's default and the bots' rotation starts there); TeamNone
+// (FFA) flies all.
 func teamKinds(t sim.Team) []sim.Kind {
-	switch t {
-	case sim.TeamNATO:
-		return []sim.Kind{sim.F16, sim.F15}
-	case sim.TeamSoviet:
-		return []sim.Kind{sim.MiG29, sim.Su27}
+	if t == sim.TeamNone {
+		return sim.Kinds()
 	}
-	return sim.Kinds()
+	var out []sim.Kind
+	for _, k := range sim.Kinds() {
+		if sim.SpecOf(k).Team == t {
+			out = append(out, k)
+		}
+	}
+	return out
 }
 
 func cleanName(name string) string {

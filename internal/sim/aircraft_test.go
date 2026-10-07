@@ -1,6 +1,10 @@
 package sim
 
-import "testing"
+import (
+	"encoding/json"
+	"os"
+	"testing"
+)
 
 func TestSpecTable(t *testing.T) {
 	for _, k := range Kinds() {
@@ -14,6 +18,47 @@ func TestSpecTable(t *testing.T) {
 	}
 	if SpecOf(F16).Team != TeamNATO || SpecOf(Su27).Team != TeamSoviet {
 		t.Fatal("teams wrong")
+	}
+	names := map[string]bool{}
+	roles := map[Role]bool{RoleLight: true, RoleMulti: true, RoleStealth: true, RoleInterceptor: true, RoleAttack: true, RoleCheap: true, RoleHeavy: true}
+	for _, k := range Kinds() {
+		s := SpecOf(k)
+		ok := s.Team != TeamNone && !names[s.Name] && s.MaxHP >= 50 && s.MaxHP <= 200 && s.Accel > 0 &&
+			s.RollRate > 0 && s.PitchRate > 0 && s.YawRate > 0 && s.Missiles >= 2 && s.Flares > 0 &&
+			s.LockRange >= 800 && s.LockRange <= 1200 && s.RotateSpeed > 50 && s.RotateSpeed < s.CornerSpeed && s.ExtraBombs >= 0 &&
+			roles[s.Role]
+		if !ok {
+			t.Fatalf("implausible spec %+v", s)
+		}
+		names[s.Name] = true
+	}
+	if _, ok := ParseKind("zeppelin"); ok || Kind(0).String() != "unknown" || Kind(len(Kinds())+1).String() != "unknown" {
+		t.Fatal("unknown kinds must not parse")
+	}
+}
+
+// The models carry one msl_i node per missile of the sim load: the counts in
+// tools/blender/contract.json (build.py and the client test read it) are
+// sim.Spec.Missiles, and it lists exactly the sim's kinds.
+func TestContractMissilesAreTheSimLoad(t *testing.T) {
+	raw, err := os.ReadFile("../../tools/blender/contract.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var c struct {
+		Kinds map[string]struct{ Missiles int }
+	}
+	if err := json.Unmarshal(raw, &c); err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Kinds) != len(Kinds()) {
+		t.Fatalf("contract.json has %d kinds, the sim %d", len(c.Kinds), len(Kinds()))
+	}
+	for _, k := range Kinds() {
+		m, ok := c.Kinds[k.String()]
+		if !ok || m.Missiles != SpecOf(k).Missiles {
+			t.Errorf("%v: contract.json %d missiles (listed %v), Spec %d", k, m.Missiles, ok, SpecOf(k).Missiles)
+		}
 	}
 }
 

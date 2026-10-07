@@ -1,31 +1,18 @@
 ## a
-{"t":"welcome","n":47959,"h":"be882436e48a438c","p":"{\"t\":\"welcome\",\"you\":9,\"code\":\"GOLD\",\"mode\":\"base\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\""}
-{"t":"players","n":536,"m":{"t":"players","list":[{"id":1,"name":"Maverick","team":"nato","kind":"f16","bot":true},{"id":2,"name":"Iceman","team":"soviet","kind":"mig29","bot":true},{"id":3,"name":"Viper","team":"nato","kind":"f15","bot":true},{"id":4,"name":"Goose","team":"soviet","kind":"su27","bot":true},{"id":5,"name":"Ivan","team":"nato","kind":"f16","bot":true},{"id":6,"name":"Sokol","team":"soviet","kind":"mig29","bot":true},{"id":8,"name":"Yastreb","team":"soviet","kind":"su27","bot":true},{"id":9,"name":"a","team":"nato","kind":"f16","bot":false}]}}
+{"t":"welcome","n":50843,"h":"8ccfabdec350cd29","p":"{\"t\":\"welcome\",\"you\":9,\"code\":\"GOLD\",\"mode\":\"base\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,\""}
+{"t":"players","n":536,"m":{"t":"players","list":[{"id":1,"name":"Maverick","team":"nato","kind":"f16","bot":true},{"id":2,"name":"Iceman","team":"soviet","kind":"mig29","bot":true},{"id":3,"name":"Viper","team":"nato","kind":"f15","bot":true},{"id":4,"name":"Goose","team":"soviet","kind":"su27","bot":true},{"id":5,"name":"Ivan","team":"nato","kind":"f22","bot":true},{"id":6,"name":"Sokol","team":"soviet","kind":"su57","bot":true},{"id":8,"name":"Yastreb","team":"soviet","kind":"mig31","bot":true},{"id":9,"name":"a","team":"nato","kind":"f16","bot":false}]}}
 {"t":"round","n":324,"m":{"t":"round","phase":"playing","left":36000,"nato":0,"soviet":0,"board":[{"id":1,"k":0,"d":0,"s":0},{"id":2,"k":0,"d":0,"s":0},{"id":3,"k":0,"d":0,"s":0},{"id":4,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":8,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":0,"s":0}],"obj":{"nato":1950,"soviet":1950}}}
-{"t":"players","n":536,"m":{"t":"players","list":[{"id":1,"name":"Maverick","team":"nato","kind":"f16","bot":true},{"id":2,"name":"Iceman","team":"soviet","kind":"mig29","bot":true},{"id":3,"name":"Viper","team":"nato","kind":"f15","bot":true},{"id":4,"name":"Goose","team":"soviet","kind":"su27","bot":true},{"id":5,"name":"Ivan","team":"nato","kind":"f16","bot":true},{"id":6,"name":"Sokol","team":"soviet","kind":"mig29","bot":true},{"id":8,"name":"Yastreb","team":"soviet","kind":"su27","bot":true},{"id":9,"name":"a","team":"nato","kind":"f16","bot":false}]}}
-{"t":"run","c":315,"n":764702,"h":"3d839f614b095fac"}
+{"t":"players","n":536,"m":{"t":"players","list":[{"id":1,"name":"Maverick","team":"nato","kind":"f16","bot":true},{"id":2,"name":"Iceman","team":"soviet","kind":"mig29","bot":true},{"id":3,"name":"Viper","team":"nato","kind":"f15","bot":true},{"id":4,"name":"Goose","team":"soviet","kind":"su27","bot":true},{"id":5,"name":"Ivan","team":"nato","kind":"f22","bot":true},{"id":6,"name":"Sokol","team":"soviet","kind":"su57","bot":true},{"id":8,"name":"Yastreb","team":"soviet","kind":"mig31","bot":true},{"id":9,"name":"a","team":"nato","kind":"f16","bot":false}]}}
+{"t":"run","c":315,"n":761454,"h":"9db9f299b6d74bc3"}
 {"t":"round","n":325,"m":{"t":"round","phase":"playing","left":35391,"nato":0,"soviet":0,"board":[{"id":1,"k":0,"d":0,"s":0},{"id":2,"k":0,"d":0,"s":0},{"id":3,"k":0,"d":0,"s":0},{"id":4,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":8,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":1,"s":-1}],"obj":{"nato":1950,"soviet":1950}}}
-{"t":"run","c":57,"n":157216,"h":"eb63c7292035d172"}
-{"t":"round","n":325,"m":{"t":"round","phase":"playing","left":35280,"nato":0,"soviet":1,"board":[{"id":4,"k":1,"d":0,"s":1},{"id":1,"k":0,"d":0,"s":0},{"id":2,"k":0,"d":0,"s":0},{"id":3,"k":0,"d":1,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":8,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":1,"s":-1}],"obj":{"nato":1950,"soviet":1950}}}
-{"t":"run","c":674,"n":1655671,"h":"69d0dd7cb81ed465"}
-{"t":"round","n":325,"m":{"t":"round","phase":"playing","left":33973,"nato":0,"soviet":2,"board":[{"id":4,"k":2,"d":0,"s":2},{"id":1,"k":0,"d":0,"s":0},{"id":2,"k":0,"d":0,"s":0},{"id":3,"k":0,"d":1,"s":0},{"id":5,"k":0,"d":1,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":8,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":1,"s":-1}],"obj":{"nato":1950,"soviet":1950}}}
-{"t":"run","c":95,"n":233404,"h":"20a34aef158b9719"}
-{"t":"round","n":325,"m":{"t":"round","phase":"playing","left":33789,"nato":1,"soviet":2,"board":[{"id":4,"k":2,"d":0,"s":2},{"id":3,"k":1,"d":1,"s":1},{"id":1,"k":0,"d":0,"s":0},{"id":2,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":1,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":8,"k":0,"d":1,"s":0},{"id":9,"k":0,"d":1,"s":-1}],"obj":{"nato":1950,"soviet":1950}}}
-{"t":"run","c":154,"n":374617,"h":"39b59f1ac6537b85"}
-{"t":"round","n":325,"m":{"t":"round","phase":"playing","left":33491,"nato":1,"soviet":3,"board":[{"id":4,"k":3,"d":0,"s":3},{"id":3,"k":1,"d":1,"s":1},{"id":1,"k":0,"d":1,"s":0},{"id":2,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":1,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":8,"k":0,"d":1,"s":0},{"id":9,"k":0,"d":1,"s":-1}],"obj":{"nato":1950,"soviet":1950}}}
-{"t":"run","c":255,"n":668060,"h":"3cf7634f079b6842"}
+{"t":"run","c":105,"n":280585,"h":"b43e0acaa904635c"}
+{"t":"round","n":325,"m":{"t":"round","phase":"playing","left":35188,"nato":0,"soviet":1,"board":[{"id":8,"k":1,"d":0,"s":1},{"id":1,"k":0,"d":0,"s":0},{"id":2,"k":0,"d":0,"s":0},{"id":3,"k":0,"d":1,"s":0},{"id":4,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":1,"s":-1}],"obj":{"nato":1950,"soviet":1950}}}
+{"t":"run","c":816,"n":2016151,"h":"2e7dc39cd3df9c94"}
+{"t":"round","n":325,"m":{"t":"round","phase":"playing","left":33608,"nato":1,"soviet":1,"board":[{"id":3,"k":1,"d":1,"s":1},{"id":8,"k":1,"d":0,"s":1},{"id":1,"k":0,"d":0,"s":0},{"id":2,"k":0,"d":0,"s":0},{"id":4,"k":0,"d":1,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":1,"s":-1}],"obj":{"nato":1950,"soviet":1950}}}
+{"t":"run","c":315,"n":845900,"h":"7cfcebe163dde633"}
 ## a.ev
 {"t":"spawn","n":28,"m":{"k":"spawn","tick":1,"a":9}}
 {"t":"kill","n":41,"m":{"k":"kill","tick":609,"a":9,"w":"crash"}}
 {"t":"spawn","n":30,"m":{"k":"spawn","tick":789,"a":9}}
-{"t":"lock","n":43,"m":{"k":"lock","tick":2631,"a":8,"b":9,"mk":1}}
-{"t":"mlaunch","n":59,"m":{"k":"mlaunch","tick":2633,"a":16777225,"b":9,"o":8,"mk":1}}
-{"t":"decoy","n":50,"m":{"k":"decoy","tick":2770,"a":16777225,"b":9,"o":8}}
-{"t":"lock","n":43,"m":{"k":"lock","tick":2802,"a":4,"b":9,"mk":1}}
-{"t":"mlaunch","n":59,"m":{"k":"mlaunch","tick":2805,"a":16777227,"b":9,"o":4,"mk":1}}
-{"t":"hit","n":51,"m":{"k":"hit","tick":2855,"a":9,"val":10,"w":"bounds"}}
-{"t":"decoy","n":50,"m":{"k":"decoy","tick":2881,"a":16777227,"b":9,"o":4}}
-{"t":"hit","n":51,"m":{"k":"hit","tick":2915,"a":9,"val":10,"w":"bounds"}}
-{"t":"hit","n":51,"m":{"k":"hit","tick":2975,"a":9,"val":10,"w":"bounds"}}
 ## sink
 {"t":"delta","n":62,"m":{"p":"pilot-a","n":"a","d":1,"c":1,"t":2820,"kd":{"f16":2820}}}
