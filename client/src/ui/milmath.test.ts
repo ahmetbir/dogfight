@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { dot, len, norm, v3, type V3 } from "../sim/vec.ts";
 import {
   coneRing, dirOf, fpmDir, gText, headingDeg, headingText, kmText, ladderHeading, ladderPitches, rungFade, machText, pitchDeg,
-  rangeArc, rung, RUNG, inkFor, hexA, contrast, brightness, MIL_PALETTE, rungLabel, soundSpeed, speedIn, tapeMarks, vsText,
+  rangeArc, rung, RUNG, steadyHeading, inkFor, hexA, contrast, brightness, MIL_PALETTE, rungLabel, soundSpeed, speedIn, tapeMarks, vsText,
 } from "./milmath.ts";
 
 const near = (a: number, b: number, eps = 1e-9, msg?: string) => assert.ok(Math.abs(a - b) <= eps, msg ?? `${a} ≉ ${b}`);
@@ -133,4 +133,28 @@ test("ink: the core never changes; the shadow and backing adapt to the backdrop"
   assert.equal(brightness(0.7), 1);
   // the luminous core stays clearly brighter than sea and night (the HUD look); over sky the shadow carries it
   for (const bg of ["#0b4f86", "#0a1026"]) assert.ok(contrast(MIL_PALETTE.green, bg) >= 4.5 && contrast(MIL_PALETTE.amber, bg) >= 4.5);
+});
+
+test("steadyHeading: near vertical it follows the body's up axis instead of spinning", () => {
+  const up = v3(0, 0, 1); // climbing straight up, canopy to the south: pulled through north
+  near(steadyHeading(v3(1e-12, 1, -1e-12), up), 0);
+  near(steadyHeading(v3(-1e-12, 1, 1e-12), up), 0);
+  near(steadyHeading(v3(0, -1, 0), v3(1, 0, 0)), 90, 1e-9, "diving: the heading ahead of the canopy");
+  near(steadyHeading(v3(1, 0, -1), v3(0, 1, 0)), 45, 1e-9, "not vertical: the plain heading");
+});
+
+test("the allocation-free forms give the same marks as the plain ones", () => {
+  const marks: ReturnType<typeof tapeMarks> = [];
+  for (const h of [0, 3.3, 352.4, 359.9, 180]) {
+    assert.deepEqual(tapeMarks(h, 25, 5, marks), tapeMarks(h, 25));
+  }
+  assert.equal(marks.length, tapeMarks(180, 25).length, "length follows the latest call");
+  const buf = rung(0, 0);
+  for (const [h, p] of [[0, 0], [37, 15], [200, -30], [90, 80], [359, -10]]) {
+    assert.deepEqual(rung(h, p, buf), rung(h, p));
+    assert.equal(rung(h, p, buf), buf);
+  }
+  const ring: V3[] = [];
+  assert.deepEqual(coneRing(v3(0, 0, -1), 0.17, 32, ring), coneRing(v3(0, 0, -1), 0.17));
+  assert.equal(coneRing(v3(0, 1, 0), 0.17, 8, ring).length, 8);
 });

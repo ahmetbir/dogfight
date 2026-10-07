@@ -12,6 +12,7 @@ export type HudView = {
   lockProgress: number; locked: boolean; oobS: number; scheme: Settings["scheme"]; pointerLocked: boolean;
   invertY: boolean; rotateSpeed: number; // settings; my aircraft's lift-off speed (m/s)
   muzzle: number;                // m ahead of my origin where my rounds leave (my aircraft's)
+  span: number;                  // my aircraft's wingspan (m)
   gLoad: number; gfx: boolean;           // my signed load factor; G effects setting
   protected: boolean;            // spawn protection
   lockTarget: number;            // id my lock is on (0: none)

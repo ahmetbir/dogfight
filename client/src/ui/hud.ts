@@ -19,7 +19,7 @@ import { Gauges } from "./hudtext.ts";
 import { flareCue, FlareHud } from "./flarecue.ts";
 import { CHAT_LIFE_MS, chatText } from "./chat.ts";
 import { KillFeed, weaponName, whoEl, type Who } from "./killfeed.ts";
-import { MIL_COLORS, MilHud } from "./milhud.ts";
+import { drawSymbology, MIL_COLORS, MilHud } from "./milhud.ts";
 import { waitWhen } from "./pick.ts";
 import { Radar, type Contact } from "./radar.ts";
 import { outOfRange } from "./lockinfo.ts";
@@ -205,8 +205,7 @@ export class Hud {
         : null,
       lead: (v.lockTarget ? v.planeNow(v.lockTarget) : null) ?? this.gunTarget(v, myTeam),
     };
-    if (this.military) this.mil.draw(v, rv);
-    else this.reticle.update(rv);
+    drawSymbology(this.military, this.mil, this.reticle, v, rv, this.gauges.parked());
     const now = performance.now();
     this.gfx.update(v.gLoad, this.lastFrame ? (now - this.lastFrame) / 1000 : 0, v.gfx && v.alive);
     this.lastFrame = now;

@@ -214,7 +214,7 @@ export function startGame(ctx: GameCtx): Game {
         flares: me.fl, respawnS: (me.rs ?? 0) / 60,
         lockProgress: me.lp ?? 0, locked: !!me.ld, oobS: me.oob ?? 0,
         scheme: ctx.settings.scheme, pointerLocked: input.locked(),
-        invertY: ctx.settings.invertY, rotateSpeed: state.aircraft.get(me.k)?.rotateSpeed ?? 0, muzzle: airframe(me.k).muzzle,
+        invertY: ctx.settings.invertY, rotateSpeed: state.aircraft.get(me.k)?.rotateSpeed ?? 0, muzzle: airframe(me.k).muzzle, span: airframe(me.k).span,
         gLoad: own.gLoad(), gfx: ctx.settings.gfx,
         protected: !!me.pr, lockTarget: me.lk ?? 0,
         lockRange: effectiveRange(state.aircraft.get(me.k)?.lockRange ?? 0, state.weather?.lockMul ?? 1),
