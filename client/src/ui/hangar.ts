@@ -210,7 +210,10 @@ export class Hangar {
     }
     for (const b of Array.from(this.chips.children) as HTMLElement[]) {
       const on = b.dataset.skin === look;
-      if (b.getAttribute("aria-checked") !== String(on)) b.setAttribute("aria-checked", String(on));
+      if (b.getAttribute("aria-checked") !== String(on)) {
+        b.setAttribute("aria-checked", String(on));
+        if (on && this.chips.scrollWidth > this.chips.clientWidth) this.chips.scrollLeft = b.offsetLeft - this.chips.offsetLeft - 2; // a swiped row (phones) shows the worn chip
+      }
       b.tabIndex = on ? 0 : -1;
     }
   }
