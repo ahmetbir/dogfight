@@ -22,8 +22,10 @@ Live demo: https://dogfight.ahmetbirinci.dev
   - **Mixed** (*Karışık*): half the IR missiles plus one radar missile. `Q` (mouse) or `Z`
     (keyboard) picks the kind the missile key fires; the HUD frames the picked kind. When it runs
     out the other kind fires. Touch has no pick: radar beyond IR range, IR inside it.
-  - The HUD warns of incoming missiles: a blinking `FLARE!` against an IR missile, `DİK UÇ!`
-    ("beam it!") against a radar missile.
+  - The HUD warns of incoming missiles with their kind, distance and clock position, an arrow
+    round the reticle toward the nearest one and a ringed red dot on the radar: a blinking `FLARE!`
+    against an IR missile, `DİK UÇ!` ("beam it!") with the way to turn against a radar missile.
+    A lock on you before any missile is fired reads `KİLİTLENDİN` ("locked on").
 - **Afterburner heat:** about 15 s of continuous afterburner, then a lockout while it cools down.
 - **3 power-ups:** missiles, repair, turbo.
 - **3 game modes:** team deathmatch, free-for-all (FFA) and **Base Attack** (destroy the enemy

@@ -17,7 +17,8 @@ import { KillFeed, weaponName, whoEl, type Who } from "./killfeed.ts";
 import { waitWhen } from "./pick.ts";
 import { Radar, type Contact } from "./radar.ts";
 import { outOfRange } from "./lockinfo.ts";
-import { beamCue, incoming, incomingIR, ranges, reach, warnText } from "./loadout.ts";
+import { beamCue, incomingIR, ranges, reach, warnText } from "./loadout.ts";
+import { arrowAngle, beamTurn, clockOf, relBearing, threatSource } from "./threat.ts";
 import { enemyTargets, ObjectiveBar } from "./objective.ts";
 import { formatDist, inCone, Reticle } from "./reticle.ts";
 import { boardRows, scoreLine, type BoardView } from "./scoreboard.ts";
@@ -50,6 +51,7 @@ export class Hud {
   private readonly outRange = h("div", { class: "hud-range", hidden: true }, lt("hud.outRange"));
   private readonly toast = h("div", { class: "hud-toast" });
   private readonly hitMark = h("div", { class: "hud-hit" });
+  private readonly arrow = h("div", { class: "hud-threat", hidden: true }, h("div", { class: "hud-threat-tip" }));
   private readonly flash = h("div", { class: "hud-flash" });
   private readonly watch = h("div", { class: "hud-watch", hidden: true }); // "Watching: …"
   private readonly gauges = new Gauges();
@@ -73,7 +75,7 @@ export class Hud {
       h("div", { class: "hud-top" }, this.objective.el, this.score, this.warn, this.flare.cue, this.flare.beam),
       this.radar.el, this.feed.el,
       h("div", { class: "hud-mid" }, this.center, this.sub, this.flare.note, this.outRange, this.prot, this.toast),
-      this.hitMark, this.help.el, this.gauges.left, this.gauges.right, this.watch);
+      this.hitMark, this.arrow, this.help.el, this.gauges.left, this.gauges.right, this.watch);
   }
 
   hooks(): GameHooks {
@@ -189,8 +191,10 @@ export class Hud {
   }
 
   /**
-   * The missile warning with the kind and distance of the nearest missile
-   * tracking me; under it FLARE! against an IR missile, the beam cue against radar.
+   * The missile warning with the kind, distance and clock position of the
+   * nearest missile tracking me (or of a plane locked on me before it fires),
+   * an arrow toward it round the reticle; under the warning FLARE! against an
+   * IR missile, the beam cue with the way to turn against radar.
    */
   private threat(v: HudView, now: number): void {
     const s = this.state;
@@ -198,9 +202,15 @@ export class Hud {
     const ir = this.warn.hidden ? null : incomingIR(v.pos, s.missiles, s.you);
     const me = s.planes.get(s.you);
     const beam = !this.warn.hidden && beamCue(v.alive, s.missiles, s.you);
-    this.flare.update(flareCue(v.alive, ir, me?.fl ?? 0, s.tick, s.myFlareTick), v.scheme, this.el.parentElement, now, beam); // null while the warning is off
-    if (this.warn.hidden) return;
-    text(this.warn, warnText(incoming(v.pos, s.missiles, s.you), formatDist));
+    const radar = beam ? threatSource(v.pos, s.you, s.missiles, [], "radar") : null;
+    const turn = radar ? beamTurn(relBearing(v.pos, v.fwd, radar.pos)) : null;
+    this.flare.update(flareCue(v.alive, ir, me?.fl ?? 0, s.tick, s.myFlareTick), v.scheme, this.el.parentElement, now, beam, turn); // null while the warning is off
+    const src = this.warn.hidden ? null : threatSource(v.pos, s.you, s.missiles, s.planes.values());
+    this.arrow.hidden = !src;
+    if (!src) return;
+    this.arrow.classList.toggle("lock", src.kind === "lock");
+    this.arrow.style.transform = `rotate(${arrowAngle(v.pos, v.fwd, v.up, src.pos)}rad)`;
+    text(this.warn, warnText(src, formatDist, clockOf(relBearing(v.pos, v.fwd, src.pos))));
   }
 
   /** Live enemy planes where they are drawn. */

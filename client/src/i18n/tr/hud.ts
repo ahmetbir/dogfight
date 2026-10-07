@@ -2,6 +2,8 @@
 // texts, toasts, ground coach).
 export const hud = {
   "hud.missileWarn": "FÜZE UYARISI",
+  "hud.clock": "SAAT {n}",
+  "hud.lockWarn": "KİLİTLENDİN",
   "hud.missileWarnAt": "FÜZE UYARISI · {kind} · {dist}",
   "hud.prot": "KORUMA",
   "hud.outRange": "MENZİL DIŞI",
@@ -36,6 +38,9 @@ export const hud = {
   "lamp.rearm": "İKMAL {p}",
   "flare.cue": "FLARE!",
   "flare.beam": "DİK UÇ!",
+  "flare.beamLeft": "← SOLA DÖN",
+  "flare.beamRight": "SAĞA DÖN →",
+  "flare.beamHold": "TUT",
   "flare.evaded": "FÜZE ATLATILDI!",
   "flare.fooled": "Füzen flare'e kandı",
   "reticle.lock": "KİLİT",

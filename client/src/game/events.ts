@@ -23,7 +23,7 @@ export type HudView = {
   rearm: number; bombs: number;       // rearm progress 0..1; bombs left
   abHeat: number; abLocked: boolean;  // afterburner heat 0..1; locked out until it cools
   baseMode: boolean;                  // base attack room
-  pos: V3; vel: V3; fwd: V3;     // my drawn state
+  pos: V3; vel: V3; fwd: V3; up: V3; // my drawn state (up: my body's up axis)
   aimDir: V3 | null;             // mouse aim direction
   /** World point → CSS px on the canvas; null when behind the camera. */
   project(p: V3): { x: number; y: number } | null;

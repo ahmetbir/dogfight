@@ -51,6 +51,8 @@ test("incoming kind, the IR-only flare distance and the beam cue", () => {
   assert.equal(incoming(me, [], 1), null);
   assert.equal(warnText({ kind: "radar", dist: 1200 }, (d) => `${d} m`), "FÜZE UYARISI · RADAR · 1200 m");
   assert.equal(warnText(null, String), "FÜZE UYARISI");
+  assert.equal(warnText({ kind: "ir", dist: 650 }, (d) => `${d} m`, 7), "FÜZE UYARISI · IR · 650 m · SAAT 7");
+  assert.equal(warnText({ kind: "lock", dist: 900 }, String, 4), "KİLİTLENDİN · SAAT 4");
 });
 
 test("a pick fires its kind while it lasts, the other after (sim.pickedKind)", () => {

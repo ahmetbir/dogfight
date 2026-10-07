@@ -12,7 +12,7 @@ import { StructureViews } from "../render/structures.ts";
 import type { Renderer } from "../render/renderer.ts";
 import { extrapolate, ServerClock } from "../predict/interp.ts";
 import { DT } from "../sim/flight.ts";
-import { add, len, qForward, scale } from "../sim/vec.ts";
+import { add, len, qForward, qRotate, scale } from "../sim/vec.ts";
 import { Bullets } from "./bullets.ts";
 import { Cams } from "./cams.ts";
 import { dispatchEvents, mergeHooks, pruneDecoys, type FxSink, type GameHooks } from "./events.ts";
@@ -217,7 +217,7 @@ export function startGame(ctx: GameCtx): Game {
         gear: !!mine?.gear, gearWanted: !!ctl?.stick.g, brake: !!ctl?.stick.br, onGround: !!mine?.ground,
         rearm: me.rr ?? 0, bombs: me.bm ?? 0, baseMode: state.mode === "base",
         abHeat: fs.abh ?? 0, abLocked: !!fs.abl,
-        pos: fs.pos, vel: fs.vel, fwd: qForward(fs.rot), aimDir: mine ? ctl?.aimDir ?? null : null,
+        pos: fs.pos, vel: fs.vel, fwd: qForward(fs.rot), up: qRotate(fs.rot, { x: 0, y: 1, z: 0 }), aimDir: mine ? ctl?.aimDir ?? null : null,
         project: (p) => r.project(p),
         planeAt: (id) => {
           const p = state.planes.get(id);

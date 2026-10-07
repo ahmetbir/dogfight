@@ -105,9 +105,12 @@ export function beamCue(alive: boolean, missiles: MissileJSON[], you: number): b
   return alive && missiles.some((m) => m.tg === you && kindOf(m.mk) === "radar");
 }
 
-/** "FÜZE UYARISI · RADAR · 1,2 km" / "MISSILE WARNING · RADAR · 1.2 km". */
-export function warnText(inc: { kind: MissileKind; dist: number } | null, fmt: (m: number) => string): string {
-  return inc ? t("hud.missileWarnAt", { kind: inc.kind === "radar" ? "RADAR" : "IR", dist: fmt(inc.dist) }) : t("hud.missileWarn");
+/** "FÜZE UYARISI · RADAR · 1,2 km", with clock "… · SAAT 7" / "… · 7 O'CLOCK"; a lock without a missile: "KİLİTLENDİN · SAAT 7". */
+export function warnText(inc: { kind: MissileKind | "lock"; dist: number } | null, fmt: (m: number) => string, clock?: number): string {
+  if (!inc) return t("hud.missileWarn");
+  const at = clock ? ` · ${t("hud.clock", { n: clock })}` : "";
+  if (inc.kind === "lock") return t("hud.lockWarn") + at;
+  return t("hud.missileWarnAt", { kind: inc.kind === "radar" ? "RADAR" : "IR", dist: fmt(inc.dist) }) + at;
 }
 
 /** Pick screen row: three buttons, the chosen one pressed, and its hint under them. */

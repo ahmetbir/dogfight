@@ -4,6 +4,8 @@ import type { Area } from "../types.ts";
 
 export const hud: Area<typeof tr> = {
   "hud.missileWarn": "MISSILE WARNING",
+  "hud.clock": "{n} O'CLOCK",
+  "hud.lockWarn": "LOCKED ON",
   "hud.missileWarnAt": "MISSILE WARNING · {kind} · {dist}",
   "hud.prot": "PROTECTED",
   "hud.outRange": "OUT OF RANGE",
@@ -38,6 +40,9 @@ export const hud: Area<typeof tr> = {
   "lamp.rearm": "REARM {p}",
   "flare.cue": "FLARE!",
   "flare.beam": "BEAM IT!",
+  "flare.beamLeft": "← TURN LEFT",
+  "flare.beamRight": "TURN RIGHT →",
+  "flare.beamHold": "HOLD",
   "flare.evaded": "MISSILE EVADED!",
   "flare.fooled": "Your missile took the flare",
   "reticle.lock": "LOCK",
