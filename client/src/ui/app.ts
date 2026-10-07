@@ -16,7 +16,7 @@ import { LinkMonitor } from "../net/link.ts";
 import { loadToken, storeToken } from "../net/pilot.ts";
 import { openSocket, socketURL, type Socket } from "../net/socket.ts";
 import { Renderer } from "../render/renderer.ts";
-import type { SkinId } from "../render/skins.ts";
+import { STANDARD as STANDARD_SKIN, type SkinId } from "../render/skins.ts";
 import { noWebGL, type Banner } from "./banner.ts";
 import { errorCard, unreachableCard } from "./errorcard.ts";
 import { fill, h } from "./dom.ts";
@@ -27,6 +27,7 @@ import { kindsFor, PickScreen, waitLeft } from "./pick.ts";
 import { RoundEnd, Scoreboard } from "./scoreboard.ts";
 import { SettingsMenu } from "./settings.ts";
 import { SkinChoices } from "./skinstore.ts";
+import { repickNeeded, SkinSync } from "./skinsync.ts";
 import { noticeOf, switchRow, TeamFlow } from "./team.ts";
 import { TouchPad } from "./touchpad.ts";
 
@@ -55,6 +56,7 @@ export function play(o: PlayOpts): void {
   let online = false; // the socket is open (between welcome and a drop)
   const feed = new Feed();
   const skins = new SkinChoices();
+  const paint = new SkinSync((kind) => { socket.send({ t: "pick", kind: kind as AircraftKind, lo: loadout, skin: skins.get(kind) }); });
   const pick = new PickScreen((k) => choose(k), () => closeMenus(true), (c) => teams.choose(c, performance.now()), (lo) => chooseLoadout(lo),
     (k, s) => chooseSkin(k, s));
   const teams = new TeamFlow((team) => socket.send({ t: "team", team }), state);
@@ -126,6 +128,7 @@ export function play(o: PlayOpts): void {
   };
   canvas.addEventListener("pointerdown", (e) => { if (e.button === 0) cycle(1); });
   function choose(k: AircraftKind): void {
+    paint.cancel(); // this pick carries the paint
     if (socket.send({ t: "pick", kind: k, lo: loadout, skin: skins.get(k) })) chosen = k;
     closeMenus(true);
   }
@@ -133,14 +136,26 @@ export function play(o: PlayOpts): void {
   function chooseLoadout(lo: Loadout): void {
     loadout = lo;
     const kind = chosen ?? me()?.kind;
-    if (!waiting() && kind) socket.send({ t: "pick", kind, lo, skin: skins.get(kind) });
+    if (!waiting() && kind) {
+      paint.cancel();
+      socket.send({ t: "pick", kind, lo, skin: skins.get(kind) });
+    }
     pick.show(pickView());
   }
-  /** A paint chip: stored for that jet; flying, it goes out at once if it is my jet (the one I fly or fly next). */
+  /**
+   * A paint chip: stored for that jet at once; flying, my jet's paint goes
+   * out once the browsing settles or the screen closes (ui/skinsync.ts), one
+   * pick for any number of chips.
+   */
   function chooseSkin(k: AircraftKind, s: SkinId): void {
-    const skin = skins.set(k, s);
-    if (!waiting() && k === (chosen ?? me()?.kind)) socket.send({ t: "pick", kind: k, lo: loadout, skin });
+    skins.set(k, s);
+    if (!waiting() && k === (chosen ?? me()?.kind)) paint.later(k);
     pick.show(pickView());
+  }
+  /** A seat flying in another paint than mine (pick-timeout spawn, team switch, reconnect): asked for once, settled. */
+  function mendPaint(): void {
+    const mine = me();
+    if (mine && !waiting() && online) paint.mend(mine.kind, mine.skin ?? STANDARD_SKIN, skins.get(mine.kind));
   }
   const releasePointer = () => { if (document.pointerLockElement) document.exitPointerLock(); };
   function openPick(): void {
@@ -157,6 +172,7 @@ export function play(o: PlayOpts): void {
     menu.open(state.code, switchRow(teams.switchView(performance.now()), (to) => { teams.choose(to, performance.now()); closeMenus(true); }));
   }
   function closeMenus(relock: boolean): void {
+    if (pick.isOpen()) paint.flush(); // a paint still settling goes out with the screen
     pick.close();
     menu.close();
     book.hide();
@@ -256,6 +272,7 @@ export function play(o: PlayOpts): void {
       if (board.isOpen()) board.show(hud.board());
     }
     if (pick.isOpen()) pick.show(pickView());
+    mendPaint(); // also after a pick-timeout spawn, which changes no roster
     hud.waiting(waiting(), waitLeft(welcomeAt, performance.now()), settings.scheme === "touch");
     const now = performance.now();
     if (online) link.ping(now, (ts) => socket.send({ t: "ping", ts }));
@@ -303,8 +320,12 @@ export function play(o: PlayOpts): void {
       if (repick && chosen) {
         repick = false;
         const ok = kindsFor(mine.team, [...state.aircraft.values()]).some((a) => a.kind === chosen);
-        if (ok && (mine.kind !== chosen || loadout !== "ir")) socket.send({ t: "pick", kind: chosen, lo: loadout, skin: skins.get(chosen) }); // a new seat starts on IR
+        if (ok && repickNeeded(mine, chosen, loadout, skins.get(chosen))) {
+          paint.cancel();
+          socket.send({ t: "pick", kind: chosen, lo: loadout, skin: skins.get(chosen) }); // a new seat starts on IR, in standard
+        }
       }
+      mendPaint();
       if (showPick) {
         showPick = false;
         openPick();
