@@ -32,6 +32,7 @@ type Info struct {
 	Mode, Map, Weather, Phase string // phase: playing|ended|lobby
 	LeftS                     int    // seconds left in the round
 	NATO, Soviet              int    // humans per team (team and base modes)
+	Seats                     int    // every seat of the room (the room list shows it)
 }
 
 type roundKey struct {
@@ -227,13 +228,23 @@ func (m *Match) teams() map[sim.ID]sim.Team {
 	return out
 }
 
+// Info: a created (lobby) room offers quick play no seat: the core's
+// Summary.Seats is its human count, so lobby.Quick, the only reader of
+// Summary.Seats, passes it by and nobody lands in a friend's lobby (or in a
+// round that ends in one). Its link and room-list joins are unaffected; the
+// room list reads the real seats from Info.Seats.
 func (m *Match) Info() room.Info[Info] {
 	st := m.g.Settings()
 	rd := m.g.Round()
 	nato, soviet := m.g.HumanTeams()
-	return room.Info[Info]{Humans: m.g.Humans(), Seats: m.seats, Bots: m.g.Bots(), Listed: st.Listed, Game: Info{
+	humans := m.g.Humans()
+	quickSeats := m.seats
+	if st.Lobby {
+		quickSeats = humans
+	}
+	return room.Info[Info]{Humans: humans, Seats: quickSeats, Bots: m.g.Bots(), Listed: st.Listed, Game: Info{
 		Mode: st.Mode.String(), Map: st.Map.String(), Weather: st.Weather.String(), Phase: protocol.PhaseName(rd.Phase),
-		LeftS: rd.TicksLeft / tickRate, NATO: nato, Soviet: soviet}}
+		LeftS: rd.TicksLeft / tickRate, NATO: nato, Soviet: soviet, Seats: m.seats}}
 }
 
 func (m *Match) Label() string { return m.g.Settings().Mode.String() }

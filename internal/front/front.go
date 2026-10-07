@@ -62,7 +62,7 @@ type roomJSON struct {
 
 func (Kit) Row(x room.Summary[match.Info]) any {
 	g := x.Game
-	row := roomJSON{x.Code, g.Mode, g.Map, g.Weather, x.Humans, x.Seats, g.Phase, g.LeftS, nil}
+	row := roomJSON{x.Code, g.Mode, g.Map, g.Weather, x.Humans, g.Seats, g.Phase, g.LeftS, nil} // g.Seats: Summary.Seats hides a lobby room from quick play
 	if g.Mode != "ffa" {
 		row.Teams = &[2]int{g.NATO, g.Soviet}
 	}

@@ -1,6 +1,7 @@
 package match
 
 import (
+	"context"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -57,7 +58,7 @@ func TestLobbyRoomFlow(t *testing.T) {
 		sa, _ := r.Join(ctx, room.Who{Name: "host"}, a)
 		sb, _ := r.Join(ctx, room.Who{Name: "friend"}, b)
 		settle()
-		if s := r.Summary(); s.Game.Phase != "lobby" || s.Humans != 2 || s.Seats != 4 || s.Bots != 0 {
+		if s := r.Summary(); s.Game.Phase != "lobby" || s.Humans != 2 || s.Game.Seats != 4 || s.Seats != 2 || s.Bots != 0 {
 			t.Fatalf("lobby summary %+v", s)
 		}
 		l, ok := b.lastLobby()
@@ -174,4 +175,46 @@ func TestLobbyRefusalTexts(t *testing.T) {
 			t.Fatalf("%v → %q %q", err, code, msg)
 		}
 	}
+}
+
+// Quick play never seats a player in a created room, waiting in its lobby
+// or playing (its round ends in the lobby); a quick-play room it still
+// fills. The room list keeps the created room's real seats.
+func TestQuickPlaySkipsCreatedRooms(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		l := NewLobby(ctx, 0, nil, nil)
+		created := lobby2
+		created.Listed = true
+		r, err := l.Create(created)
+		if err != nil {
+			t.Fatal(err)
+		}
+		host := &fakeSender{}
+		seat, _ := r.Join(ctx, room.Who{Name: "host"}, host)
+		settle()
+		if got, ok := l.Quick(); ok {
+			t.Fatalf("quick play picked the lobby room %s", got.Summary().Code)
+		}
+		if s := r.Summary(); s.Game.Seats != 4 || s.Humans != 1 {
+			t.Fatalf("summary %+v", s)
+		}
+		seat.Input(protocol.ClientMsg{T: protocol.TStart})
+		settle()
+		if r.Summary().Game.Phase != "playing" {
+			t.Fatal("not started")
+		}
+		if _, ok := l.Quick(); ok {
+			t.Fatal("quick play picked the created room while it plays")
+		}
+		q, err := l.Create(game.Settings{Mode: mode.Team, Size: 2, Difficulty: bot.Easy, Seed: 2, Listed: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		settle()
+		if got, ok := l.Quick(); !ok || got != q {
+			t.Fatal("quick play skips its own kind of room")
+		}
+	})
 }
