@@ -180,6 +180,17 @@ p { margin: 0; line-height: 1.5; }
 .hangar-stats { display: flex; flex-direction: column; gap: 5px; }
 .hangar-stats .stat { grid-template-columns: 96px 1fr 70px; font-size: 12px; }
 .hangar-fly { align-self: stretch; }
+.hangar-paint { display: flex; flex-direction: column; gap: 6px; }
+.paint-head { display: flex; align-items: baseline; gap: 8px; font-size: 12px; }
+.paint-label { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.paint-name { font-weight: 600; color: var(--text); }
+.paint-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.paint-chip { appearance: none; padding: 2px; line-height: 0; cursor: pointer; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04); transition: border-color 0.15s, background 0.15s; }
+.paint-chip:hover { border-color: rgba(124, 255, 178, 0.5); }
+.paint-chip[aria-checked="true"] { border-color: var(--hud); background: rgba(124, 255, 178, 0.12); box-shadow: 0 0 0 1px var(--hud) inset; }
+.paint-chip:focus-visible { outline: 2px solid var(--hud); outline-offset: 2px; }
+.paint-swatch { display: block; width: 28px; height: 28px; border-radius: 5px; image-rendering: pixelated; }
 .hangar-foot-fly { display: none; } /* the phone layout's sticky footer shows it */
 .pick-foot-btns { display: flex; gap: 10px; flex: none; }
 .pick-unpicked { color: var(--amber); }

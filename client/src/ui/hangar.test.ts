@@ -4,7 +4,7 @@ import { AIRCRAFT } from "../book/rules.ts";
 import { builtinAircraft } from "../book/aircraft.ts";
 import { setLang, tIn } from "../i18n/index.ts";
 import type { AircraftKind } from "../net/protocol.ts";
-import { firstSelection, hangarStats, ROLE, roleLine, roleTag, step } from "./hangar.ts";
+import { firstSelection, hangarStats, ROLE, roleLine, roleTag, step, stepSkin } from "./hangar.ts";
 import { kindsFor } from "./pick.ts";
 
 const ALL = builtinAircraft();
@@ -84,4 +84,15 @@ test("leaving the picker flies the selected card only before the first plane; fl
   assert.equal(unpickedName(v, "f16"), "");
   assert.equal(unpickedName({ ...v, chosen: "a10" }, "a10"), "");
   assert.equal(unpickedName({ ...v, waiting: true }, "a10"), "");
+});
+
+test("stepSkin: the paint row's arrows wrap, Home and End jump", () => {
+  assert.equal(stepSkin(0, "ArrowRight", 7), 1);
+  assert.equal(stepSkin(6, "ArrowRight", 7), 0);
+  assert.equal(stepSkin(0, "ArrowLeft", 7), 6);
+  assert.equal(stepSkin(3, "ArrowDown", 7), 4);
+  assert.equal(stepSkin(3, "Home", 7), 0);
+  assert.equal(stepSkin(3, "End", 7), 6);
+  assert.equal(stepSkin(3, "Enter", 7), null);
+  assert.equal(stepSkin(0, "ArrowRight", 0), null);
 });

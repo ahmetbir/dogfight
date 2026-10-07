@@ -6,6 +6,7 @@ import { lt, t } from "../i18n/index.ts";
 import { fill, h, text } from "./dom.ts";
 import { roomLink } from "./link.ts";
 import { Hangar } from "./hangar.ts";
+import type { SkinId } from "../render/skins.ts";
 import { LoadoutSelector } from "./loadout.ts";
 import { TeamSelector, type TeamPickView } from "./team.ts";
 
@@ -18,6 +19,7 @@ export type PickView = {
   waitLeft: number;             // while waiting: whole seconds until the default spawn
   teamPick?: TeamPickView | null; // team modes, before the first plane: auto / NATO / Soviet
   loadout?: Loadout;            // the missile loadout my next pick carries (default IR)
+  skins?: Readonly<Record<string, string>>; // each jet's skin (ui/skinstore.ts; missing: its default)
 };
 
 /** Server-side pick timeout (game.PickTimeoutTicks / 60). */
@@ -84,8 +86,8 @@ export class PickScreen {
   private key = "";
 
   constructor(onPick: (k: AircraftKind) => void, onClose: () => void, onTeam: (c: TeamChoice) => void = () => {},
-    onLoadout: (lo: Loadout) => void = () => {}) {
-    this.hangar = new Hangar(onPick);
+    onLoadout: (lo: Loadout) => void = () => {}, onSkin: (kind: AircraftKind, skin: SkinId) => void = () => {}) {
+    this.hangar = new Hangar(onPick, onSkin);
     this.onPick = onPick;
     this.onClose = onClose;
     this.onTeam = onTeam;
@@ -131,7 +133,7 @@ export class PickScreen {
       this.build(v);
     }
     const lo = v.loadout ?? "ir";
-    this.hangar.update({ team: v.team, kinds: kindsFor(v.team, v.aircraft), all: v.aircraft, current: v.current, chosen: v.chosen, waiting: v.waiting, loadout: lo });
+    this.hangar.update({ team: v.team, kinds: kindsFor(v.team, v.aircraft), all: v.aircraft, current: v.current, chosen: v.chosen, waiting: v.waiting, loadout: lo, skins: v.skins });
     if (v.teamPick) this.teams?.update(v.teamPick);
     this.loadouts?.update(lo);
     text(this.note, pickNote(v));

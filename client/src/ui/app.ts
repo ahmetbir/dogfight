@@ -16,6 +16,7 @@ import { LinkMonitor } from "../net/link.ts";
 import { loadToken, storeToken } from "../net/pilot.ts";
 import { openSocket, socketURL, type Socket } from "../net/socket.ts";
 import { Renderer } from "../render/renderer.ts";
+import type { SkinId } from "../render/skins.ts";
 import { noWebGL, type Banner } from "./banner.ts";
 import { errorCard, unreachableCard } from "./errorcard.ts";
 import { fill, h } from "./dom.ts";
@@ -25,6 +26,7 @@ import { escapeAction, keyRouter } from "./keys.ts";
 import { kindsFor, PickScreen, waitLeft } from "./pick.ts";
 import { RoundEnd, Scoreboard } from "./scoreboard.ts";
 import { SettingsMenu } from "./settings.ts";
+import { SkinChoices } from "./skinstore.ts";
 import { noticeOf, switchRow, TeamFlow } from "./team.ts";
 import { TouchPad } from "./touchpad.ts";
 
@@ -52,7 +54,9 @@ export function play(o: PlayOpts): void {
   const link = new LinkMonitor(performance.now());
   let online = false; // the socket is open (between welcome and a drop)
   const feed = new Feed();
-  const pick = new PickScreen((k) => choose(k), () => closeMenus(true), (c) => teams.choose(c, performance.now()), (lo) => chooseLoadout(lo));
+  const skins = new SkinChoices();
+  const pick = new PickScreen((k) => choose(k), () => closeMenus(true), (c) => teams.choose(c, performance.now()), (lo) => chooseLoadout(lo),
+    (k, s) => chooseSkin(k, s));
   const teams = new TeamFlow((team) => socket.send({ t: "team", team }), state);
   const menu = new SettingsMenu(settings, {
     changed: (s) => {
@@ -111,6 +115,7 @@ export function play(o: PlayOpts): void {
     waitLeft: waitLeft(welcomeAt, performance.now()),
     teamPick: teams.pickView(performance.now()),
     loadout,
+    skins: skins.all([...state.aircraft.keys()]),
   });
   const waiting = () => !state.planes.has(state.you); // joined, no plane until the first pick
   let spectate: number | null = null; // the plane watched while waiting (pick screen closed)
@@ -121,14 +126,20 @@ export function play(o: PlayOpts): void {
   };
   canvas.addEventListener("pointerdown", (e) => { if (e.button === 0) cycle(1); });
   function choose(k: AircraftKind): void {
-    if (socket.send({ t: "pick", kind: k, lo: loadout })) chosen = k;
+    if (socket.send({ t: "pick", kind: k, lo: loadout, skin: skins.get(k) })) chosen = k;
     closeMenus(true);
   }
   /** A loadout click: flying, it goes out at once with my aircraft (now if protected, else next spawn); before the first plane it waits for the aircraft pick. */
   function chooseLoadout(lo: Loadout): void {
     loadout = lo;
     const kind = chosen ?? me()?.kind;
-    if (!waiting() && kind) socket.send({ t: "pick", kind, lo });
+    if (!waiting() && kind) socket.send({ t: "pick", kind, lo, skin: skins.get(kind) });
+    pick.show(pickView());
+  }
+  /** A paint chip: stored for that jet; flying, it goes out at once if it is my jet (the one I fly or fly next). */
+  function chooseSkin(k: AircraftKind, s: SkinId): void {
+    const skin = skins.set(k, s);
+    if (!waiting() && k === (chosen ?? me()?.kind)) socket.send({ t: "pick", kind: k, lo: loadout, skin });
     pick.show(pickView());
   }
   const releasePointer = () => { if (document.pointerLockElement) document.exitPointerLock(); };
@@ -292,7 +303,7 @@ export function play(o: PlayOpts): void {
       if (repick && chosen) {
         repick = false;
         const ok = kindsFor(mine.team, [...state.aircraft.values()]).some((a) => a.kind === chosen);
-        if (ok && (mine.kind !== chosen || loadout !== "ir")) socket.send({ t: "pick", kind: chosen, lo: loadout }); // a new seat starts on IR
+        if (ok && (mine.kind !== chosen || loadout !== "ir")) socket.send({ t: "pick", kind: chosen, lo: loadout, skin: skins.get(chosen) }); // a new seat starts on IR
       }
       if (showPick) {
         showPick = false;
