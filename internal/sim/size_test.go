@@ -6,6 +6,7 @@ import (
 
 	"playground/internal/geom"
 	"playground/internal/maps"
+	"playground/internal/terrain"
 )
 
 // Every kind carries its airframe; the spheres follow one rule.
@@ -126,5 +127,32 @@ func TestWallRadiusFitsHangar(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// Teammates fly through each other (loose formations with the big jets'
+// spheres); with friendly fire on, and between enemies or in FFA, they ram.
+func TestTeammatesDoNotRam(t *testing.T) {
+	ram := func(ta, tb Team, ff bool) bool {
+		w := NewWorld(Config{Seed: 1, Terrain: terrain.Generate(1), FriendlyFire: ff})
+		w.AddPlane(1, ta, Su27)
+		w.AddPlane(2, tb, MiG29)
+		w.clearProtection()
+		w.setFlight(1, FlightState{Pos: geom.V(0, 2000, 0), Rot: geom.Identity(), Vel: geom.V(0, 0, -100)})
+		w.setFlight(2, FlightState{Pos: geom.V(0, 2000, -15), Rot: geom.Identity(), Vel: geom.V(0, 0, 100)})
+		var ev []Event
+		w.hazards(&ev)
+		for _, e := range ev {
+			if e.Weapon == WRam {
+				return true
+			}
+		}
+		return false
+	}
+	if ram(TeamSoviet, TeamSoviet, false) {
+		t.Fatal("teammates rammed without friendly fire")
+	}
+	if !ram(TeamSoviet, TeamSoviet, true) || !ram(TeamNATO, TeamSoviet, false) || !ram(TeamNone, TeamNone, false) {
+		t.Fatal("friendly fire, enemies and FFA must still ram")
 	}
 }
