@@ -14,7 +14,7 @@ const LARGE_M = 40;
 const POS_RATE = 150;                   // m/s: a position correction never moves the drawn plane faster than this
 const ROT_SMOOTH_S = 0.15;              // attitude correction time constant...
 const ROT_RATE = (120 * Math.PI) / 180; // ...but never faster than this (rad/s): the nose does not whip
-const TELEPORT_M = 300; // a position correction this large snaps (2 s of glide; respawn and kind change reset anyway)
+const TELEPORT_M = 300; // a correction this large snaps position and attitude (2 s of glide; respawn and kind change reset anyway)
 
 /** Time constant (s) of a position correction of m metres. */
 export function smoothTime(m: number): number {
@@ -42,7 +42,7 @@ export class FlightSmoother implements Smoother<FlightState> {
     this.offset = add(this.offset, sub(prev.pos, corrected.pos));
     // Keep drawing the old attitude: drawn = rotOffset' * corrected.rot.
     this.rotOffset = qNorm(qMul(qMul(this.rotOffset, prev.rot), qConj(corrected.rot)));
-    if (len(this.offset) > TELEPORT_M) this.offset = v3(0, 0, 0); // snap the position; the attitude still turns at ROT_RATE
+    if (len(this.offset) > TELEPORT_M) this.reset(); // a snap snaps both: no 1.5 s nose sweep after it
   }
 
   draw(s: FlightState, dtS: number): FlightState {

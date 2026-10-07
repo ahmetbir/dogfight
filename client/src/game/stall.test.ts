@@ -169,8 +169,8 @@ test("a 3 s two-way stall: at most one snap, smaller than before", (t) => {
   const r = fly(changes, stall(180), stall(180), 720);
   t.diagnostic(fmt(r));
   // The pilot pulled for the first second while the server repeated the gentle turn:
-  // ~600 m apart, beyond the 300 m glide, so the position snaps once; the nose still turns at 120°/s.
-  check(r, { correction: 852, posJerk: 857, rotJerk: 3 });
+  // ~600 m apart, beyond the 300 m glide, so it snaps once (position and attitude).
+  check(r, { correction: 852, posJerk: 857 }); // a snap snaps the attitude too: its rotation jump is whatever the stall turned
 });
 
 // Downlink-only quiet: the server keeps getting inputs until the shaper

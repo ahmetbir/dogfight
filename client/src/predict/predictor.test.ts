@@ -82,12 +82,13 @@ test("a 250 m correction glides at no more than 150 m/s", () => {
   assert.ok(d[239] < 2, `offset after 4 s = ${d[239]}`);
 });
 
-test("corrections over 300 m teleport", () => {
+test("corrections over 300 m teleport, attitude included", () => {
   const pr = new Predictor(F16);
   pr.reset(start());
-  const far = { ...start(), pos: v3(0, 1500, -310) };
+  const far = { ...start(), pos: v3(0, 1500, -310), rot: qAxisAngle(v3(0, 0, 1), 2) };
   pr.reconcile(far, 0, 0, AIR_ENV);
   assert.deepEqual(pr.render(0).pos, far.pos);
+  assert.ok(qAngle(pr.render(0).rot, far.rot) < 1e-9, "the nose snaps with the position");
 });
 
 test("acked inputs are dropped and setSpec changes the replay spec", () => {
