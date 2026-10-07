@@ -6,12 +6,17 @@
 // so it runs on across parts and moves with the control surfaces. Each
 // face picks its projection from its own (flat) normal in the fragment
 // shader. Textures are made once per scheme; nearest filtering keeps the
-// PS1 look of the atlas.
+// PS1 look of the atlas. Every scheme, standard too, also wears a band of
+// the team colour round the rear fuselage (TEAM_BAND), where the chase
+// camera and a pursuer look: friend and foe read at a glance on any paint.
 import * as THREE from "three";
 import type { Team } from "./models/common.ts";
 import { PATTERN_PX, SCHEMES, patternPixels, skinColors, type SkinId } from "./skins.ts";
 
 const ATTR = "camoPos";
+
+/** The team band round the rear fuselage, as fractions of the jet's length from the nose; top faces only within HALF × length of the centre line. */
+export const TEAM_BAND = { from: 0.7, to: 0.77, half: 0.09 } as const;
 
 /** Roles a scheme recolours; the rest keep the model's colour. */
 const ROLES = new Set(["body", "secondary", "stripe", "canopy"]);
@@ -56,10 +61,19 @@ export function prepareCamo(src: THREE.Object3D): void {
     for (let i = 0; i < pos.count; i++) nose = Math.min(nose, v.fromBufferAttribute(pos, i).applyMatrix4(local).z);
   }
   if (!Number.isFinite(nose)) nose = 0;
+  let tail = -Infinity;
+  for (const m of meshes) {
+    const pos = m.geometry.getAttribute("position");
+    if (!pos) continue;
+    local.multiplyMatrices(toRoot, m.matrixWorld);
+    for (let i = 0; i < pos.count; i++) tail = Math.max(tail, v.fromBufferAttribute(pos, i).applyMatrix4(local).z);
+  }
+  const length = Number.isFinite(tail) ? Math.max(0, tail - nose) : 0;
   const done = new Set<THREE.BufferGeometry>();
   for (const m of meshes) {
     const mats = Array.isArray(m.material) ? m.material : [m.material];
     if (!mats.some((x) => x.name === "body")) continue;
+    for (const x of mats) if (x.name === "body") x.userData.camoLength = length; // the team band's place
     if (done.has(m.geometry)) m.geometry = m.geometry.clone(); // a geometry shared by two nodes needs two rest poses
     done.add(m.geometry);
     const pos = m.geometry.getAttribute("position");
@@ -75,24 +89,45 @@ export function prepareCamo(src: THREE.Object3D): void {
   src.userData.camoReady = true;
 }
 
-/** Hooks the pattern into a Lambert material: body colour × atlas × camo, lit and self-lit alike. */
-function addCamo(mat: THREE.MeshLambertMaterial, tex: THREE.Texture, tile: number): void {
+/**
+ * Hooks the paint into a body material: the camo tile (if any) multiplied
+ * over the atlas, lit and self-lit alike, and the team band in the team
+ * colour (keeping the atlas's panel lines).
+ */
+function addPaint(mat: THREE.MeshLambertMaterial, tex: THREE.Texture | null, tile: number, band: string, length: number): void {
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.camoMap = { value: tex };
     sh.uniforms.camoTile = { value: tile };
+    sh.uniforms.paintBand = { value: new THREE.Color(band) };
+    sh.uniforms.paintBandAt = { value: new THREE.Vector3(TEAM_BAND.from * length, TEAM_BAND.to * length, TEAM_BAND.half * length) };
+    if (tex) sh.defines = { ...sh.defines, USE_CAMO: "" };
     sh.vertexShader = sh.vertexShader
       .replace("#include <common>", `#include <common>\nattribute vec3 ${ATTR};\nvarying vec3 vCamoPos;`)
       .replace("#include <begin_vertex>", `#include <begin_vertex>\nvCamoPos = ${ATTR};`);
     sh.fragmentShader = sh.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform sampler2D camoMap;\nuniform float camoTile;\nvarying vec3 vCamoPos;")
+      .replace("#include <common>", `#include <common>
+uniform sampler2D camoMap;
+uniform float camoTile;
+uniform vec3 paintBand;
+uniform vec3 paintBandAt; // from, to (m behind the nose), half width on top
+varying vec3 vCamoPos;`)
       .replace("#include <map_fragment>", `#include <map_fragment>
+#ifdef USE_MAP
+vec3 paintTexel = sampledDiffuseColor.rgb;
+#else
+vec3 paintTexel = vec3(1.0);
+#endif
 vec3 camoN = abs(cross(dFdx(vCamoPos), dFdy(vCamoPos)));
-vec2 camoUv = (camoN.x > camoN.y && camoN.x > camoN.z ? vCamoPos.yz : vCamoPos.xz) / camoTile;
-vec3 camo = texture2D(camoMap, camoUv).rgb;
-diffuseColor.rgb *= camo;`)
-      .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance *= camo;");
+bool camoSide = camoN.x > camoN.y && camoN.x > camoN.z;
+bool inBand = vCamoPos.z > paintBandAt.x && vCamoPos.z < paintBandAt.y && (camoSide || abs(vCamoPos.x) < paintBandAt.z);
+vec3 camo = vec3(1.0);
+#ifdef USE_CAMO
+camo = texture2D(camoMap, (camoSide ? vCamoPos.yz : vCamoPos.xz) / camoTile).rgb;
+#endif
+diffuseColor.rgb = inBand ? paintBand * paintTexel : diffuseColor.rgb * camo;`)
+      .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance = inBand ? paintBand * paintTexel * 0.18 : totalEmissiveRadiance * camo;");
   };
-  mat.customProgramCacheKey = () => "camo";
+  mat.customProgramCacheKey = () => (tex ? "paint-camo" : "paint");
 }
 
 type Shared = { mat: THREE.Material; refs: number };
@@ -101,11 +136,12 @@ const shared = new Map<string, Shared>();
 /**
  * The material a plane draws src (a loaded role material) with, for team
  * and skin: shared by every plane with the same key, freed when the last
- * one releases it.
+ * one releases it. scope keeps a short-lived renderer's materials (the
+ * hangar's) apart from the game's, so they are all freed with it.
  */
-export function skinMaterial(src: THREE.MeshStandardMaterial, team: Team, own: boolean, skin: SkinId): { mat: THREE.Material; release: () => void } {
+export function skinMaterial(src: THREE.MeshStandardMaterial, team: Team, own: boolean, skin: SkinId, scope = ""): { mat: THREE.Material; release: () => void } {
   const role = src.name;
-  const key = `${src.uuid}|${team}|${own}|${ROLES.has(role) ? skin : ""}`;
+  const key = `${scope}|${src.uuid}|${team}|${own}|${ROLES.has(role) ? skin : ""}`;
   let s = shared.get(key);
   if (!s) {
     s = { mat: makeMaterial(src, team, own, skin), refs: 0 };
@@ -155,8 +191,10 @@ function makeMaterial(m: THREE.MeshStandardMaterial, team: Team, own: boolean, s
     name: m.name, color, map, flatShading: true,
     emissive: color, emissiveMap: map, emissiveIntensity: m.name === "canopy" ? 0.35 : 0.18,
   });
-  const pattern = SCHEMES[skin]?.pattern;
-  const tex = m.name === "body" ? camoTexture(skin) : null;
-  if (tex && pattern) addCamo(mat, tex, pattern.tile);
+  if (m.name === "body") {
+    const pattern = SCHEMES[skin]?.pattern;
+    const length = Number(m.userData.camoLength) || 0;
+    addPaint(mat, pattern ? camoTexture(skin) : null, pattern?.tile ?? 1, skinColors(skin, team, own).stripe, length);
+  }
   return mat;
 }

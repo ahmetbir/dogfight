@@ -61,8 +61,8 @@ export const SCHEMES: Readonly<Record<SkinId, Scheme>> = {
   },
   night: { body: "#3b4048", secondary: "#2c3036", canopy: "#28323d" },
   flanker: {
-    body: "#b7cde0", secondary: "#e6eaec",
-    pattern: { kind: "blotch", colors: ["#5f86ad", "#8b9cad"], cover: [0.32, 0.24], tile: 17, seed: 71 },
+    body: "#bfcdd6", secondary: "#e6eaec",
+    pattern: { kind: "blotch", colors: ["#7e95a6", "#a1acb3"], cover: [0.32, 0.24], tile: 17, seed: 71 },
   },
   blackband: {
     body: "#f0f0ec", secondary: "#30343a", canopy: "#2a3440",

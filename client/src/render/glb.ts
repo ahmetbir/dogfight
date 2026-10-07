@@ -155,47 +155,57 @@ export type Dressed = {
   body: THREE.Object3D; rig: Rig; ab: THREE.Object3D[]; idle: THREE.Object3D[];
   engines: THREE.Object3D[];      // flames added here: the plane's own
   materials: THREE.Material[];    // shared with every plane of the same look: release(), never dispose
+  repaint: (skin: SkinId) => void; // another skin on the same clone: materials swapped in place
   release: () => void;            // gives the materials back (the flames are the caller's to free)
 };
 
+type Held = { mat: THREE.Material; release: () => void };
+
 /**
  * Clones the loaded scene for one plane in team colours and a skin (checked
- * for the kind by the caller: skins.ts validSkin). Geometry, textures and the role materials
- * are shared; call release() when the plane goes.
+ * for the kind by the caller: skins.ts validSkin). Geometry, textures and the
+ * role materials are shared within scope (a short-lived renderer passes its
+ * own); call release() when the plane goes.
  */
-export function dressGlb(src: THREE.Object3D, team: Team, own: boolean, skin: SkinId = STANDARD): Dressed {
+export function dressGlb(src: THREE.Object3D, team: Team, own: boolean, skin: SkinId = STANDARD, scope = ""): Dressed {
   prepareCamo(src);
-  const look: SkinId = Object.hasOwn(SCHEMES, skin) ? skin : STANDARD;
   const body = src.clone(true);
-  const made = new Map<THREE.Material, { mat: THREE.Material; release: () => void }>();
-  body.traverse((o) => {
-    if (!(o instanceof THREE.Mesh)) return;
-    const swap = (m: THREE.Material) => {
-      let n = made.get(m);
-      if (!n) {
-        n = skinMaterial(m as THREE.MeshStandardMaterial, team, own, look);
-        made.set(m, n);
-      }
-      return n.mat;
-    };
-    o.material = Array.isArray(o.material) ? o.material.map(swap) : swap(o.material);
-  });
-  const ab: THREE.Object3D[] = [];
-  const idle: THREE.Object3D[] = [];
-  const engines: THREE.Object3D[] = [];
+  const slots: { mesh: THREE.Mesh; src: THREE.Material | THREE.Material[] }[] = [];
+  body.traverse((o) => { if (o instanceof THREE.Mesh) slots.push({ mesh: o, src: o.material }); });
+  let held: Held[] = [];
+  const dressed: Dressed = {
+    body, rig: new Rig(body), ab: [], idle: [], engines: [], materials: [],
+    repaint: (next) => {
+      const look: SkinId = Object.hasOwn(SCHEMES, next) ? next : STANDARD;
+      const made = new Map<THREE.Material, Held>();
+      const swap = (m: THREE.Material) => {
+        let n = made.get(m);
+        if (!n) {
+          n = skinMaterial(m as THREE.MeshStandardMaterial, team, own, look, scope);
+          made.set(m, n);
+        }
+        return n.mat;
+      };
+      for (const sl of slots) sl.mesh.material = Array.isArray(sl.src) ? sl.src.map(swap) : swap(sl.src);
+      for (const h of held) h.release(); // after taking the new ones: a material both looks share is never freed in between
+      held = [...made.values()];
+      dressed.materials = held.map((x) => x.mat);
+    },
+    release: () => {
+      for (const h of held) h.release();
+      held = [];
+    },
+  };
+  dressed.repaint(skin);
   const markers: THREE.Object3D[] = [];
   body.traverse((o) => { if (/^ab_/.test(o.name)) markers.push(o); });
   for (const m of markers) {
     const r = Number((m.userData as { radius?: unknown }).radius) || 0.45;
     const e = engine(0, 0, 0, r);
     m.add(e);
-    engines.push(e);
-    ab.push(...e.getObjectsByProperty("name", "ab"));
-    idle.push(...e.getObjectsByProperty("name", "idle"));
+    dressed.engines.push(e);
+    dressed.ab.push(...e.getObjectsByProperty("name", "ab"));
+    dressed.idle.push(...e.getObjectsByProperty("name", "idle"));
   }
-  const held = [...made.values()];
-  return {
-    body, rig: new Rig(body), ab, idle, engines, materials: held.map((x) => x.mat),
-    release: () => { for (const x of held) x.release(); },
-  };
+  return dressed;
 }

@@ -78,9 +78,9 @@ test("pattern textures: one per scheme, nearest filtered and tiled; plain scheme
   }
   const d = dressGlb(scene(), "nato", false, "splinter");
   const body = (d.body.getObjectByName("airframe") as THREE.Mesh).material as THREE.Material;
-  assert.equal(body.customProgramCacheKey(), "camo");
+  assert.equal(body.customProgramCacheKey(), "paint-camo");
   const fin = (d.body.getObjectByName("fin") as THREE.Mesh).material as THREE.Material;
-  assert.notEqual(fin.customProgramCacheKey(), "camo", "only the body wears the camo");
+  assert.ok(!fin.customProgramCacheKey().startsWith("paint"), "only the body wears the paint");
   d.release();
 });
 
@@ -100,4 +100,57 @@ test("camoPos: body meshes get their rest position in metres behind the nose, on
   const geo = air.geometry;
   prepareCamo(src);
   assert.equal(air.geometry, geo);
+});
+
+/** Runs a material's shader hook on a stand-in program: the uniforms and defines it sets. */
+function compiled(m: THREE.Material) {
+  const sh = { uniforms: {} as Record<string, { value: unknown }>, defines: {} as Record<string, string>,
+    vertexShader: "#include <common>\n#include <begin_vertex>", fragmentShader: "#include <common>\n#include <map_fragment>\n#include <emissivemap_fragment>" };
+  m.onBeforeCompile(sh as never, null as never);
+  return sh;
+}
+
+test("every scheme's body wears the team band round the rear fuselage, in the team colour", () => {
+  for (const team of ["nato", "soviet"] as const) {
+    for (const id of IDS) {
+      const d = dressGlb(scene(), team, false, id);
+      const sh = compiled((d.body.getObjectByName("airframe") as THREE.Mesh).material as THREE.Material);
+      assert.equal(`#${(sh.uniforms.paintBand!.value as THREE.Color).getHexString()}`, teamColors(team, false).stripe, `${id} ${team}`);
+      const at = sh.uniforms.paintBandAt!.value as THREE.Vector3;
+      assert.ok(Math.abs(at.x - 7) < 1e-9 && Math.abs(at.y - 7.7) < 1e-9, `band 70-77 % of the 10 m jet: ${at.x} ${at.y}`);
+      assert.equal("USE_CAMO" in sh.defines, !!SCHEMES[id].pattern, id);
+      assert.match(sh.fragmentShader, /inBand \? paintBand/);
+      d.release();
+    }
+  }
+});
+
+test("repaint swaps the materials on the same clone and gives the old ones back", () => {
+  const src = scene();
+  const before = sharedMaterials();
+  const d = dressGlb(src, "nato", false, "desert");
+  const air = d.body.getObjectByName("airframe") as THREE.Mesh;
+  const old = air.material as THREE.Material;
+  let freed = 0;
+  old.addEventListener("dispose", () => freed++);
+  d.repaint("winter");
+  assert.equal(d.body.getObjectByName("airframe"), air, "the same clone");
+  assert.equal(`#${(air.material as THREE.MeshLambertMaterial).color.getHexString()}`, SCHEMES.winter.body);
+  assert.equal(freed, 1, "nobody else wore desert");
+  assert.equal(colorOf(d, "fin"), teamColors("nato", false).stripe);
+  d.release();
+  assert.equal(sharedMaterials(), before);
+});
+
+test("a scope keeps a short-lived renderer's materials apart from the game's", () => {
+  const src = scene();
+  const game = dressGlb(src, "nato", false, "desert");
+  const hangar = dressGlb(src, "nato", false, "desert", "hangar");
+  const m = (d: ReturnType<typeof dressGlb>) => (d.body.getObjectByName("airframe") as THREE.Mesh).material;
+  assert.notEqual(m(game), m(hangar));
+  let freed = 0;
+  (m(hangar) as THREE.Material).addEventListener("dispose", () => freed++);
+  hangar.release();
+  assert.equal(freed, 1, "freed with the hangar's last jet while the game's plane still flies");
+  game.release();
 });

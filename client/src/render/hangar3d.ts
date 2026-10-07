@@ -102,7 +102,7 @@ async function showJet(kind: string, team: Team, skin: string): Promise<Shown> {
   const root = new THREE.Group();
   const g = await tryLoadGlb(kind);
   if (g) {
-    const d = dressGlb(g, team, false, validSkin(kind, skin));
+    const d = dressGlb(g, team, false, validSkin(kind, skin), "hangar"); // its own materials: all freed with the stage's jets
     d.rig.pose(NEUTRAL, 1);         // gear down, flaps lowered with it
     d.rig.missiles(Infinity);       // the full load on its rails
     for (const o of d.ab) o.visible = false;

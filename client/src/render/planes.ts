@@ -147,7 +147,7 @@ class PlaneView {
   private readonly model: THREE.Group;
   private readonly team: Team;
   private readonly own: boolean;
-  private readonly skin: SkinId;
+  private skin: SkinId;
   private glbParts: Dressed | null = null;
   private rig: Rig | null = null;
   private readonly ctl: Controls = { ...NEUTRAL };
@@ -201,6 +201,14 @@ class PlaneView {
     this.idle = d.idle;
     this.gear = d.rig.gear;
     ({ tip: this.tip, tagUp: this.tagUp } = placesOf(`${this.kind}|glb`, this.model));
+  }
+
+  /** Another paint from the roster: the .glb's materials swap in place (trails, smoke and rig stay). */
+  paint(skin: string | undefined): void {
+    const s = validSkin(this.kind, skin);
+    if (s === this.skin) return;
+    this.skin = s;
+    this.glbParts?.repaint(s);
   }
 
   update(p: PlaneRender, now: number, showLabel: boolean, fx: Effects, labelK = 1): void {
@@ -337,7 +345,7 @@ export class PlaneViews {
     for (const p of planes.values()) if (p.isMe && p.alive) mine = { pos: p.pos, fwd: qForward(p.rot) };
     for (const [id, p] of planes) {
       const friend = !p.isMe && p.team !== "none" && p.team === myTeam;
-      const key = `${p.kind}|${p.team}|${p.isMe}|${p.name}|${friend}|${validSkin(p.kind, p.skin)}`;
+      const key = `${p.kind}|${p.team}|${p.isMe}|${p.name}|${friend}`;
       let v = this.views.get(id);
       if (v && v.key !== key) {
         v.dispose();
@@ -348,6 +356,7 @@ export class PlaneViews {
         this.views.set(id, v);
         this.attachGlb(id, v, p.kind);
       }
+      v.paint(p.skin);
       const show = friend ? dist(cam, p.pos) <= LABEL_RANGE : enemyTagVisible(mine, cam, p.pos);
       v.update(p, now, show, this.effects, this.labelK);
     }
