@@ -1,7 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
-import { buildModel } from "./models.ts";
+import { airframe } from "../game/airframe.ts";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { buildModel, imgTextures } from "./models.ts";
+import { measure } from "./shape.ts";
 
 const KINDS = ["f16", "f15", "mig29", "su27"];
 
@@ -27,13 +30,14 @@ for (const kind of KINDS) {
       assert.ok(triangles(g) <= 600, `${kind}: ${triangles(g)} triangles`);
       const bb = new THREE.Box3().setFromObject(g.children[0]); // airframe, without flames
       const len = bb.max.z - bb.min.z;
-      assert.ok(len >= 14 && len <= 18, `${kind}: length ${len}`);
-      // Nose toward -Z: the long nose cone reaches well past -6.5 m.
-      assert.ok(bb.min.z < -6.5, `${kind}: nose at ${bb.min.z}`);
+      // A failed .glb leaves the jet its true size.
+      assert.ok(Math.abs(len - airframe(kind).length) < 1e-3, `${kind}: length ${len}, want ${airframe(kind).length}`);
+      // Nose toward -Z: the nose reaches well ahead of the middle.
+      assert.ok(bb.min.z < -0.4 * len, `${kind}: nose at ${bb.min.z}`);
       assert.ok(Math.abs(bb.max.x + bb.min.x) < 1e-6, `${kind}: not symmetric`);
       assert.ok(g.getObjectsByProperty("name", "ab").length >= 1);
       assert.ok(g.getObjectsByProperty("name", "idle").length >= 1);
-      assert.ok(g.userData.span > 4);
+      assert.ok(measure(g).tip.x > 4, `${kind}: wingtip`);
       const gear = g.getObjectByName("gear");
       assert.ok(gear, `${kind}: gear group`);
       const gb = new THREE.Box3().setFromObject(gear!);
@@ -52,4 +56,28 @@ test("team colors differ", () => {
   assert.equal(color("nato"), "9aa3ad");
   assert.equal(color("soviet"), "a8b8c0");
   assert.equal(color("none", true), "e8b33a");
+});
+
+// CSP forbids fetching blob: textures, so imgTextures must replace the parser's
+// image loader. It does so through an internal field of three's GLTFParser:
+// this fails if a three upgrade renames or rebuilds it.
+test("imgTextures swaps the parser's ImageBitmapLoader for a TextureLoader", async () => {
+  const g = globalThis as { createImageBitmap?: unknown };
+  const saved = g.createImageBitmap;
+  g.createImageBitmap = () => undefined; // three picks ImageBitmapLoader when this exists
+  try {
+    const seen: string[] = [];
+    const probe = (when: string) => (parser: { textureLoader?: unknown }) => {
+      seen.push(`${when}:${parser.textureLoader?.constructor?.name}`);
+      return { name: `probe_${when}` };
+    };
+    const loader = new GLTFLoader();
+    loader.register(probe("before"));
+    loader.register(imgTextures);
+    loader.register(probe("after"));
+    await new Promise((resolve, reject) => loader.parse(JSON.stringify({ asset: { version: "2.0" } }), "", resolve, reject));
+    assert.deepEqual(seen, ["before:ImageBitmapLoader", "after:TextureLoader"]);
+  } finally {
+    g.createImageBitmap = saved;
+  }
 });

@@ -1,9 +1,11 @@
 // Chase camera: follows the plane from behind with a smoothed offset.
 import * as THREE from "three";
+import { airframe } from "../game/airframe.ts";
 import { add, qForward, qRotate, scale, type Q, type V3 } from "../sim/vec.ts";
 
-const BACK = 28;      // m behind the plane
+const BACK = 28;      // m behind an F-16 (the boom scales with the jet's length)
 const ABOVE = 7;      // m above it
+const REF_LENGTH = airframe("f16").length;
 const RATE = 6;       // 1/s, approach factor 1 - exp(-dt*RATE)
 const AIM_LOOK = 200; // m along the aim (mouse scheme)
 const FWD_LOOK = 100; // m along the nose (keyboard scheme)
@@ -44,6 +46,12 @@ export function chaseFov(speed: number): number {
   return 70 + 15 * Math.max(0, Math.min(1, (speed - 150) / 150));
 }
 
+/** Boom behind and above a jet length m long: every jet fills the view as the F-16 does. */
+export function chaseBoom(length: number): { back: number; above: number } {
+  const k = length > 0 ? length / REF_LENGTH : 1;
+  return { back: BACK * k, above: ABOVE * k };
+}
+
 /**
  * The offset from the plane (not the world position) is smoothed, so the
  * camera trails rotations but never falls behind at speed. Mouse aim keeps
@@ -69,7 +77,9 @@ export class ChaseCam {
     this.fresh = true;
   }
 
-  update(dtS: number, pos: V3, rot: Q, speed: number, lookBack: boolean, aimDir: V3 | null): void {
+  /** length: the followed jet's, in metres (it sets the boom). */
+  update(dtS: number, pos: V3, rot: Q, speed: number, lookBack: boolean, aimDir: V3 | null, length: number): void {
+    const { back: BACK, above: ABOVE } = chaseBoom(length);
     const fwd = qForward(rot);
     const planeUp = qRotate(rot, { x: 0, y: 1, z: 0 });
     const up = aimDir ? WORLD_UP : this.want.set(planeUp.x, planeUp.y, planeUp.z);

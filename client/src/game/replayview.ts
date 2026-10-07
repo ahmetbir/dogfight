@@ -7,7 +7,8 @@ import type { PlaneRender } from "../render/planes.ts";
 import { scale, sub, v3, type Q, type V3 } from "../sim/vec.ts";
 import type { Heard } from "./events.ts";
 import { REPLAY_MS, ReplayBuffer, ReplayPlayer, type RFrame } from "./replay.ts";
-import type { GameState } from "./state.ts";
+import { toFlight, type GameState } from "./state.ts";
+import { ratesToControls } from "./view.ts";
 
 const POST_DEATH_MS = 1500;  // recorded after my death (the explosion)
 const VEL_MS = 50;           // velocity estimate window (Doppler, camera FOV)
@@ -17,7 +18,7 @@ const HEARD_TH = 0.8;        // throttle the replayed engines are heard at
 /** One played frame, ready to draw; me: my recorded plane (camera target). */
 export type ReplayScene = {
   planes: Map<number, PlaneRender>; missiles: MissileJSON[]; heard: Heard[];
-  me: { pos: V3; rot: Q; vel: V3 } | null;
+  me: { pos: V3; rot: Q; vel: V3; kind: string } | null;
 };
 
 export class ReplayView {
@@ -39,6 +40,7 @@ export class ReplayView {
     const planes = [...s.planes.values()].map((p) => ({
       id: p.id, k: p.k, tm: p.tm, a: p.a, gr: !!p.gr, ab: !!p.ab,
       pos: v3(p.p[0], p.p[1], p.p[2]), rot: { w: p.q[0], x: p.q[1], y: p.q[2], z: p.q[3] },
+      msl: p.ms + (p.rm ?? 0), ctl: ratesToControls(toFlight(p).w, s.aircraft.get(p.k)),
     }));
     const missiles = s.missiles.map((m) => ({ id: m.id, pos: v3(m.p[0], m.p[1], m.p[2]), vel: v3(m.v[0], m.v[1], m.v[2]) }));
     this.buffer.push({ t, planes, missiles });
@@ -118,9 +120,10 @@ export class ReplayView {
       planes.set(p.id, {
         id: p.id, kind: p.k, team: p.tm, pos: p.pos, rot: p.rot, alive: p.a, hp: 1, maxHP: 1,
         ab: !!p.ab, gForce: 1, name: s.players.get(p.id)?.name ?? "", isMe, gear: !!p.gr,
+        msl: p.msl, ctl: p.ctl,
       });
       const v = vel(p.id, p.pos);
-      if (isMe) me = { pos: p.pos, rot: p.rot, vel: v };
+      if (isMe) me = { pos: p.pos, rot: p.rot, vel: v, kind: p.k };
       if (p.a) heard.push({ id: p.id, pos: p.pos, vel: v, th: HEARD_TH, ab: !!p.ab });
     }
     const wire = (a: V3): Vec3 => [a.x, a.y, a.z];

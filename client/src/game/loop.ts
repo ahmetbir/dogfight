@@ -15,6 +15,7 @@ import { DT } from "../sim/flight.ts";
 import { add, len, qForward, qRotate, scale } from "../sim/vec.ts";
 import { unpackDamage } from "./damage.ts";
 import { Bullets } from "./bullets.ts";
+import { airframe } from "./airframe.ts";
 import { Cams } from "./cams.ts";
 import { dispatchEvents, mergeHooks, pruneDecoys, type FxSink, type GameHooks } from "./events.ts";
 import type { Feed, Listener } from "./feed.ts";
@@ -31,7 +32,6 @@ import { kindOf, loadoutOf, noLockNotice, otherKind, PICK_WIRE, pickedKind, type
 const MAX_STEPS = 5;      // ticks simulated per frame before dropping the backlog
 const MAX_FRAME_S = 0.25;
 const MUZZLE_MS = 50; // muzzle flash after each own round
-const MUZZLE_M = 7;   // flash distance ahead of the plane's origin
 
 const NO_FX: FxSink = { sparks: () => {}, explosion: () => {}, puff: () => {} };
 
@@ -186,13 +186,13 @@ export function startGame(ctx: GameCtx): Game {
     const mine = drawn && drawAhead(drawn, own.spin(), acc, (x, z) => env.ground(x, z).h);
     const rs = cams.replayScene(now); // the replay draws recorded planes and missiles instead
     views.setViewHeight(r.canvas.clientHeight);
-    views.sync(rs?.planes ?? planeRenders(state, rt, { fs: mine, gForce: own.gForce(), ab: !!ctl?.stick.ab && !mine?.abl }), state.players.get(state.you)?.team);
+    views.sync(rs?.planes ?? planeRenders(state, rt, { fs: mine, gForce: own.gForce(), ab: !!ctl?.stick.ab && !mine?.abl, stick: ctl?.stick }), state.players.get(state.you)?.team);
     props.syncMissiles(rs?.missiles ?? state.missiles, rs ? 0 : (now - state.snapAt) / 1000, fx);
     props.syncBombs(state.bombs, (now - state.snapAt) / 1000);
     fx.flares(rs ? [] : flaresAt(state.flares, (now - state.snapAt) / 1000), dt);
     structs?.sync(state.structs, now, { smoke: (at) => fx.wreckSmoke(at) });
     props.syncPowerups(state.powerups, (now - t0) / 1000);
-    props.muzzle(mine && now - lastShotAt < MUZZLE_MS ? add(mine.pos, scale(qForward(mine.rot), MUZZLE_M)) : null);
+    props.muzzle(mine && now - lastShotAt < MUZZLE_MS ? add(mine.pos, scale(qForward(mine.rot), airframe(state.planes.get(state.you)?.k ?? "").muzzle)) : null);
     if (!rs) bullets.update(dt, fx); // live tracers wait (or expire) while the replay plays
     const me = state.planes.get(state.you);
     const fs = mine ?? (me ? toFlight(me) : null);
@@ -213,7 +213,7 @@ export function startGame(ctx: GameCtx): Game {
         flares: me.fl, respawnS: (me.rs ?? 0) / 60,
         lockProgress: me.lp ?? 0, locked: !!me.ld, oobS: me.oob ?? 0,
         scheme: ctx.settings.scheme, pointerLocked: input.locked(),
-        invertY: ctx.settings.invertY, rotateSpeed: state.aircraft.get(me.k)?.rotateSpeed ?? 0,
+        invertY: ctx.settings.invertY, rotateSpeed: state.aircraft.get(me.k)?.rotateSpeed ?? 0, muzzle: airframe(me.k).muzzle,
         gLoad: own.gLoad(), gfx: ctx.settings.gfx,
         protected: !!me.pr, lockTarget: me.lk ?? 0,
         lockRange: effectiveRange(state.aircraft.get(me.k)?.lockRange ?? 0, state.weather?.lockMul ?? 1),

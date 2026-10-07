@@ -4,11 +4,11 @@ import type { AircraftInfo, ClientMsg, PlaneJSON } from "../net/protocol.ts";
 import { Predictor, type FlightEnv } from "../predict/predictor.ts";
 import { DT, type FlightState, type StickInput } from "../sim/flight.ts";
 import { add, dot, len, qConj, qForward, qIdentity, qMul, qNorm, qRotate, scale, sub, v3, type Q, type V3 } from "../sim/vec.ts";
+import { airframe } from "./airframe.ts";
 import { toFlight } from "./state.ts";
 import { STALL_MS } from "../net/shaper.ts";
 
 const GUN_TICKS = 4;      // sim.GunInterval
-const MUZZLE = 8;         // m ahead of the plane
 const BULLET_SPEED = 900; // m/s on top of the plane's velocity
 const G = 9.81;
 const G_SMOOTH = 0.2;     // per tick low-pass of the g meter
@@ -159,7 +159,7 @@ export class OwnPlane {
     if (!c.fire || this.overheated || this.ticks - this.lastShot < GUN_TICKS) return null;
     this.lastShot = this.ticks;
     const fwd = qForward(fs.rot);
-    return { pos: add(fs.pos, scale(fwd, MUZZLE)), vel: add(fs.vel, scale(fwd, BULLET_SPEED)) };
+    return { pos: add(fs.pos, scale(fwd, airframe(this.kind).muzzle)), vel: add(fs.vel, scale(fwd, BULLET_SPEED)) };
   }
 
   /**

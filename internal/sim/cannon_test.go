@@ -25,10 +25,11 @@ func TestCannonHitsTargetAhead(t *testing.T) {
 }
 
 func TestSweptHitAtHighSpeed(t *testing.T) {
-	if !segmentHitsSphere(geom.V(0, 0, 0), geom.V(0, 0, -20), geom.V(0, 3, -10), HitRadius) {
+	r := SpecOf(F16).HitRadius()
+	if !segmentHitsSphere(geom.V(0, 0, 0), geom.V(0, 0, -20), geom.V(0, 3, -10), r) {
 		t.Fatal("segment passing 3 m from center must hit")
 	}
-	if segmentHitsSphere(geom.V(0, 0, 0), geom.V(0, 0, -20), geom.V(0, 30, -10), HitRadius) {
+	if segmentHitsSphere(geom.V(0, 0, 0), geom.V(0, 0, -20), geom.V(0, 30, -10), r) {
 		t.Fatal("far miss reported as hit")
 	}
 }

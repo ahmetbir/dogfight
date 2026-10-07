@@ -25,5 +25,5 @@ export function buildSu27(p: Palette): Model {
     .add(tube(0.4, 0.25, 2.6), p.body, 0, 0.1, 7.1)
     .add(nose(0.25, 1.2).rotateX(Math.PI), p.dark, 0, 0.1, 9.0);
   const body = parts.merge();
-  return { body, engines: [engine(1.25, -0.3, 7.3, 0.48), engine(-1.25, -0.3, 7.3, 0.48)], span: 7.05 };
+  return { body, engines: [engine(1.25, -0.3, 7.3, 0.48), engine(-1.25, -0.3, 7.3, 0.48)] };
 }
