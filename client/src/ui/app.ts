@@ -64,6 +64,7 @@ export function play(o: PlayOpts): void {
     resume: () => closeMenus(true),
     leave: () => {
       clearInterval(uiTimer);
+      pick.dispose(); // the hangar's renderer and thumbnails
       socket.close();
       location.assign("/");
     },

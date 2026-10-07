@@ -37,6 +37,7 @@ export const game: Area<typeof tr> = {
   "role.su30": "Heavy all-rounder: a Su-27 with canards, a tough airframe, six missiles.",
   "role.f4": "Old heavy fighter: fast, six missiles, wide turns.",
   "role.mig23": "Old fast fighter: swing wing, high speed; wide turns.",
+  "pick.unpicked": "  ·  {name} is selected, not flown: “Fly this jet” switches.",
   "pick.in": "in {n} s",
   "pick.soon": "shortly",
   "pick.noteWait": "You spawn in the aircraft you pick; if you don't pick, you start {when} in the default one.",

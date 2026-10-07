@@ -73,3 +73,15 @@ test("the selection opens on my last pick, else what I fly, else the first card"
   assert.equal(firstSelection(nato, "mig29", null), "f16"); // the other side's pick (switched teams)
   assert.equal(firstSelection([], null, null), null);
 });
+
+test("leaving the picker flies the selected card only before the first plane; flying, it says what is not flown", async () => {
+  const { pickOnLeave, unpickedName } = await import("./pick.ts");
+  assert.equal(pickOnLeave({ waiting: true }, "a10"), "a10");
+  assert.equal(pickOnLeave({ waiting: true }, null), null);
+  assert.equal(pickOnLeave({ waiting: false }, "a10"), null);
+  const v = { waiting: false, chosen: null, current: "f16" as const, aircraft: ALL };
+  assert.equal(unpickedName(v, "a10"), "A-10");
+  assert.equal(unpickedName(v, "f16"), "");
+  assert.equal(unpickedName({ ...v, chosen: "a10" }, "a10"), "");
+  assert.equal(unpickedName({ ...v, waiting: true }, "a10"), "");
+});

@@ -43,6 +43,21 @@ export function pickKey(v: PickView): string {
   return JSON.stringify([v.code, v.team, v.aircraft.map((a) => a.kind), !!v.teamPick]);
 }
 
+/**
+ * What leaving the screen without the Fly button sends: before the first
+ * plane, the selected card (else the default kind would spawn, silently);
+ * flying, nothing (the selection is only a look until it is flown).
+ */
+export function pickOnLeave(v: Pick<PickView, "waiting">, selected: AircraftKind | null): AircraftKind | null {
+  return v.waiting ? selected : null;
+}
+
+/** The name of a selected card that leaving would not fly (flying, another jet selected), else "". */
+export function unpickedName(v: Pick<PickView, "waiting" | "chosen" | "current" | "aircraft">, selected: AircraftKind | null): string {
+  if (v.waiting || !selected || selected === (v.chosen ?? v.current)) return "";
+  return v.aircraft.find((a) => a.kind === selected)?.name ?? "";
+}
+
 export function pickNote(v: PickView): string {
   if (v.waiting) return t("pick.noteWait", { when: waitWhen(v.waitLeft) });
   return t(v.protectedNow ? "pick.noteProt" : "pick.noteNext");
@@ -57,6 +72,9 @@ export function pickNote(v: PickView): string {
 export class PickScreen {
   readonly el = h("div", { class: "overlay pick", hidden: true });
   private readonly onClose: () => void;
+  private readonly onPick: (k: AircraftKind) => void;
+  private v: PickView | null = null;
+  private readonly unpicked = h("span", { class: "pick-unpicked", hidden: true });
   private readonly onTeam: (c: TeamChoice) => void;
   private readonly onLoadout: (lo: Loadout) => void;
   private readonly hangar: Hangar;
@@ -68,10 +86,11 @@ export class PickScreen {
   constructor(onPick: (k: AircraftKind) => void, onClose: () => void, onTeam: (c: TeamChoice) => void = () => {},
     onLoadout: (lo: Loadout) => void = () => {}) {
     this.hangar = new Hangar(onPick);
+    this.onPick = onPick;
     this.onClose = onClose;
     this.onTeam = onTeam;
     this.onLoadout = onLoadout;
-    this.el.addEventListener("click", (e) => { if (e.target === this.el) this.onClose(); });
+    this.el.addEventListener("click", (e) => { if (e.target === this.el) this.leave(); });
     this.el.addEventListener("keydown", (e) => this.hangar.handleKey(e));
   }
 
@@ -84,8 +103,23 @@ export class PickScreen {
     this.hangar.close(); // the preview's renderer goes with the screen
   }
 
+  /** Frees the hangar's thumbnails too (leaving the match). */
+  dispose(): void {
+    this.close();
+    this.hangar.dispose();
+    this.key = "";
+  }
+
+  /** Back to flight, or a click beside the panel: flies the selection while waiting (pickOnLeave). */
+  private leave(): void {
+    const k = this.v ? pickOnLeave(this.v, this.hangar.selected()) : null;
+    if (k) this.onPick(k);
+    else this.onClose();
+  }
+
   /** Opens (or refreshes, when open) the screen for v. */
   show(v: PickView): void {
+    this.v = v;
     const key = pickKey(v);
     let refocus = false;
     if (key !== this.key) {
@@ -98,6 +132,7 @@ export class PickScreen {
     if (v.teamPick) this.teams?.update(v.teamPick);
     this.loadouts?.update(lo);
     text(this.note, pickNote(v));
+    this.syncUnpicked();
     if (this.el.hidden) {
       this.el.hidden = false;
       this.hangar.open();
@@ -109,11 +144,21 @@ export class PickScreen {
     this.teams = v.teamPick ? new TeamSelector(this.onTeam) : null;
     this.loadouts = new LoadoutSelector(this.onLoadout);
     const go = h("button", { type: "button", class: "btn" }, lt("pick.back"));
-    go.addEventListener("click", () => this.onClose());
+    go.addEventListener("click", () => this.leave());
+    this.hangar.el.addEventListener("click", () => this.syncUnpicked());
+    this.hangar.el.addEventListener("keyup", () => this.syncUnpicked());
     fill(this.el, h("div", { class: "panel wide pick-panel" },
       h("div", { class: "panel-head" }, h("h2", {}, lt("pick.title")), roomLink(v.code)),
       h("div", { class: "pick-opts" }, this.teams?.el, this.loadouts.el),
       this.hangar.el,
-      h("div", { class: "panel-foot" }, h("span", { class: "muted" }, this.note, lt("pick.reopen")), go)));
+      h("div", { class: "panel-foot" }, h("span", { class: "muted" }, this.note, lt("pick.reopen"), this.unpicked),
+        h("div", { class: "pick-foot-btns" }, go, this.hangar.footFly))));
+  }
+
+  /** "F-22 is selected, not flown: Fly this jet switches." while flying with another card selected. */
+  private syncUnpicked(): void {
+    const name = this.v ? unpickedName(this.v, this.hangar.selected()) : "";
+    this.unpicked.hidden = !name;
+    if (name) text(this.unpicked, t("pick.unpicked", { name }));
   }
 }

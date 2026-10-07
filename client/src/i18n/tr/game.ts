@@ -35,6 +35,7 @@ export const game = {
   "role.su30": "Çok amaçlı ağır avcı: kanardlı Su-27, sağlam gövde, altı füze.",
   "role.f4": "Eski ağır avcı: hızlı, altı füze, geniş dönüş.",
   "role.mig23": "Eski hızlı avcı: değişken kanat, yüksek hız; geniş dönüş.",
+  "pick.unpicked": "  ·  {name} seçili ama uçulmuyor: geçmek için “Bu uçakla uç”.",
   "pick.in": "{n} sn içinde",
   "pick.soon": "birazdan",
   "pick.noteWait": "Seçtiğin uçakla doğarsın; seçmezsen {when} varsayılan uçakla başlarsın.",
