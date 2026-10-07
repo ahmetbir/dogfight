@@ -371,6 +371,21 @@ bucket; otherwise players get kicked with `flood`. Core types (`hello`, `create`
   The induced-drag test (`TestInducedDragBleedsSustainedTurn`) bounds corner speed and thrust.
 - Teammates do not ram each other unless the room has friendly fire on.
 
+### Skins
+
+- Cosmetic only. Ids and who may wear them: `internal/game/skin.go` and `SKIN_KINDS` in
+  `client/src/render/skins.ts`, pinned by `TestClientSkinsMatchServer`. Add a scheme to both.
+- Wire: optional `skin` on `pick`, optional `skin` on each roster entry (omitted = standard), so
+  older clients are unaffected. The server keeps a valid id per player (unknown or another jet's:
+  standard); bots draw one per seat from the room seed. Bot skins are in the room goldens.
+- Drawing (`render/camo.ts`): the stripe role always keeps the team colour; body and secondary
+  take the scheme's colours, the canopy its tint. A camo tile (64 px, nearest, one per scheme) is
+  projected in the airframe's rest pose (metres from the nose; top or side by face normal) and
+  multiplied over the atlas. Role materials are shared per (material, team, skin): `dressGlb`
+  returns `release()`; never dispose them directly.
+- Client choice: `dogfight.skins` in localStorage (`ui/skinstore.ts`); a jet never chosen wears
+  its default (`DEFAULTS` in skins.ts).
+
 ### Input
 
 - Mouse aim: missile is right click or `E`. On a Mac trackpad, two-finger click or ctrl+click
