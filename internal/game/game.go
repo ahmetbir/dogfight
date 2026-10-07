@@ -22,6 +22,9 @@ type Settings struct {
 	Weather    weather.Kind  // zero means weather.Clear
 	Start      sim.StartMode // zero means sim.StartAir
 	Listed     bool          // shown in the lobby list; the game ignores it
+	// Lobby: the room opens in the pre-match Lobby phase and returns there
+	// after every round (created rooms); otherwise it plays at once (quick play).
+	Lobby bool
 }
 
 type Phase uint8
@@ -29,6 +32,9 @@ type Phase uint8
 const (
 	Playing Phase = iota + 1
 	Ended
+	// Lobby: before a round of a created room. Humans pick sides and
+	// aircraft; no bots, no world tick, no round clock.
+	Lobby
 )
 
 const EndedTicks = 600 // 10 s scoreboard between rounds
@@ -71,7 +77,8 @@ type Game struct {
 	winID    sim.ID
 }
 
-// New builds the room and fills every seat with a bot.
+// New builds the room and fills every seat with a bot, or, with
+// Settings.Lobby, leaves it empty in the Lobby phase until Start.
 func New(s Settings) *Game {
 	if s.Difficulty < bot.Easy || s.Difficulty > bot.Hard {
 		s.Difficulty = bot.Normal
@@ -105,6 +112,10 @@ func New(s Settings) *Game {
 	if s.Mode == mode.Base {
 		g.board.SetObjective(objective(m))
 		g.board.SetTargets(targets(m))
+	}
+	if s.Lobby {
+		g.phase = Lobby
+		return g
 	}
 	g.roundEnd = rules.DurationTicks()
 	for range rules.Slots() {
@@ -178,11 +189,20 @@ func objective(m *maps.Map) (nato, soviet float64) {
 
 // Step advances one tick: bots think on a single shared snapshot, all
 // inputs drive the world, kills feed the scoreboard and the round ends on
-// the rules' limit or the clock. While Ended the world is frozen.
+// the rules' limit or the clock. While Ended the world is frozen; in the
+// Lobby it does not exist for the players (only the game tick advances). A
+// lobby room's scoreboard gives way to the Lobby, any other to a new round.
 func (g *Game) Step(inputs map[sim.ID]sim.Input) []sim.Event {
 	g.tick++
+	if g.phase == Lobby {
+		return nil
+	}
 	if g.phase == Ended {
 		if g.tick < g.phaseEnd {
+			return nil
+		}
+		if g.s.Lobby {
+			g.toLobby()
 			return nil
 		}
 		g.board.Reset()
