@@ -272,7 +272,7 @@ export class Hud {
       if (enemy && !enemyOnRadar(v.pos, pos)) continue; // friends always show
       out.push({ pos, kind: enemy ? "enemy" : "friend" });
     }
-    for (const m of s.missiles) out.push({ pos: { x: m.p[0], y: m.p[1], z: m.p[2] }, kind: "missile" });
+    for (const m of s.missiles) out.push({ pos: { x: m.p[0], y: m.p[1], z: m.p[2] }, kind: m.tg === s.you ? "incoming" : "missile" });
     if (s.mode === "base") for (const pos of enemyTargets(s.map?.structs ?? [], s.structs, myTeam)) out.push({ pos, kind: "target" });
     return out;
   }

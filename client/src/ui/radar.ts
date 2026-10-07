@@ -7,7 +7,8 @@ export const RADAR_M = 4000;
 const SIZE = 168; // CSS px
 
 /** target: a base attack structure still standing (hollow square). */
-export type Contact = { pos: V3; kind: "friend" | "enemy" | "powerup" | "missile" | "target" };
+/** incoming: a missile tracking me (ringed, so it stands out from enemy planes); missile: any other, dimmed. */
+export type Contact = { pos: V3; kind: "friend" | "enemy" | "powerup" | "missile" | "incoming" | "target" };
 
 /** Radar offset of p from me in px (north up, east right), clamped to the rim. */
 export function radarPoint(me: V3, p: V3, radiusM: number, radiusPx: number): { x: number; y: number; edge: boolean } {
@@ -23,7 +24,7 @@ export function radarPoint(me: V3, p: V3, radiusM: number, radiusPx: number): { 
 }
 
 const COLORS: Record<Contact["kind"], string> = {
-  friend: "#5aa9ff", enemy: "#ff4d4d", powerup: "#ffd84d", missile: "#ffffff", target: "#ff6a3d",
+  friend: "#5aa9ff", enemy: "#ff4d4d", powerup: "#ffd84d", missile: "#ffffff", incoming: "#ff3030", target: "#ff6a3d",
 };
 
 export class Radar {
@@ -63,7 +64,18 @@ export class Radar {
     for (const k of contacts) {
       const p = radarPoint(me, k.pos, RADAR_M, r);
       g.fillStyle = COLORS[k.kind];
-      g.globalAlpha = p.edge ? 0.55 : 1;
+      g.globalAlpha = (p.edge ? 0.55 : 1) * (k.kind === "missile" ? 0.5 : 1);
+      if (k.kind === "incoming") {
+        g.beginPath();
+        g.arc(c + p.x, c + p.y, 3, 0, Math.PI * 2);
+        g.fill();
+        g.strokeStyle = COLORS.incoming;
+        g.lineWidth = 1.5;
+        g.beginPath();
+        g.arc(c + p.x, c + p.y, 6, 0, Math.PI * 2);
+        g.stroke();
+        continue;
+      }
       if (k.kind === "target") { // hollow, so it never reads as a power-up square
         g.strokeStyle = COLORS.target;
         g.lineWidth = 1.5;
