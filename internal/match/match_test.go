@@ -121,3 +121,33 @@ func TestChatScope(t *testing.T) {
 		t.Fatal("ffa chat must reach everyone")
 	}
 }
+
+// A pick on the wire names its kind as a string: every kind of the table is
+// accepted (FFA flies all), an unknown or wrongly cased one is ignored.
+func TestPickAcceptsEveryKindAndIgnoresUnknown(t *testing.T) {
+	m := New(ffa4, nil)
+	b := &box{}
+	a, _ := m.Join(room.Who{Name: "a"})
+	kindOf := func() sim.Kind {
+		for _, p := range m.g.Players() {
+			if p.ID == sim.ID(a) {
+				return p.Kind
+			}
+		}
+		t.Fatal("no player")
+		return 0
+	}
+	for _, k := range sim.Kinds() {
+		m.Handle(a, protocol.ClientMsg{T: protocol.TPick, Kind: k.String()}, b)
+		if kindOf() != k {
+			t.Fatalf("pick %q: flies %v", k, kindOf())
+		}
+	}
+	last := kindOf()
+	for _, bad := range []string{"zeppelin", "F16", "", "su-27", "mig31 "} {
+		m.Handle(a, protocol.ClientMsg{T: protocol.TPick, Kind: bad}, b)
+		if kindOf() != last {
+			t.Fatalf("pick %q changed the kind to %v", bad, kindOf())
+		}
+	}
+}
