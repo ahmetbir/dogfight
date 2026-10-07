@@ -121,9 +121,9 @@ body.touch .hud.mil .hud-mid { top: auto; bottom: 64px; }
   .hangar-fly { display: none; } /* the footer's Fly button stays on screen instead */
   .hangar-paint { gap: 3px; }
   .paint-head { font-size: 11px; }
-  .paint-chips { gap: 4px; }
-  .paint-chip { padding: 1px; border-radius: 6px; }
-  .paint-swatch { width: 20px; height: 20px; border-radius: 4px; }
+  .paint-chips { gap: 4px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 2px; margin: -2px; } /* one row, swiped */
+  .paint-chip { flex: none; padding: 4px; border-radius: 8px; } /* 40 px touch targets */
+  .paint-swatch { width: 30px; height: 30px; border-radius: 5px; }
   .pick-panel .panel-foot { position: sticky; bottom: -10px; z-index: 1; margin: 0 -12px -10px; padding: 8px 12px 10px;
     background: var(--panel-solid); border-top: 1px solid var(--line); font-size: 12px; gap: 10px; }
   .pick-panel .panel-foot .btn { padding: 8px 14px; font-size: 14px; }

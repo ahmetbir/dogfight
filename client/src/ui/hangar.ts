@@ -7,7 +7,7 @@
 // contained: the pick screen (and later the lobby) give it a view and get
 // the confirmed kind and the skin choices back.
 import type { AircraftInfo, AircraftKind, Loadout, Team } from "../net/protocol.ts";
-import { lt, t, type Key } from "../i18n/index.ts";
+import { lang, lt, t, type Key } from "../i18n/index.ts";
 import { dist } from "../i18n/format.ts";
 import { HangarModels, HangarStage } from "../render/hangar3d.ts";
 import { defaultSkin, skinsFor, STANDARD as STANDARD_SKIN, swatchPixels, SWATCH_PX, validSkin, type SkinId } from "../render/skins.ts";
@@ -172,33 +172,44 @@ export class Hangar {
     this.preview.cards(this.v.team, this.order, this.looks());
   }
 
-  private chooseSkin(kind: AircraftKind, skin: SkinId, focus: boolean): void {
-    if (this.look(kind) === skin) return;
-    this.local[kind] = skin;
-    this.onSkin(kind, skin);
-    this.repaint();
-    this.select(this.sel, false);
-    if (focus) (this.chips.querySelector('[aria-checked="true"]') as HTMLElement | null)?.focus();
+  /** A chip chosen: the focus stays on the checked chip (the row is updated in place, never rebuilt by a choice). */
+  private chooseSkin(kind: AircraftKind, skin: SkinId): void {
+    if (this.look(kind) !== skin) {
+      this.local[kind] = skin;
+      this.onSkin(kind, skin);
+      this.repaint();
+      this.select(this.sel, false);
+    }
+    (this.chips.querySelector('[aria-checked="true"]') as HTMLElement | null)?.focus({ preventScroll: true });
   }
 
-  /** The paint row of kind: one chip per skin it may wear, the worn one checked. */
+  /**
+   * The paint row of kind: one chip per skin it may wear, the worn one
+   * checked. Built again only for another jet, side or language; a new
+   * look only moves the check.
+   */
   private paintRow(kind: AircraftKind, team: Team): void {
     const look = this.look(kind);
     text(this.paintName, t(`skin.${look}` as Key));
-    const key = `${kind}|${team}|${look}`;
-    if (key === this.chipKey) return;
-    this.chipKey = key;
-    this.chips.replaceChildren(...skinsFor(kind).map((id) => {
-      const on = id === look;
-      const name = t(`skin.${id}` as Key);
-      const sw = h("canvas", { class: "paint-swatch", width: String(SWATCH_PX), height: String(SWATCH_PX) }) as HTMLCanvasElement;
-      const g = sw.getContext("2d");
-      if (g) g.putImageData(new ImageData(swatchPixels(id, team, false), SWATCH_PX, SWATCH_PX), 0, 0);
-      const b = h("button", { type: "button", class: "paint-chip", role: "radio", "aria-checked": String(on), "aria-label": name, title: name, tabindex: on ? "0" : "-1" }, sw);
-      b.dataset.skin = id;
-      b.addEventListener("click", () => this.chooseSkin(kind, id, false));
-      return b;
-    }));
+    const key = `${kind}|${team}|${lang()}`;
+    if (key !== this.chipKey) {
+      this.chipKey = key;
+      this.chips.replaceChildren(...skinsFor(kind).map((id) => {
+        const name = t(`skin.${id}` as Key);
+        const sw = h("canvas", { class: "paint-swatch", width: String(SWATCH_PX), height: String(SWATCH_PX) }) as HTMLCanvasElement;
+        const g = sw.getContext("2d");
+        if (g) g.putImageData(new ImageData(swatchPixels(id, team, false), SWATCH_PX, SWATCH_PX), 0, 0);
+        const b = h("button", { type: "button", class: "paint-chip", role: "radio", "aria-checked": "false", "aria-label": name, title: name, tabindex: "-1" }, sw);
+        b.dataset.skin = id;
+        b.addEventListener("click", () => this.chooseSkin(kind, id));
+        return b;
+      }));
+    }
+    for (const b of Array.from(this.chips.children) as HTMLElement[]) {
+      const on = b.dataset.skin === look;
+      if (b.getAttribute("aria-checked") !== String(on)) b.setAttribute("aria-checked", String(on));
+      b.tabIndex = on ? 0 : -1;
+    }
   }
 
   /** Starts the preview on a new canvas (the screen became visible). */
@@ -292,7 +303,7 @@ export class Hangar {
       const i = stepSkin(ids.indexOf(this.look(this.sel)), e.key, ids.length);
       if (i === null) return;
       e.preventDefault();
-      this.chooseSkin(this.sel, ids[i] ?? STANDARD_SKIN, true);
+      this.chooseSkin(this.sel, ids[i] ?? STANDARD_SKIN);
       return;
     }
     if (e.key === "Enter") {
