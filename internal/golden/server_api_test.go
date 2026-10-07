@@ -63,7 +63,7 @@ func roomsSettled(t *testing.T, url string) {
 func TestGoldenServerAPI(t *testing.T) {
 	tr := newTranscript()
 	srv, s, _ := newServer(t, srvOpts{lim: open})
-	exchange(t, srv, tr, "setup", "welcome", `{"t":"hello","v":2,"name":"g"}`, `{"t":"create","mode":"team","size":4,"diff":"easy","seed":1}`).ws.CloseNow()
+	exchange(t, srv, tr, "setup", "welcome", `{"t":"hello","v":3,"name":"g"}`, `{"t":"create","mode":"team","size":4,"diff":"easy","seed":1}`).ws.CloseNow()
 	roomsSettled(t, srv.URL)
 	get(t, tr, "rooms", srv.URL+"/api/rooms", nil)
 	get(t, tr, "nope", srv.URL+"/api/nope", nil)

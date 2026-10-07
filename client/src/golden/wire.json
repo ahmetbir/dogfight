@@ -1,6 +1,6 @@
 [
  "status connecting",
- "c0 {\"t\":\"hello\",\"v\":2,\"name\":\"Ace\",\"tok\":\"AAAAAAAAAAAAAAAAAAAAA1\"}",
+ "c0 {\"t\":\"hello\",\"v\":3,\"name\":\"Ace\",\"tok\":\"AAAAAAAAAAAAAAAAAAAAA1\"}",
  "c0 {\"t\":\"create\",\"mode\":\"team\",\"size\":4,\"diff\":\"normal\",\"seed\":9}",
  "status open",
  "msg welcome",
@@ -18,7 +18,7 @@
  "c0 {\"t\":\"ping\",\"ts\":15000}",
  "c0 close",
  "status updating",
- "c1 {\"t\":\"hello\",\"v\":2,\"name\":\"Ace\",\"tok\":\"AAAAAAAAAAAAAAAAAAAAA1\"}",
+ "c1 {\"t\":\"hello\",\"v\":3,\"name\":\"Ace\",\"tok\":\"AAAAAAAAAAAAAAAAAAAAA1\"}",
  "c1 {\"t\":\"join\",\"code\":\"ABCD\"}",
  "c1 close",
  "status closed",

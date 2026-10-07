@@ -164,7 +164,7 @@ func exchange(t *testing.T, srv *httptest.Server, tr *transcript, name string, u
 	return s
 }
 
-const hello = `{"t":"hello","v":2,"name":"golden"}`
+const hello = `{"t":"hello","v":3,"name":"golden"}`
 
 func TestGoldenServerFrames(t *testing.T) {
 	tr := newTranscript()
