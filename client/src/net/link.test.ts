@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { LinkMonitor, PING_MS, UNSTABLE_MS } from "./link.ts";
+import { LinkMonitor, PING_MS, PING_TIMEOUT_MS, UNSTABLE_MS } from "./link.ts";
 
 /** A monitor fed 30 Hz snapshots from t=0 to `until` ms (game tick = 2 per snapshot). */
 function flowing(until: number, rttMs?: number): LinkMonitor {
@@ -100,6 +100,7 @@ test("pings go out at most once per second, and only when written", () => {
   l.ping(0, send); // not written (reconnecting): try again next call
   ok = true;
   l.ping(100, send);
+  l.pong(100, 130);
   l.ping(100 + PING_MS - 1, send);
   l.ping(100 + PING_MS, send);
   assert.deepEqual(sent, [100, 100 + PING_MS]);
@@ -118,5 +119,48 @@ test("an unanswered ping raises the shown RTT: a silent link does not keep showi
   assert.equal(l.view(2030).rttMs, 40, "younger than the RTT: no news");
   assert.equal(l.view(2900).rttMs, 900);
   l.pong(2000, 3100);
-  assert.equal(l.view(3100).rttMs, Math.round(40 + (1100 - 40) * 0.3), "answered: back to the smoothed samples");
+  assert.equal(l.view(3100).rttMs, Math.round(40 + (1100 - 40) * 0.3), "answered (no stall): a slow sample counts");
+});
+
+test("one ping in flight at most: a 10 s stall sends one, a 30 s one two (the server kicks over 4 at once)", () => {
+  for (const [stallMs, most] of [[10000, 1], [30000, 2]]) {
+    const l = new LinkMonitor(0);
+    let sent = 0;
+    for (let t = 0; t <= stallMs; t += 100) l.ping(t, () => { sent++; return true; }); // no pong comes back
+    assert.equal(sent, most, `${stallMs} ms stall`);
+  }
+  assert.ok(30000 / PING_TIMEOUT_MS < 2, "two link pings plus two keepalives stay within the burst of 4");
+});
+
+test("after a stall the RTT reads the link again within about a second", () => {
+  const l = new LinkMonitor(0);
+  let t = 0;
+  const pending: number[] = [];
+  const step = (dark: boolean) => {
+    t += 50;
+    if (!dark) {
+      l.received(t);
+      while (pending.length && pending[0] + 100 <= t) l.pong(pending.shift()!, t); // 100 ms round trip
+    }
+    l.ping(t, (ts) => { pending.push(ts); return true; });
+  };
+  for (let i = 0; i < 100; i++) step(false); // 5 s steady
+  assert.equal(l.view(t).rttMs, 100);
+  for (let i = 0; i < 60; i++) step(true); // 3 s dark: the ping in flight is answered late
+  assert.equal(l.view(t).quality, "lost");
+  const back = t;
+  // The first pong after the stall carries 3 s of waiting: discarded.
+  while (t < back + 1300) step(false);
+  const v = l.view(t);
+  assert.equal(v.rttMs, 100, JSON.stringify(v));
+  assert.equal(v.quality, "good");
+});
+
+test("RTT falls faster than it rises", () => {
+  const l = new LinkMonitor(0);
+  l.pong(0, 100);
+  l.pong(1000, 2000); // an uplink hiccup with the downlink flowing: a real slow sample
+  assert.equal(l.view(2000).rttMs, Math.round(100 + 900 * 0.3));
+  l.pong(2000, 2100);
+  assert.equal(l.view(2100).rttMs, Math.round(370 + (100 - 370) * 0.6));
 });

@@ -7,15 +7,24 @@ export type Quality = "good" | "fair" | "poor" | "lost";
 /** What the HUD shows. rttMs is null until the first pong. */
 export type LinkView = { quality: Quality; rttMs: number | null; lossPct: number; unstable: boolean };
 
-/** Ping period while in a match (the server allows 2/s; the socket's keepalive adds one per 15 s). */
+/** Ping period while in a match (the socket's keepalive adds one per 15 s). */
 export const PING_MS = 1000;
+/**
+ * A ping without a pong blocks the next one for this long. The server kicks
+ * a connection whose pings come faster than 2/s beyond a burst of 4, and
+ * pings held up by a stall arrive back to back: with one in flight, a stall
+ * up to the server's 30 s idle close releases at most 2 of these plus 2
+ * keepalives.
+ */
+export const PING_TIMEOUT_MS = 20000;
 /** Silence (snapshots come at 30 Hz) after which the "connection unstable" banner shows. */
 export const UNSTABLE_MS = 1000;
 /** The banner stays this long after traffic resumes, so a stuttering link does not blink it. */
 const UNSTABLE_HOLD_MS = 600;
 const SNAP_TICKS = 2;     // game ticks between snapshots (match.SnapEvery)
 const LOSS_WINDOW = 60;   // expected snapshots (~2 s) the loss is counted over
-const RTT_SMOOTH = 0.3;   // weight of a new RTT sample
+const RTT_UP = 0.3;       // weight of a new RTT sample above the estimate...
+const RTT_DOWN = 0.6;     // ...and below it: a recovered link reads well again soon
 // Thresholds: [fair from, poor from].
 const RTT_MS = [120, 250];
 const LOSS_PCT = [2, 10];
@@ -25,7 +34,8 @@ export class LinkMonitor {
   private lastRecv: number;
   private lastPing = -Infinity;
   private rtt: number | null = null;
-  private unanswered: number | null = null; // send time of the oldest ping without a pong
+  private out: number | null = null;  // send time of my ping in flight
+  private staleBefore = -Infinity;    // pings sent before the last long silence ended: their RTT is the stall's
   private lastTick: number | null = null;
   private window: number[] = []; // per expected snapshot: 1 lost, 0 arrived
   private unstableUntil = -Infinity;
@@ -38,14 +48,18 @@ export class LinkMonitor {
   reset(now: number): void {
     this.lastRecv = now;
     this.lastTick = null;
-    this.unanswered = null;
+    this.out = null;
+    this.lastPing = -Infinity;
     this.window = [];
     this.unstableUntil = -Infinity;
   }
 
   /** Any server message arrived. */
   received(now: number): void {
-    if (now - this.lastRecv >= UNSTABLE_MS) this.unstableUntil = now + UNSTABLE_HOLD_MS;
+    if (now - this.lastRecv >= UNSTABLE_MS) {
+      this.unstableUntil = now + UNSTABLE_HOLD_MS;
+      this.staleBefore = now;
+    }
     this.lastRecv = now;
   }
 
@@ -60,20 +74,23 @@ export class LinkMonitor {
     if (this.window.length > LOSS_WINDOW) this.window.splice(0, this.window.length - LOSS_WINDOW);
   }
 
-  /** A pong echoing ts, the local time its ping was sent. */
+  /** A pong echoing ts, the local time its ping was sent (mine or the socket's keepalive). */
   pong(ts: number, now: number): void {
     const sample = now - ts;
     if (!Number.isFinite(sample) || sample < 0) return;
-    this.unanswered = null;
-    this.rtt = this.rtt === null ? sample : this.rtt + (sample - this.rtt) * RTT_SMOOTH;
+    if (this.out !== null && ts >= this.out) this.out = null;
+    if (ts < this.staleBefore) return; // queued behind a stall: measures the stall, not the link
+    const w = this.rtt === null ? 1 : sample > this.rtt ? RTT_UP : RTT_DOWN;
+    this.rtt = this.rtt === null ? sample : this.rtt + (sample - this.rtt) * w;
   }
 
-  /** Sends a ping through send when one is due (at most every PING_MS). */
+  /** Sends a ping through send when one is due: every PING_MS, never while one is in flight (up to PING_TIMEOUT_MS). */
   ping(now: number, send: (ts: number) => boolean): void {
     if (now - this.lastPing < PING_MS) return;
+    if (this.out !== null && now - this.out < PING_TIMEOUT_MS) return;
     if (!send(now)) return;
     this.lastPing = now;
-    this.unanswered ??= now;
+    this.out = now;
   }
 
   /** Milliseconds since the server was last heard. */
@@ -85,7 +102,7 @@ export class LinkMonitor {
     const silent = this.silentMs(now);
     const loss = this.window.length ? (100 * this.window.reduce((a, b) => a + b, 0)) / this.window.length : 0;
     // A ping out longer than the measured RTT already says the RTT is at least that.
-    const late = this.unanswered === null ? 0 : now - this.unanswered;
+    const late = this.out === null || this.out < this.staleBefore ? 0 : now - this.out;
     const rtt = this.rtt === null && late < PING_MS ? null : Math.round(Math.max(this.rtt ?? 0, late));
     const level = Math.max(grade(silent, SILENT_MS), grade(loss, LOSS_PCT), rtt === null ? 0 : grade(rtt, RTT_MS));
     const quality: Quality = silent >= UNSTABLE_MS ? "lost" : (["good", "fair", "poor"] as const)[level];
