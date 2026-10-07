@@ -9,6 +9,7 @@ import { MissileCam } from "../render/missilecam.ts";
 import type { Renderer } from "../render/renderer.ts";
 import type { FlightState } from "../sim/flight.ts";
 import { len, v3, type V3 } from "../sim/vec.ts";
+import { airframe } from "./airframe.ts";
 import type { CamView, Heard } from "./events.ts";
 import { camMode, othersAlive, watchingLabel, type CamMode } from "./spectate.ts";
 import { ReplayView, type ReplayScene } from "./replayview.ts";
@@ -114,7 +115,7 @@ export class Cams {
     const cam = this.c.renderer.camera;
     if (rs) {
       this.switchTo({ kind: "replay" });
-      if (rs.me) this.chase.update(dtS, rs.me.pos, rs.me.rot, len(rs.me.vel), false, null);
+      if (rs.me) this.chase.update(dtS, rs.me.pos, rs.me.rot, len(rs.me.vel), false, null, airframe(rs.me.kind).length);
       const label = this.c.settings.scheme === "touch" ? t("replay.labelTouch", { skip: t("touch.skip") }) : t("replay.label");
       return this.view(rs.me?.vel ?? ZERO, label, rs.heard, true);
     }
@@ -129,12 +130,12 @@ export class Cams {
     let label = "";
     if (mode.kind === "own" && own.fs) {
       const { fs, live } = own;
-      this.chase.update(dtS, fs.pos, fs.rot, live ? len(fs.vel) : 0, own.lookBack && live, live ? own.aimDir : null);
+      this.chase.update(dtS, fs.pos, fs.rot, live ? len(fs.vel) : 0, own.lookBack && live, live ? own.aimDir : null, airframe(me?.k ?? "").length);
       if (live) vel = fs.vel;
     } else if (mode.kind === "follow") {
       const t = s.interp.get(mode.id)?.sample(rt);
       if (t) {
-        this.chase.update(dtS, t.pos, t.rot, len(t.vel), false, null); // keyboard style: rolls with the plane
+        this.chase.update(dtS, t.pos, t.rot, len(t.vel), false, null, airframe(s.planes.get(mode.id)?.k ?? "").length); // keyboard style: rolls with the plane
         vel = t.vel;
       }
       label = watchingLabel(s.players.get(mode.id)?.name ?? `#${mode.id}`);

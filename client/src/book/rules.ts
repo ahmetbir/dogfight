@@ -34,6 +34,7 @@ export const RULES = {
   bulletSpeed: 900,
   gunRange: 1080,
   bulletDmg: 6,
+  muzzleLead: 0.4, // m: a round leaves the gun this far ahead of the nose
   gunShotsToOverheat: 25,
   gunCoolS: 4,
   overheatS: 2,
@@ -127,6 +128,10 @@ export const RULES = {
   f16Flares: 8,
   f16LockRange: 900,
   f16RotateSpeed: 78,
+  // f16 airframe (m): length, span, nose ahead of the origin (sim.Spec; the .glb)
+  f16Length: 15.22,
+  f16Span: 9.75,
+  f16Nose: 7.62,
   f15MaxHP: 120,
   f15MaxSpeed: 240,
   f15MaxSpeedAB: 310,
@@ -139,6 +144,10 @@ export const RULES = {
   f15Flares: 8,
   f15LockRange: 1075,
   f15RotateSpeed: 82,
+  // f15 airframe (m): length, span, nose ahead of the origin (sim.Spec; the .glb)
+  f15Length: 19.47,
+  f15Span: 13.04,
+  f15Nose: 9.72,
   mig29MaxHP: 100,
   mig29MaxSpeed: 225,
   mig29MaxSpeedAB: 285,
@@ -151,6 +160,10 @@ export const RULES = {
   mig29Flares: 10,
   mig29LockRange: 950,
   mig29RotateSpeed: 75,
+  // mig29 airframe (m): length, span, nose ahead of the origin (sim.Spec; the .glb)
+  mig29Length: 17.21,
+  mig29Span: 11.36,
+  mig29Nose: 8.66,
   su27MaxHP: 110,
   su27MaxSpeed: 245,
   su27MaxSpeedAB: 315,
@@ -163,6 +176,10 @@ export const RULES = {
   su27Flares: 8,
   su27LockRange: 1050,
   su27RotateSpeed: 85,
+  // su27 airframe (m): length, span, nose ahead of the origin (sim.Spec; the .glb)
+  su27Length: 21.9,
+  su27Span: 14.57,
+  su27Nose: 10.95,
   // weather: lock range multiplier, base wind (m/s), gust amplitude (m/s)
   lockMulAcik: 1,
   windAcik: 0,

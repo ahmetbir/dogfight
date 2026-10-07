@@ -16,10 +16,7 @@ const (
 	OverheatTicks = 120
 )
 
-const (
-	muzzleOffset = 8.0
-	gunSpread    = 0.004 // rad, max deviation per axis
-)
+const gunSpread = 0.004 // rad, max deviation per axis
 
 // fireCannon spawns a bullet when the trigger is held and the gun is ready.
 func (w *World) fireCannon(p *Plane, in Input, ev *[]Event) {
@@ -33,7 +30,7 @@ func (w *World) fireCannon(p *Plane, in Input, ev *[]Event) {
 	b := Bullet{
 		Owner:      p.ID,
 		Team:       p.Team,
-		Pos:        p.Pos.Add(fwd.Scale(muzzleOffset)),
+		Pos:        p.Pos.Add(fwd.Scale(SpecOf(p.Kind).Muzzle())),
 		Vel:        p.Vel.Add(dir.Scale(BulletSpeed)),
 		ExpireTick: w.tick + BulletLife,
 		Dmg:        BulletDmg,
@@ -78,7 +75,7 @@ func (w *World) stepBullet(b *Bullet, ev *[]Event) bool {
 		if !p.Alive || p.ID == b.Owner || !Hostile(b.Team, p.Team, w.cfg.FriendlyFire) {
 			continue
 		}
-		if t, ok := segmentSphereT(b.Pos, end, p.Pos, HitRadius); ok && t < best {
+		if t, ok := segmentSphereT(b.Pos, end, p.Pos, SpecOf(p.Kind).HitRadius()); ok && t < best {
 			hit, best = p, t
 		}
 	}

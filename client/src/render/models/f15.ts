@@ -19,5 +19,5 @@ export function buildF15(p: Palette): Model {
     .mirror(fin([[0.45, 4.2], [3.6, 6.4], [3.6, 7.4], [0.45, 7.5]], 0.14).translate(1.05, 0, 0), p.body)
     .mirror(fin([[2.7, 5.8], [3.6, 6.4], [3.6, 7.4], [2.7, 7.47]], 0.18).translate(1.05, 0, 0), p.stripe);
   const body = parts.merge();
-  return { body, engines: [engine(0.6, 0, 7.85, 0.46), engine(-0.6, 0, 7.85, 0.46)], span: 6.75 };
+  return { body, engines: [engine(0.6, 0, 7.85, 0.46), engine(-0.6, 0, 7.85, 0.46)] };
 }

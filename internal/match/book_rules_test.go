@@ -113,7 +113,7 @@ func goRules(t *testing.T) map[string]float64 {
 		"fireProtectS": sim.FireProtectTicks / ticks, "respawnS": sim.RespawnTicks / ticks,
 
 		"gunRate": ticks / sim.GunInterval, "bulletSpeed": sim.BulletSpeed, "gunRange": sim.BulletSpeed * sim.BulletLife / ticks,
-		"bulletDmg": sim.BulletDmg, "gunShotsToOverheat": 1 / sim.HeatPerShot, "gunCoolS": 1 / sim.HeatCool,
+		"bulletDmg": sim.BulletDmg, "muzzleLead": sim.MuzzleLead, "gunShotsToOverheat": 1 / sim.HeatPerShot, "gunCoolS": 1 / sim.HeatCool,
 		"overheatS": sim.OverheatTicks / ticks,
 
 		"lockConeDeg": deg(sim.LockHalfAngle), "lockS": sim.LockSeconds, "missileSpeed": sim.MissileSpeed,
@@ -163,6 +163,7 @@ func goRules(t *testing.T) map[string]float64 {
 			"MaxHP": s.MaxHP, "MaxSpeed": s.MaxSpeed, "MaxSpeedAB": s.MaxSpeedAB, "Accel": s.Accel, "RollRate": s.RollRate,
 			"PitchRate": s.PitchRate, "YawRate": s.YawRate, "CornerSpeed": s.CornerSpeed, "Missiles": float64(s.Missiles),
 			"Flares": float64(s.Flares), "LockRange": s.LockRange, "RotateSpeed": s.RotateSpeed,
+			"Length": s.Length, "Span": s.Span, "Nose": s.Nose,
 		} {
 			r[n+f] = v
 		}

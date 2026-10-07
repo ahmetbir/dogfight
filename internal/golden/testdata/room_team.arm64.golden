@@ -8,19 +8,21 @@
 {"t":"run","c":5,"n":7863,"h":"e8e993a5218ee69f"}
 {"t":"chat","n":28,"m":{"t":"chat","from":9,"id":1}}
 {"t":"players","n":532,"m":{"t":"players","list":[{"id":1,"name":"Maverick","team":"nato","kind":"f16","bot":true},{"id":2,"name":"Iceman","team":"soviet","kind":"mig29","bot":true},{"id":3,"name":"Viper","team":"nato","kind":"f15","bot":true},{"id":4,"name":"Goose","team":"soviet","kind":"su27","bot":true},{"id":5,"name":"Ivan","team":"nato","kind":"f16","bot":true},{"id":6,"name":"Sokol","team":"soviet","kind":"mig29","bot":true},{"id":9,"name":"a","team":"nato","kind":"f16","bot":false},{"id":10,"name":"b","team":"soviet","kind":"su27","bot":false}]}}
-{"t":"run","c":2619,"n":5041724,"h":"f6db5e3747249157"}
+{"t":"run","c":2619,"n":5041832,"h":"76d8b1bd40e377bc"}
 {"t":"notice","n":67,"m":{"t":"notice","msg":"Takımlar dengesiz olur","code":"team_uneven"}}
-{"t":"run","c":229,"n":519704,"h":"103a9ff8bc66af8b"}
-{"t":"round","n":291,"m":{"t":"round","phase":"playing","left":23278,"nato":0,"soviet":1,"board":[{"id":4,"k":1,"d":0,"s":1},{"id":1,"k":0,"d":1,"s":0},{"id":2,"k":0,"d":0,"s":0},{"id":3,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":0,"s":0},{"id":10,"k":0,"d":0,"s":0}]}}
-{"t":"run","c":81,"n":184465,"h":"4e2b27cd5894f0a9"}
+{"t":"run","c":214,"n":484166,"h":"66378e997cbfdd59"}
+{"t":"round","n":291,"m":{"t":"round","phase":"playing","left":23306,"nato":1,"soviet":0,"board":[{"id":3,"k":1,"d":0,"s":1},{"id":1,"k":0,"d":0,"s":0},{"id":2,"k":0,"d":1,"s":0},{"id":4,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":0,"s":0},{"id":10,"k":0,"d":0,"s":0}]}}
+{"t":"run","c":96,"n":220772,"h":"eb6f3477fb82ece8"}
 {"t":"players","n":537,"m":{"t":"players","list":[{"id":1,"name":"Maverick","team":"nato","kind":"f16","bot":true},{"id":2,"name":"Iceman","team":"soviet","kind":"mig29","bot":true},{"id":3,"name":"Viper","team":"nato","kind":"f15","bot":true},{"id":4,"name":"Goose","team":"soviet","kind":"su27","bot":true},{"id":5,"name":"Ivan","team":"nato","kind":"f16","bot":true},{"id":6,"name":"Sokol","team":"soviet","kind":"mig29","bot":true},{"id":9,"name":"a","team":"soviet","kind":"mig29","bot":false},{"id":12,"name":"Berkut","team":"nato","kind":"f16","bot":true}]}}
-{"t":"run","c":3,"n":6633,"h":"548d37a7f9ed69fd"}
+{"t":"run","c":3,"n":6016,"h":"2c20f278a93d6aee"}
 {"t":"players","n":537,"m":{"t":"players","list":[{"id":1,"name":"Maverick","team":"nato","kind":"f16","bot":true},{"id":2,"name":"Iceman","team":"soviet","kind":"mig29","bot":true},{"id":3,"name":"Viper","team":"nato","kind":"f15","bot":true},{"id":4,"name":"Goose","team":"soviet","kind":"su27","bot":true},{"id":5,"name":"Ivan","team":"nato","kind":"f16","bot":true},{"id":6,"name":"Sokol","team":"soviet","kind":"mig29","bot":true},{"id":9,"name":"a","team":"soviet","kind":"mig29","bot":false},{"id":12,"name":"Berkut","team":"nato","kind":"f16","bot":true}]}}
-{"t":"run","c":7,"n":15637,"h":"fc4ecd6a4bbfd1bb"}
-{"t":"round","n":291,"m":{"t":"round","phase":"playing","left":23100,"nato":0,"soviet":1,"board":[{"id":4,"k":1,"d":0,"s":1},{"id":1,"k":0,"d":1,"s":0},{"id":2,"k":0,"d":0,"s":0},{"id":3,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":0,"s":0},{"id":12,"k":0,"d":0,"s":0}]}}
-{"t":"run","c":301,"n":624844,"h":"93d73cef46461e5b"}
+{"t":"run","c":7,"n":14397,"h":"8f499ce5d75a51ab"}
+{"t":"round","n":291,"m":{"t":"round","phase":"playing","left":23100,"nato":1,"soviet":0,"board":[{"id":3,"k":1,"d":0,"s":1},{"id":1,"k":0,"d":0,"s":0},{"id":2,"k":0,"d":1,"s":0},{"id":4,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":0,"s":0},{"id":12,"k":0,"d":0,"s":0}]}}
+{"t":"run","c":295,"n":606053,"h":"891f9cec4b62b9cd"}
+{"t":"round","n":291,"m":{"t":"round","phase":"playing","left":22527,"nato":2,"soviet":0,"board":[{"id":1,"k":1,"d":0,"s":1},{"id":3,"k":1,"d":0,"s":1},{"id":2,"k":0,"d":1,"s":0},{"id":4,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":1,"s":0},{"id":9,"k":0,"d":0,"s":0},{"id":12,"k":0,"d":0,"s":0}]}}
+{"t":"run","c":6,"n":13128,"h":"378f22b415132a14"}
 {"t":"notice","n":84,"m":{"t":"notice","msg":"Takım değiştirmek için 30 sn bekle","code":"team_cooldown"}}
-{"t":"run","c":620,"n":1224078,"h":"9719c980330baa8d"}
+{"t":"run","c":620,"n":1238822,"h":"30970c87f13843ca"}
 {"t":"close","n":13,"m":{"t":"close"}}
 ## a.ev
 {"t":"spawn","n":29,"m":{"k":"spawn","tick":11,"a":9}}
@@ -34,9 +36,9 @@
 {"t":"round","n":291,"m":{"t":"round","phase":"playing","left":28800,"nato":0,"soviet":0,"board":[{"id":1,"k":0,"d":0,"s":0},{"id":2,"k":0,"d":0,"s":0},{"id":3,"k":0,"d":0,"s":0},{"id":4,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":0,"s":0},{"id":10,"k":0,"d":0,"s":0}]}}
 {"t":"run","c":6,"n":8154,"h":"154c799b9bb3d352"}
 {"t":"players","n":532,"m":{"t":"players","list":[{"id":1,"name":"Maverick","team":"nato","kind":"f16","bot":true},{"id":2,"name":"Iceman","team":"soviet","kind":"mig29","bot":true},{"id":3,"name":"Viper","team":"nato","kind":"f15","bot":true},{"id":4,"name":"Goose","team":"soviet","kind":"su27","bot":true},{"id":5,"name":"Ivan","team":"nato","kind":"f16","bot":true},{"id":6,"name":"Sokol","team":"soviet","kind":"mig29","bot":true},{"id":9,"name":"a","team":"nato","kind":"f16","bot":false},{"id":10,"name":"b","team":"soviet","kind":"su27","bot":false}]}}
-{"t":"run","c":2848,"n":5561428,"h":"930f849d1c2572fe"}
-{"t":"round","n":291,"m":{"t":"round","phase":"playing","left":23278,"nato":0,"soviet":1,"board":[{"id":4,"k":1,"d":0,"s":1},{"id":1,"k":0,"d":1,"s":0},{"id":2,"k":0,"d":0,"s":0},{"id":3,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":0,"s":0},{"id":10,"k":0,"d":0,"s":0}]}}
-{"t":"run","c":81,"n":184465,"h":"4e2b27cd5894f0a9"}
+{"t":"run","c":2833,"n":5525998,"h":"10e2a02127d3b110"}
+{"t":"round","n":291,"m":{"t":"round","phase":"playing","left":23306,"nato":1,"soviet":0,"board":[{"id":3,"k":1,"d":0,"s":1},{"id":1,"k":0,"d":0,"s":0},{"id":2,"k":0,"d":1,"s":0},{"id":4,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":0,"s":0},{"id":10,"k":0,"d":0,"s":0}]}}
+{"t":"run","c":96,"n":220772,"h":"eb6f3477fb82ece8"}
 ## b.ev
 {"t":"spawn","n":30,"m":{"k":"spawn","tick":11,"a":10}}
 ## sink

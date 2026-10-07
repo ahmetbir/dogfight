@@ -7,11 +7,11 @@ import { fixed } from "../i18n/format.ts";
 import { h, text } from "./dom.ts";
 import { inCone, rangeFill } from "./lockinfo.ts";
 
-// internal/sim/cannon.go: a round leaves MUZZLE_M ahead of the plane at
-// BULLET_SPEED along the nose on top of the shooter's velocity, flies straight
-// (no gravity, no wind) and expires after BULLET_LIFE_S.
+// internal/sim/cannon.go: a round leaves the muzzle (sim.Spec.Muzzle, m ahead
+// of the plane) at BULLET_SPEED along the nose on top of the shooter's
+// velocity, flies straight (no gravity, no wind) and expires after BULLET_LIFE_S.
 export const BULLET_SPEED = 900;
-const MUZZLE_M = 8;
+const MUZZLE_M = 8; // when the caller does not say (about the F-16's)
 const BULLET_LIFE_S = 72 / 60;
 // Each tick the target steps first, then the round sweeps a whole tick of its
 // path: on average it meets the target half a tick further along.
@@ -26,16 +26,16 @@ export type Body = { pos: V3; vel: V3 };
 
 /**
  * The nose direction for which a round fired now meets target (its present
- * position and velocity): solves pos + (MUZZLE_M + BULLET_SPEED·(s+SWEEP_S))·d
+ * position and velocity): solves pos + (muzzle + BULLET_SPEED·(s+SWEEP_S))·d
  * + vel·(s+SWEEP_S) = target.pos + target.vel·s. null beyond the round's life.
  */
-export function leadDir(me: Body, target: Body): V3 | null {
+export function leadDir(me: Body, target: Body, muzzle = MUZZLE_M): V3 | null {
   const off = sub(target.pos, me.pos);
-  let s = Math.max(0, (len(off) - MUZZLE_M) / BULLET_SPEED - SWEEP_S);
+  let s = Math.max(0, (len(off) - muzzle) / BULLET_SPEED - SWEEP_S);
   let r = off;
   for (let i = 0; i < 6; i++) {
     r = sub(add(off, scale(target.vel, s)), scale(me.vel, s + SWEEP_S));
-    s = Math.max(0, (len(r) - MUZZLE_M) / BULLET_SPEED - SWEEP_S);
+    s = Math.max(0, (len(r) - muzzle) / BULLET_SPEED - SWEEP_S);
   }
   if (s + SWEEP_S > BULLET_LIFE_S || len(r) < 1e-6) return null;
   return norm(r);
@@ -51,8 +51,8 @@ export function noseMark(pos: V3, fwd: V3): V3 {
  * on screen exactly when the nose points along the lead, whatever the chase
  * camera's offset (a mark at the target's own range would drift by parallax).
  */
-export function leadMark(me: Body, target: Body): V3 | null {
-  const d = leadDir(me, target);
+export function leadMark(me: Body, target: Body, muzzle = MUZZLE_M): V3 | null {
+  const d = leadDir(me, target, muzzle);
   return d && noseMark(me.pos, d);
 }
 
@@ -73,6 +73,7 @@ export type ReticleView = {
   alive: boolean; pos: V3; vel: V3; fwd: V3; aimDir: V3 | null;
   lock: { pos: V3; progress: number; locked: boolean; dist: number; range: number; kind: "ir" | "radar" } | null;
   lead: Body | null; // gun target at the present (where my next round meets it)
+  muzzle?: number;    // m ahead of my origin where my rounds leave
   project: Project;
 };
 
@@ -117,7 +118,7 @@ export class Reticle {
       this.rangeBar.style.width = `${Math.round(fill * 100)}%`;
       this.rangeBar.classList.toggle("far", fill >= 1);
     }
-    const mark = v.lead && leadMark({ pos: v.pos, vel: v.vel }, v.lead);
+    const mark = v.lead && leadMark({ pos: v.pos, vel: v.vel }, v.lead, v.muzzle);
     const lead = mark ? v.project(mark) : null;
     at(this.lead, lead);
     if (v.lead && lead) text(this.dist, formatDist(len(sub(v.lead.pos, v.pos))));

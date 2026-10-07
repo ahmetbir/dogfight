@@ -1,0 +1,14 @@
+{
+  "nodes": [
+    "airframe", "canopy", "aileron_l", "aileron_r", "flap_l", "flap_r", "stab_l", "stab_r",
+    "gear", "gear_nose", "gear_main_l", "gear_main_r", "ab_0", "idle_0"
+  ],
+  "single": ["rudder"],
+  "twin": ["rudder_l", "rudder_r", "ab_1", "idle_1"],
+  "kinds": {
+    "f16": {"missiles": 5, "twin": false},
+    "f15": {"missiles": 6, "twin": true},
+    "mig29": {"missiles": 4, "twin": true},
+    "su27": {"missiles": 5, "twin": true}
+  }
+}

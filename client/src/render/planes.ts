@@ -4,22 +4,28 @@ import * as THREE from "three";
 import { enemyTagVisible } from "../game/sight.ts";
 import { dist, qForward, type Q, type V3 } from "../sim/vec.ts";
 import type { Effects } from "./effects.ts";
+import { dressGlb, NEUTRAL, type Controls, type Dressed, type Rig } from "./glb.ts";
 import { buildModel, tryLoadGlb } from "./models.ts";
 import type { Team } from "./models/common.ts";
+import { measure } from "./shape.ts";
 
 export type PlaneRender = {
   id: number; kind: string; team: string; pos: V3; rot: Q; alive: boolean;
   hp: number; maxHP: number; ab: boolean; gForce: number; name: string; isMe: boolean;
   gear: boolean; // landing gear down
+  ctl?: Controls; // control surfaces: my stick, or others' turn rates (absent: neutral)
+  msl?: number;   // missiles left on the rails, IR + radar (absent: a full load)
 };
 
 const LABEL_RANGE = 3000; // m: friendly tags (enemies: game/sight.ts)
 const SMOKE_HP = 0.4;     // fraction of maxHP below which the plane smokes
-const SMOKE_MS = 50;
+const SMOKE_MS = 50;      // one puff per interval, engines taking turns
 const TRAIL_G = 9;
 const TRAIL_MS = 500;
 const TRAIL_CAP = 64;
+const TAG_GAP = 5.7;      // m above the fin top (the F-16's tag stays where it was)
 const GEAR_S = 0.8;       // gear travel time, s
+const SURFACE_RATE = 4;   // control surface travel, full scale per s
 const ENEMY = "#ff5a5a";
 const FRIEND = "#6aa8ff";
 
@@ -105,28 +111,59 @@ function disposeTree(o: THREE.Object3D): void {
   });
 }
 
+/** Where a model's effects attach, in the plane's frame: wingtip (trails) and name tag height. */
+export function places(model: THREE.Object3D): { tip: THREE.Vector3; tagUp: number } {
+  const s = measure(model);
+  return { tip: s.tip, tagUp: s.top + TAG_GAP };
+}
+
+const placed = new Map<string, { tip: THREE.Vector3; tagUp: number }>(); // per kind and source
+
+/** places(model), measured once per key: every plane of a kind shares it. */
+function placesOf(key: string, model: THREE.Object3D): { tip: THREE.Vector3; tagUp: number } {
+  let at = placed.get(key);
+  if (!at) {
+    at = places(model);
+    placed.set(key, at);
+  }
+  return at;
+}
+
 class PlaneView {
   readonly key: string;
+  private readonly kind: string;
   readonly root = new THREE.Group();
   private readonly label: THREE.Sprite | null;
-  private readonly ab: THREE.Object3D[];
-  private readonly idle: THREE.Object3D[];
+  private ab: THREE.Object3D[];
+  private idle: THREE.Object3D[];
   private readonly trails = [new Trail(), new Trail()];
-  private readonly span: number;
-  private readonly gear: THREE.Object3D | null; // null if a model ever comes without one
+  private tip: THREE.Vector3;  // right wingtip's trailing edge (model's measure)
+  private tagUp: number;       // name tag height above the origin
+  private puff = 0;            // engine the next smoke puff leaves
+  private gear: THREE.Object3D | null; // null if a model ever comes without one
+  private readonly model: THREE.Group;
+  private readonly team: Team;
+  private readonly own: boolean;
+  private glbParts: Dressed | null = null;
+  private rig: Rig | null = null;
+  private readonly ctl: Controls = { ...NEUTRAL };
   private gearT: number;      // 0 retracted .. 1 down
   private lastAt = -1;        // ms of the previous update
+  private dt = 0;             // s since the previous update
   private body: THREE.Object3D;
-  private glb = false;
   private lastSmoke = -Infinity;
   private readonly scene: THREE.Scene;
 
   constructor(scene: THREE.Scene, key: string, p: PlaneRender, labelColor: string) {
     this.scene = scene;
     this.key = key;
-    const model = buildModel(p.kind, asTeam(p.team), p.isMe);
+    this.kind = p.kind;
+    this.team = asTeam(p.team);
+    this.own = p.isMe;
+    const model = buildModel(p.kind, this.team, this.own);
+    this.model = model;
     this.body = model.children[0];
-    this.span = model.userData.span as number;
+    ({ tip: this.tip, tagUp: this.tagUp } = placesOf(`${p.kind}|built-in`, model));
     this.ab = model.getObjectsByProperty("name", "ab");
     this.idle = model.getObjectsByProperty("name", "idle");
     this.gear = model.getObjectByName("gear") ?? null;
@@ -137,15 +174,26 @@ class PlaneView {
     if (this.label) scene.add(this.label);
   }
 
-  /** Swaps the procedural airframe for a loaded .glb (flames stay). */
+  /**
+   * Swaps the procedural airframe, flames and gear for a loaded .glb: its own
+   * flames at the engine markers, its gear and control surfaces on a rig.
+   */
   useGlb(g: THREE.Group): void {
-    const parent = this.body.parent;
-    if (!parent || this.glb) return;
-    disposeTree(this.body);
-    parent.remove(this.body);
-    this.body = g.clone();
-    parent.add(this.body);
-    this.glb = true;
+    if (this.glbParts) return;
+    for (const o of [...this.model.children]) {
+      this.model.remove(o);
+      disposeTree(o);
+    }
+    const d = dressGlb(g, this.team, this.own);
+    d.body.scale.setScalar(1 / this.model.scale.x); // the .glb is in true metres
+    this.model.add(d.body);
+    this.body = d.body;
+    this.glbParts = d;
+    this.rig = d.rig;
+    this.ab = d.ab;
+    this.idle = d.idle;
+    this.gear = d.rig.gear;
+    ({ tip: this.tip, tagUp: this.tagUp } = placesOf(`${this.kind}|glb`, this.model));
   }
 
   update(p: PlaneRender, now: number, showLabel: boolean, fx: Effects, labelK = 1): void {
@@ -159,20 +207,23 @@ class PlaneView {
     }
     for (const o of this.idle) o.visible = !p.ab;
     this.updateGear(p, now);
+    this.updateSurfaces(p.alive ? p.ctl ?? NEUTRAL : NEUTRAL);
+    this.rig?.missiles(p.msl ?? Infinity);
     if (this.label) {
-      this.label.position.set(p.pos.x, p.pos.y + 9, p.pos.z);
+      this.label.position.set(p.pos.x, p.pos.y + this.tagUp, p.pos.z);
       this.label.visible = p.alive && showLabel;
       this.label.scale.set(LABEL_W * labelK, LABEL_H * labelK, 1);
     }
     const pulling = p.alive && p.gForce > TRAIL_G;
     this.root.updateMatrixWorld();
     for (let i = 0; i < 2; i++) {
-      const tip = pulling ? this.root.localToWorld(new THREE.Vector3(i ? this.span : -this.span, 0, 2.5)) : null;
+      const tip = pulling ? this.root.localToWorld(new THREE.Vector3(i ? this.tip.x : -this.tip.x, this.tip.y, this.tip.z)) : null;
       this.trails[i].step(now, tip);
     }
-    if (p.alive && p.hp < SMOKE_HP * p.maxHP && now - this.lastSmoke >= SMOKE_MS) {
+    if (p.alive && p.hp < SMOKE_HP * p.maxHP && now - this.lastSmoke >= SMOKE_MS && this.ab.length > 0) {
       this.lastSmoke = now;
-      fx.smoke(this.root.localToWorld(new THREE.Vector3(0, 0.5, 6)));
+      this.puff = (this.puff + 1) % this.ab.length;
+      fx.smoke(this.ab[this.puff].getWorldPosition(new THREE.Vector3()));
     }
   }
 
@@ -180,18 +231,36 @@ class PlaneView {
   private updateGear(p: PlaneRender, now: number): void {
     const dt = this.lastAt < 0 ? 0 : Math.max(0, now - this.lastAt) / 1000;
     this.lastAt = now;
+    this.dt = dt;
     const want = p.gear ? 1 : 0;
     if (!p.alive) this.gearT = want;
     else if (this.gearT < want) this.gearT = Math.min(want, this.gearT + dt / GEAR_S);
     else this.gearT = Math.max(want, this.gearT - dt / GEAR_S);
+    if (this.rig) return; // posed with the surfaces
     if (!this.gear) return;
     this.gear.visible = this.gearT > 0.01;
     this.gear.scale.y = this.gearT * this.gear.scale.x; // x carries 1/model scale
   }
 
+  /** Moves the control surfaces toward c at SURFACE_RATE (only a .glb has them). */
+  private updateSurfaces(c: Controls): void {
+    if (!this.rig) return;
+    const step = Math.min(1, Math.max(0, this.dt) * SURFACE_RATE);
+    for (const k of ["p", "r", "y"] as const) {
+      const want = Math.max(-1, Math.min(1, Number.isFinite(c[k]) ? c[k] : 0));
+      this.ctl[k] += Math.max(-step, Math.min(step, want - this.ctl[k]));
+    }
+    this.rig.pose(this.ctl, this.gearT);
+  }
+
   dispose(): void {
     this.scene.remove(this.root, ...this.trails.map((t) => t.line));
-    if (this.glb) this.body.removeFromParent(); // shared .glb geometry is not ours
+    if (this.glbParts) {
+      // Geometry and textures of a .glb are shared; its flames and materials are ours.
+      for (const e of this.glbParts.engines) disposeTree(e);
+      for (const m of this.glbParts.materials) m.dispose();
+      this.body.removeFromParent();
+    }
     disposeTree(this.root);
     for (const t of this.trails) t.dispose();
     if (this.label) {
