@@ -73,6 +73,7 @@ type PlaneJSON struct {
 	Loadout  uint8       `json:"lo,omitempty"`  // sortie loadout: 0 IR (omitted), 1 radar, 2 mixed
 	Radars   int         `json:"rm,omitempty"`  // radar missiles left (ms counts the IR ones)
 	LockKind uint8       `json:"lkk,omitempty"` // kind the lock is for: 0 IR (omitted), 1 radar
+	Dmg      uint8       `json:"dm,omitempty"`  // lasting damage levels (sim.Damage.Pack): engine bits 0–1, controls 2–3, avionics 4–5
 }
 
 // FlareJSON is a burning flare: id and position (10 cm); the client
@@ -207,7 +208,7 @@ func newPlane(p sim.Plane, tick int) PlaneJSON {
 		Heat: round(p.Heat, 100), Overheat: tick < p.OverheatUntil,
 		Missiles: p.Missiles, Flares: p.Flares,
 		Lock: p.LockTarget, Locked: p.Locked,
-		LockP: round(min(1, p.LockTime/p.LockKind.LockSeconds()), 100), LockKind: uint8(p.LockKind),
+		LockP: round(min(1, p.LockTime/sim.LockSecondsOf(p.LockKind, p.Damage)), 100), LockKind: uint8(p.LockKind), Dmg: p.Damage.Pack(),
 		Loadout: uint8(p.Loadout), Radars: p.Radars,
 		Turbo: tick < p.TurboUntil, Protect: tick < p.ProtectUntil,
 		OOB:  round(p.OutOfBounds, 100),

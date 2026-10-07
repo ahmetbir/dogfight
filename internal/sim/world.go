@@ -208,7 +208,7 @@ func (w *World) Step(inputs map[ID]Input) []Event {
 		p.AB = in.AB && !p.ABLock // what StepFlight burns this tick
 		w.prev[id] = p.Pos
 		before := p.FlightState
-		p.FlightState = StepFlight(p.FlightState, in, SpecOf(p.Kind), w.mods(p))
+		p.FlightState = StepFlight(p.FlightState, in, Damaged(SpecOf(p.Kind), p.Damage), w.mods(p))
 		w.landing(p, before, &evs)
 		if p.Ground {
 			p.WheelsTicks++

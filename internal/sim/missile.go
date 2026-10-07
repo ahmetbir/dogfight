@@ -87,7 +87,7 @@ func (w *World) updateLock(p *Plane, pick MissilePick, ev *[]Event) {
 		p.LockTarget, p.LockTime, p.Locked = cand, 0, false
 	}
 	p.LockKind = kind
-	locked := p.LockTime >= p.LockKind.LockSeconds()-1e-9 // 120 × Dt sums to just under 2
+	locked := p.LockTime >= LockSecondsOf(p.LockKind, p.Damage)-1e-9 // 120 × Dt sums to just under 2
 	if locked && !p.Locked {
 		*ev = append(*ev, Event{Kind: EvLock, Plane: p.ID, Other: p.LockTarget, Missile: p.LockKind})
 	}

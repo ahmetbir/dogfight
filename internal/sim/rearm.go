@@ -35,6 +35,7 @@ func (w *World) rearm(p *Plane, ev *[]Event) {
 	p.HP, p.Flares, p.Bombs = s.MaxHP, s.Flares, w.cfg.Bombs
 	p.Missiles, p.Radars = p.loadout()
 	p.Heat, p.OverheatUntil = 0, 0
+	p.Damage = Damage{}
 	p.MissileRegenAt, p.RadarRegenAt, p.FlareRegenAt = 0, 0, 0
 	*ev = append(*ev, Event{Kind: EvRearm, Plane: p.ID, Pos: p.Pos})
 }

@@ -20,7 +20,7 @@ type flareRun struct {
 	hit        bool // the missile damaged plane 2
 	gone       bool // the missile ended (hit, decoy burn-out, decoy reached)
 	rolledTick int  // first tick the missile lost plane 2 while plane 2 was undamaged, 0 if never
-	drawsAfter int  // world PRNG draws from tick 2 until the missile ended
+	drawsAfter int  // world PRNG decoy draws from tick 2 until the missile ended (a hit's zone roll left out)
 	decoyEvs   []Event
 }
 
@@ -61,6 +61,9 @@ func runFlares(tm *terrain.Map, seed int64, dist float64, dropTicks ...int) flar
 		}
 	}
 	r.drawsAfter = draws(rng, r.w.rng)
+	if r.hit {
+		r.drawsAfter-- // the hit's zone roll (damage.go), not a decoy roll
+	}
 	return r
 }
 

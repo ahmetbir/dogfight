@@ -104,6 +104,8 @@
 .lamp.brake.on { color: #fff; background: var(--danger); border-color: var(--danger); box-shadow: 0 0 10px rgba(255, 77, 77, 0.6); }
 .lamp.bombs { margin-left: auto; color: #c7d3df; }
 .lamp.bombs.on { color: var(--amber); border-color: rgba(255, 201, 77, 0.6); }
+.lamp.dmg.l1 { color: #1a1200; background: var(--amber); border-color: var(--amber); }
+.lamp.dmg.l2 { color: #fff; background: var(--danger); border-color: var(--danger); box-shadow: 0 0 10px rgba(255, 77, 77, 0.6); }
 @keyframes lamp { to { opacity: 0.25; } }
 .g-label.rearm-label { width: auto; min-width: 88px; color: var(--amber); }
 .bar.rearm-bar .bar-fill { background: var(--amber); }

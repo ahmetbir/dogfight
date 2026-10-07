@@ -27,6 +27,10 @@ Live demo: https://dogfight.ahmetbirinci.dev
     round the reticle toward the nearest one and a ringed red dot on the radar: a blinking `FLARE!`
     against an IR missile, `DİK UÇ!` ("beam it!") with the way to turn against a radar missile.
     A lock on you before any missile is fired reads `KİLİTLENDİN` ("locked on").
+- **Hit zones:** every missile and gun hit rolls where it struck: a critical hit downs the plane
+  outright (15 % of missile hits, 0.5 % of rounds), engine, controls and avionics hits leave
+  lasting damage (lower top speed, slower turns, slower locks) until a new life, a rearm or the
+  repair power-up. The HUD lights the damaged parts.
 - **Afterburner heat:** about 15 s of continuous afterburner, then a lockout while it cools down.
 - **3 power-ups:** missiles, repair, turbo.
 - **3 game modes:** team deathmatch, free-for-all (FFA) and **Base Attack** (destroy the enemy

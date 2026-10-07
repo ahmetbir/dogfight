@@ -6,6 +6,14 @@ import { abHeat, AbHeatBar } from "./abheat.ts";
 import { h, text } from "./dom.ts";
 import { FlightLights } from "./flightlights.ts";
 import { ammoParts, ranges } from "./loadout.ts";
+import type { Damage, DamagePart } from "../game/damage.ts";
+
+const PARTS: readonly DamagePart[] = ["engine", "controls", "avionics"];
+
+/** Damage level per part, in PARTS order (the HUD lamps: 1 amber, 2 red). */
+export function damageLevels(d: Damage): number[] {
+  return PARTS.map((p) => d[p]);
+}
 import { formatDist } from "./reticle.ts";
 
 export class Gauges {
@@ -25,6 +33,8 @@ export class Gauges {
   private msKey = "";
   private readonly fl = h("span", { class: "g-big" });
   private readonly lights = new FlightLights();
+  private readonly dmgLamps = PARTS.map((part) => h("span", { class: `lamp dmg dmg-${part}`, hidden: true }, lt(`lamp.${part}`)));
+  private readonly dmgRow = h("div", { class: "g-row lamps dmg-row", hidden: true }, ...this.dmgLamps);
 
   constructor() {
     const label = (k: Key) => h("span", { class: "g-label" }, lt(k));
@@ -38,7 +48,7 @@ export class Gauges {
       row("g.hp", h("div", { class: "bar hp" }, this.hpFill), this.hpText),
       row("g.heat", this.heatBar),
       h("div", { class: "g-row lock-range" }, label("g.range"), this.range),
-      h("div", { class: "g-row ammo" }, label("g.missiles"), this.ms, label("g.flares"), this.fl));
+      h("div", { class: "g-row ammo" }, label("g.missiles"), this.ms, label("g.flares"), this.fl), this.dmgRow);
   }
 
   update(v: HudView): void {
@@ -58,6 +68,13 @@ export class Gauges {
     this.ammo(v);
     text(this.fl, String(v.flares));
     this.lights.update(v);
+    const lv = damageLevels(v.alive ? v.damage : { engine: 0, controls: 0, avionics: 0 });
+    this.dmgRow.hidden = lv.every((l) => l === 0);
+    this.dmgLamps.forEach((el, i) => {
+      el.hidden = lv[i] === 0;
+      el.classList.toggle("l1", lv[i] === 1);
+      el.classList.toggle("l2", lv[i] >= 2);
+    });
   }
 
   /** "IR 2  RADAR 1": every kind aboard, the one the missile key fires lit. */

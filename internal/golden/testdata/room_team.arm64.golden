@@ -8,46 +8,37 @@
 {"t":"run","c":5,"n":7863,"h":"e8e993a5218ee69f"}
 {"t":"chat","n":28,"m":{"t":"chat","from":9,"id":1}}
 {"t":"players","n":532,"m":{"t":"players","list":[{"id":1,"name":"Maverick","team":"nato","kind":"f16","bot":true},{"id":2,"name":"Iceman","team":"soviet","kind":"mig29","bot":true},{"id":3,"name":"Viper","team":"nato","kind":"f15","bot":true},{"id":4,"name":"Goose","team":"soviet","kind":"su27","bot":true},{"id":5,"name":"Ivan","team":"nato","kind":"f16","bot":true},{"id":6,"name":"Sokol","team":"soviet","kind":"mig29","bot":true},{"id":9,"name":"a","team":"nato","kind":"f16","bot":false},{"id":10,"name":"b","team":"soviet","kind":"su27","bot":false}]}}
-{"t":"run","c":2007,"n":3807353,"h":"9aee27f8b4c38c95"}
-{"t":"round","n":291,"m":{"t":"round","phase":"playing","left":24903,"nato":0,"soviet":1,"board":[{"id":2,"k":1,"d":0,"s":1},{"id":1,"k":0,"d":1,"s":0},{"id":3,"k":0,"d":0,"s":0},{"id":4,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":0,"s":0},{"id":10,"k":0,"d":0,"s":0}]}}
-{"t":"run","c":612,"n":1216653,"h":"bd55fb5b7f04d76f"}
+{"t":"run","c":2619,"n":5041724,"h":"f6db5e3747249157"}
 {"t":"notice","n":67,"m":{"t":"notice","msg":"Takımlar dengesiz olur","code":"team_uneven"}}
-{"t":"run","c":310,"n":642792,"h":"1c03375b28f85580"}
-{"t":"notice","n":75,"m":{"t":"notice","msg":"Hasar aldıktan sonra 10 sn bekle","code":"team_hurt"}}
-{"t":"players","n":537,"m":{"t":"players","list":[{"id":1,"name":"Maverick","team":"nato","kind":"f16","bot":true},{"id":2,"name":"Iceman","team":"soviet","kind":"mig29","bot":true},{"id":3,"name":"Viper","team":"nato","kind":"f15","bot":true},{"id":4,"name":"Goose","team":"soviet","kind":"su27","bot":true},{"id":5,"name":"Ivan","team":"nato","kind":"f16","bot":true},{"id":6,"name":"Sokol","team":"soviet","kind":"mig29","bot":true},{"id":9,"name":"a","team":"nato","kind":"f16","bot":false},{"id":11,"name":"Berkut","team":"soviet","kind":"mig29","bot":true}]}}
-{"t":"run","c":3,"n":6251,"h":"5a4597d224610e95"}
-{"t":"players","n":537,"m":{"t":"players","list":[{"id":1,"name":"Maverick","team":"nato","kind":"f16","bot":true},{"id":2,"name":"Iceman","team":"soviet","kind":"mig29","bot":true},{"id":3,"name":"Viper","team":"nato","kind":"f15","bot":true},{"id":4,"name":"Goose","team":"soviet","kind":"su27","bot":true},{"id":5,"name":"Ivan","team":"nato","kind":"f16","bot":true},{"id":6,"name":"Sokol","team":"soviet","kind":"mig29","bot":true},{"id":9,"name":"a","team":"nato","kind":"f16","bot":false},{"id":11,"name":"Berkut","team":"soviet","kind":"mig29","bot":true}]}}
-{"t":"run","c":7,"n":14415,"h":"0a82267a19a7571f"}
-{"t":"round","n":291,"m":{"t":"round","phase":"playing","left":23100,"nato":0,"soviet":1,"board":[{"id":2,"k":1,"d":0,"s":1},{"id":1,"k":0,"d":1,"s":0},{"id":3,"k":0,"d":0,"s":0},{"id":4,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":0,"s":0},{"id":11,"k":0,"d":0,"s":0}]}}
-{"t":"run","c":259,"n":536472,"h":"0ebe234d5ade6017"}
-{"t":"round","n":292,"m":{"t":"round","phase":"playing","left":22598,"nato":0,"soviet":1,"board":[{"id":2,"k":1,"d":0,"s":1},{"id":1,"k":0,"d":1,"s":0},{"id":3,"k":0,"d":0,"s":0},{"id":4,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":11,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":1,"s":-1}]}}
-{"t":"run","c":298,"n":622726,"h":"a0caaf5dabd1eac6"}
-{"t":"round","n":292,"m":{"t":"round","phase":"playing","left":22020,"nato":0,"soviet":1,"board":[{"id":2,"k":1,"d":1,"s":1},{"id":1,"k":0,"d":1,"s":0},{"id":3,"k":0,"d":0,"s":0},{"id":4,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":1,"s":0},{"id":11,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":1,"s":-1}]}}
-{"t":"run","c":363,"n":752445,"h":"004d708d919cec15"}
+{"t":"run","c":229,"n":517807,"h":"4c42fae8bcc57c5c"}
+{"t":"round","n":291,"m":{"t":"round","phase":"playing","left":23278,"nato":0,"soviet":1,"board":[{"id":4,"k":1,"d":0,"s":1},{"id":1,"k":0,"d":1,"s":0},{"id":2,"k":0,"d":0,"s":0},{"id":3,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":0,"s":0},{"id":10,"k":0,"d":0,"s":0}]}}
+{"t":"run","c":81,"n":183604,"h":"71b984a34d6681ba"}
+{"t":"players","n":537,"m":{"t":"players","list":[{"id":1,"name":"Maverick","team":"nato","kind":"f16","bot":true},{"id":2,"name":"Iceman","team":"soviet","kind":"mig29","bot":true},{"id":3,"name":"Viper","team":"nato","kind":"f15","bot":true},{"id":4,"name":"Goose","team":"soviet","kind":"su27","bot":true},{"id":5,"name":"Ivan","team":"nato","kind":"f16","bot":true},{"id":6,"name":"Sokol","team":"soviet","kind":"mig29","bot":true},{"id":9,"name":"a","team":"soviet","kind":"mig29","bot":false},{"id":12,"name":"Berkut","team":"nato","kind":"f16","bot":true}]}}
+{"t":"run","c":3,"n":6633,"h":"548d37a7f9ed69fd"}
+{"t":"players","n":537,"m":{"t":"players","list":[{"id":1,"name":"Maverick","team":"nato","kind":"f16","bot":true},{"id":2,"name":"Iceman","team":"soviet","kind":"mig29","bot":true},{"id":3,"name":"Viper","team":"nato","kind":"f15","bot":true},{"id":4,"name":"Goose","team":"soviet","kind":"su27","bot":true},{"id":5,"name":"Ivan","team":"nato","kind":"f16","bot":true},{"id":6,"name":"Sokol","team":"soviet","kind":"mig29","bot":true},{"id":9,"name":"a","team":"soviet","kind":"mig29","bot":false},{"id":12,"name":"Berkut","team":"nato","kind":"f16","bot":true}]}}
+{"t":"run","c":7,"n":15637,"h":"fc4ecd6a4bbfd1bb"}
+{"t":"round","n":291,"m":{"t":"round","phase":"playing","left":23100,"nato":0,"soviet":1,"board":[{"id":4,"k":1,"d":0,"s":1},{"id":1,"k":0,"d":1,"s":0},{"id":2,"k":0,"d":0,"s":0},{"id":3,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":0,"s":0},{"id":12,"k":0,"d":0,"s":0}]}}
+{"t":"run","c":301,"n":624844,"h":"93d73cef46461e5b"}
+{"t":"notice","n":84,"m":{"t":"notice","msg":"Takım değiştirmek için 30 sn bekle","code":"team_cooldown"}}
+{"t":"run","c":620,"n":1224078,"h":"9719c980330baa8d"}
 {"t":"close","n":13,"m":{"t":"close"}}
 ## a.ev
 {"t":"spawn","n":29,"m":{"k":"spawn","tick":11,"a":9}}
 {"t":"flare","n":29,"m":{"k":"flare","tick":11,"a":9}}
 {"t":"flare","n":29,"m":{"k":"flare","tick":31,"a":9}}
 {"t":"rearm","n":30,"m":{"k":"rearm","tick":219,"a":9}}
-{"t":"lock","n":36,"m":{"k":"lock","tick":5380,"a":2,"b":9}}
-{"t":"mlaunch","n":52,"m":{"k":"mlaunch","tick":5381,"a":16777218,"b":9,"o":2}}
-{"t":"hit","n":58,"m":{"k":"hit","tick":5444,"a":9,"b":2,"val":70,"w":"missile"}}
-{"t":"hit","n":51,"m":{"k":"hit","tick":6142,"a":9,"val":10,"w":"bounds"}}
-{"t":"hit","n":51,"m":{"k":"hit","tick":6202,"a":9,"val":10,"w":"bounds"}}
-{"t":"kill","n":43,"m":{"k":"kill","tick":6202,"a":9,"w":"bounds"}}
-{"t":"spawn","n":31,"m":{"k":"spawn","tick":6382,"a":9}}
+{"t":"spawn","n":31,"m":{"k":"spawn","tick":5686,"a":9}}
 ## b
 {"t":"welcome","n":101422,"h":"77c6cfd3b884df8c","p":"{\"t\":\"welcome\",\"you\":10,\"code\":\"GOLD\",\"mode\":\"team\",\"aircraft\":[{\"kind\":\"f16\",\"name\":\"F-16\",\"team\":\"nato\",\"maxHP\":90,\"maxSpeed\":230,\"maxSpeedAB\":290,\"accel\":48,"}
 {"t":"players","n":533,"m":{"t":"players","list":[{"id":1,"name":"Maverick","team":"nato","kind":"f16","bot":true},{"id":2,"name":"Iceman","team":"soviet","kind":"mig29","bot":true},{"id":3,"name":"Viper","team":"nato","kind":"f15","bot":true},{"id":4,"name":"Goose","team":"soviet","kind":"su27","bot":true},{"id":5,"name":"Ivan","team":"nato","kind":"f16","bot":true},{"id":6,"name":"Sokol","team":"soviet","kind":"mig29","bot":true},{"id":9,"name":"a","team":"nato","kind":"f16","bot":false},{"id":10,"name":"b","team":"soviet","kind":"mig29","bot":false}]}}
 {"t":"round","n":291,"m":{"t":"round","phase":"playing","left":28800,"nato":0,"soviet":0,"board":[{"id":1,"k":0,"d":0,"s":0},{"id":2,"k":0,"d":0,"s":0},{"id":3,"k":0,"d":0,"s":0},{"id":4,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":0,"s":0},{"id":10,"k":0,"d":0,"s":0}]}}
 {"t":"run","c":6,"n":8154,"h":"154c799b9bb3d352"}
 {"t":"players","n":532,"m":{"t":"players","list":[{"id":1,"name":"Maverick","team":"nato","kind":"f16","bot":true},{"id":2,"name":"Iceman","team":"soviet","kind":"mig29","bot":true},{"id":3,"name":"Viper","team":"nato","kind":"f15","bot":true},{"id":4,"name":"Goose","team":"soviet","kind":"su27","bot":true},{"id":5,"name":"Ivan","team":"nato","kind":"f16","bot":true},{"id":6,"name":"Sokol","team":"soviet","kind":"mig29","bot":true},{"id":9,"name":"a","team":"nato","kind":"f16","bot":false},{"id":10,"name":"b","team":"soviet","kind":"su27","bot":false}]}}
-{"t":"run","c":2007,"n":3807353,"h":"9aee27f8b4c38c95"}
-{"t":"round","n":291,"m":{"t":"round","phase":"playing","left":24903,"nato":0,"soviet":1,"board":[{"id":2,"k":1,"d":0,"s":1},{"id":1,"k":0,"d":1,"s":0},{"id":3,"k":0,"d":0,"s":0},{"id":4,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":0,"s":0},{"id":10,"k":0,"d":0,"s":0}]}}
-{"t":"run","c":922,"n":1859445,"h":"f74487149e05b949"}
+{"t":"run","c":2848,"n":5559531,"h":"de7b085ba2495a9d"}
+{"t":"round","n":291,"m":{"t":"round","phase":"playing","left":23278,"nato":0,"soviet":1,"board":[{"id":4,"k":1,"d":0,"s":1},{"id":1,"k":0,"d":1,"s":0},{"id":2,"k":0,"d":0,"s":0},{"id":3,"k":0,"d":0,"s":0},{"id":5,"k":0,"d":0,"s":0},{"id":6,"k":0,"d":0,"s":0},{"id":9,"k":0,"d":0,"s":0},{"id":10,"k":0,"d":0,"s":0}]}}
+{"t":"run","c":81,"n":183604,"h":"71b984a34d6681ba"}
 ## b.ev
 {"t":"spawn","n":30,"m":{"k":"spawn","tick":11,"a":10}}
 ## sink
+{"t":"delta","n":48,"m":{"p":"pilot-a","n":"a","t":598,"kd":{"f16":598}}}
 {"t":"delta","n":55,"m":{"p":"pilot-b","n":"b","m":1,"t":806,"kd":{"su27":806}}}
-{"t":"delta","n":62,"m":{"p":"pilot-a","n":"a","d":1,"c":1,"t":1118,"kd":{"f16":1118}}}

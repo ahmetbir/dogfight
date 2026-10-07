@@ -124,6 +124,13 @@ func goRules(t *testing.T) map[string]float64 {
 		"radarRangeMul": sim.RadarRangeMul, "radarLockS": sim.RadarLockSeconds, "radarLeashDeg": deg(sim.RadarLeash),
 		"radarBeamSpeed": sim.RadarBeamSpeed, "radarBeamS": sim.RadarBeamTicks / ticks, "radarDmg": sim.RadarDmg, "radarMinRange": sim.RadarMinRange,
 
+		"dmgEngine1": sim.EngineFactor[1], "dmgEngine2": sim.EngineFactor[2], "dmgControls1": sim.ControlsFactor[1],
+		"dmgControls2": sim.ControlsFactor[2], "dmgAvionics1": sim.AvionicsLockMul[1], "dmgAvionics2": sim.AvionicsLockMul[2],
+		"missileCrit": sim.MissileZoneOdds[sim.ZoneCrit], "missileEngine": sim.MissileZoneOdds[sim.ZoneEngine],
+		"missileControls": sim.MissileZoneOdds[sim.ZoneControls], "missileAvionics": sim.MissileZoneOdds[sim.ZoneAvionics],
+		"bulletCrit": sim.BulletZoneOdds[sim.ZoneCrit], "bulletEngine": sim.BulletZoneOdds[sim.ZoneEngine],
+		"bulletControls": sim.BulletZoneOdds[sim.ZoneControls], "bulletAvionics": sim.BulletZoneOdds[sim.ZoneAvionics],
+
 		"bombRadius": sim.BombRadius, "bombStructDmg": sim.BombStructDmg, "bombPlaneDmg": sim.BombPlaneDmg,
 		"structCannonMul": sim.StructCannonMul, "aaRange": sim.AARange, "aaDmg": sim.AADmg, "aaShotsPerS": ticks / sim.AAInterval,
 		"hangars": maps.HangarCount,

@@ -1,4 +1,5 @@
 // The local plane: input sequencing, prediction and own muzzle tracers.
+import { damagedSpec, unpackDamage } from "./damage.ts";
 import type { AircraftInfo, ClientMsg, PlaneJSON } from "../net/protocol.ts";
 import { Predictor, type FlightEnv } from "../predict/predictor.ts";
 import { DT, type FlightState, type StickInput } from "../sim/flight.ts";
@@ -65,8 +66,9 @@ export class OwnPlane {
     this.turbo = !!p.tb;
     this.overheated = p.oh;
     const fs = toFlight(p);
-    const spec = aircraft.get(p.k);
-    if (!spec) return false;
+    const info = aircraft.get(p.k);
+    if (!info) return false;
+    const spec = damagedSpec(info, unpackDamage(p.dm)); // the server flies a hit engine or controls with this
     if (!this.pred || !this.alive || spawned || p.k !== this.kind) {
       if (this.pred) this.pred.setSpec(spec);
       else this.pred = new Predictor(spec);
@@ -79,6 +81,7 @@ export class OwnPlane {
       this.lastSpin = qIdentity();
       return true;
     }
+    this.pred.setSpec(spec);
     this.pred.reconcile(fs, ack, tick, this.envOf(this.turbo));
     return false;
   }
