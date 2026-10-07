@@ -5,8 +5,21 @@ import { stepFlight, type FlightMods, type FlightState, type Spec, type StickInp
 import type { GroundSample } from "../sim/ground.ts";
 import { add, len, qConj, qIdentity, qMul, qNorm, qSlerp, scale, sub, v3, type Q, type V3 } from "../sim/vec.ts";
 
-const SMOOTH_S = 0.1;  // visual correction time constant
-const TELEPORT_M = 50; // larger corrections snap instead of smoothing
+// A correction is drawn over a time that grows with its size: a small one
+// settles fast, a large one (after a stall) glides instead of jumping.
+const SMOOTH_MIN_S = 0.15; // time constant for corrections up to SMALL_M
+const SMOOTH_MAX_S = 0.6;  // time constant for corrections from LARGE_M up
+const SMALL_M = 1;
+const LARGE_M = 40;
+const ROT_SMOOTH_S = 0.15;              // attitude correction time constant...
+const ROT_RATE = (120 * Math.PI) / 180; // ...but never faster than this (rad/s): the nose does not whip
+const TELEPORT_M = 150; // a correction this large snaps (respawn and kind change reset anyway)
+
+/** Time constant (s) of a position correction of m metres. */
+export function smoothTime(m: number): number {
+  const f = Math.min(Math.max((m - SMALL_M) / (LARGE_M - SMALL_M), 0), 1);
+  return SMOOTH_MIN_S + f * (SMOOTH_MAX_S - SMOOTH_MIN_S);
+}
 
 /** What the world adds to a flight step: turbo, the ground under a point, the wind at a world tick. */
 export type FlightEnv = { turbo: boolean; ground(x: number, z: number): GroundSample; wind(tick: number): V3 };
@@ -16,8 +29,11 @@ function mods(env: FlightEnv, fs: FlightState, tick: number): FlightMods {
   return { turbo: env.turbo, wind: env.wind(tick), ground: env.ground(fs.pos.x, fs.pos.z) };
 }
 
-/** Render pos − physics pos and drawn rot = rotOffset * physics rot, fading with SMOOTH_S. */
-class FlightSmoother implements Smoother<FlightState> {
+/**
+ * Render pos − physics pos and drawn rot = rotOffset * physics rot, fading
+ * with a size-scaled time constant (position) and a rate-limited one (attitude).
+ */
+export class FlightSmoother implements Smoother<FlightState> {
   private offset: V3 = v3(0, 0, 0);
   private rotOffset: Q = qIdentity();
 
@@ -29,9 +45,12 @@ class FlightSmoother implements Smoother<FlightState> {
   }
 
   draw(s: FlightState, dtS: number): FlightState {
-    const k = Math.exp(-dtS / SMOOTH_S);
-    this.offset = scale(this.offset, k);
-    this.rotOffset = qSlerp(qIdentity(), this.rotOffset, k);
+    this.offset = scale(this.offset, Math.exp(-dtS / smoothTime(len(this.offset))));
+    const a = qAngle(this.rotOffset);
+    if (a > 1e-9) {
+      const left = Math.max(a * Math.exp(-dtS / ROT_SMOOTH_S), a - ROT_RATE * dtS);
+      this.rotOffset = qSlerp(qIdentity(), this.rotOffset, left / a);
+    }
     return { ...s, pos: add(s.pos, this.offset), rot: qNorm(qMul(this.rotOffset, s.rot)) };
   }
 
@@ -39,6 +58,11 @@ class FlightSmoother implements Smoother<FlightState> {
     this.offset = v3(0, 0, 0);
     this.rotOffset = qIdentity();
   }
+}
+
+/** Rotation angle of a unit quaternion (radians, shortest arc). */
+function qAngle(q: Q): number {
+  return 2 * Math.acos(Math.min(1, Math.abs(q.w)));
 }
 
 export class Predictor {

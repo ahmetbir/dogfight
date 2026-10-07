@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Predictor, type FlightEnv } from "./predictor.ts";
+import { Predictor, smoothTime, type FlightEnv } from "./predictor.ts";
 import { AIR_ENV } from "../game/env.ts";
 import { stepFlight, type FlightState, type Spec, type StickInput } from "../sim/flight.ts";
 import { add, dist, qAxisAngle, qIdentity, qMul, v3, type Q } from "../sim/vec.ts";
@@ -29,26 +29,52 @@ test("reconcile replays unacked inputs onto the server state exactly", () => {
   }
 });
 
-test("a 10 m server correction fades below 1 m within 300 ms", () => {
+/** Drawn − physics distance per frame after a correction of off metres along x. */
+function fade(off: number, frames: number): number[] {
   const pr = new Predictor(F16);
   pr.reset(start());
   pr.push(1, input(1), 1, AIR_ENV);
   const server = pr.state();
-  pr.reconcile({ ...server, pos: add(server.pos, v3(10, 0, 0)) }, 1, 1, AIR_ENV);
-  assert.ok(dist(pr.state().pos, add(server.pos, v3(10, 0, 0))) < 1e-9, "physics snaps to server");
+  pr.reconcile({ ...server, pos: add(server.pos, v3(off, 0, 0)) }, 1, 1, AIR_ENV);
   assert.ok(dist(pr.render(0).pos, server.pos) < 1e-9, "render starts at the old position");
-  let off = Infinity;
-  for (let t = 0; t < 18; t++) { // 18 frames x 1/60 s = 300 ms
-    const r = pr.render(1 / 60);
-    off = dist(r.pos, pr.state().pos);
-  }
-  assert.ok(off < 1, `offset after 300 ms = ${off}`);
+  const out: number[] = [];
+  for (let f = 0; f < frames; f++) out.push(dist(pr.render(1 / 60).pos, pr.state().pos));
+  return out;
+}
+
+test("smoothing time grows with the correction: 0.15 s small, 0.6 s large", () => {
+  assert.equal(smoothTime(0.5), 0.15);
+  assert.equal(smoothTime(1), 0.15);
+  assert.equal(smoothTime(40), 0.6);
+  assert.equal(smoothTime(140), 0.6);
+  assert.ok(smoothTime(10) > 0.15 && smoothTime(10) < smoothTime(20) && smoothTime(20) < 0.6);
 });
 
-test("corrections over 50 m teleport", () => {
+test("a 0.8 m correction decays with a 0.15 s time constant", () => {
+  const d = fade(0.8, 9); // 9 frames = 0.15 s
+  assert.ok(Math.abs(d[8] - 0.8 / Math.E) < 1e-6, `${d[8]}`);
+});
+
+test("a 10 m correction fades below 1 m within 600 ms", () => {
+  const d = fade(10, 36);
+  assert.ok(d[35] < 1, `offset after 600 ms = ${d[35]}`);
+});
+
+test("a 100 m correction glides: no frame moves more than 100 m × dt / 0.6 s", () => {
+  const d = fade(100, 180);
+  let prev = 100;
+  for (const x of d) {
+    assert.ok(prev - x <= (100 / 60) / 0.6 + 1e-9, `step ${prev - x} m`);
+    prev = x;
+  }
+  assert.ok(d[0] > 95, "not teleported");
+  assert.ok(d[179] < 2, `offset after 3 s = ${d[179]}`);
+});
+
+test("corrections over 150 m teleport", () => {
   const pr = new Predictor(F16);
   pr.reset(start());
-  const far = { ...start(), pos: v3(0, 1500, -60) };
+  const far = { ...start(), pos: v3(0, 1500, -160) };
   pr.reconcile(far, 0, 0, AIR_ENV);
   assert.deepEqual(pr.render(0).pos, far.pos);
 });
@@ -79,17 +105,34 @@ test("without corrections the drawn rotation equals the predicted one", () => {
   }
 });
 
-test("a rotation correction starts at the old attitude and converges within 300 ms", () => {
+/** Drawn − physics attitude angle per frame after a correction of rad about the roll axis. */
+function turnFade(rad: number, frames: number): number[] {
   const pr = new Predictor(F16);
   pr.reset(start());
   pr.push(1, input(1), 1, AIR_ENV);
   const old = pr.state();
-  const jumped = { ...old, rot: qMul(qAxisAngle(v3(0, 0, 1), 0.5), old.rot) };
-  pr.reconcile(jumped, 1, 1, AIR_ENV);
+  pr.reconcile({ ...old, rot: qMul(qAxisAngle(v3(0, 0, 1), rad), old.rot) }, 1, 1, AIR_ENV);
   assert.ok(qAngle(pr.render(0).rot, old.rot) < 1e-9, "drawn rot starts at the old value");
-  let err = Infinity;
-  for (let t = 0; t < 18; t++) err = qAngle(pr.render(1 / 60).rot, pr.state().rot);
-  assert.ok(err < 0.5 * 0.06, `residual ${err} rad after 300 ms`);
+  const out: number[] = [];
+  for (let f = 0; f < frames; f++) out.push(qAngle(pr.render(1 / 60).rot, pr.state().rot));
+  return out;
+}
+
+test("a rotation correction converges within 600 ms", () => {
+  const e = turnFade(0.5, 36);
+  assert.ok(e[35] < 0.5 * 0.06, `residual ${e[35]} rad after 600 ms`);
+});
+
+test("attitude corrections are rate limited to 120°/s", () => {
+  const limit = (120 * Math.PI) / 180 / 60 + 1e-9;
+  for (const rad of [0.3, 1, 2.5]) {
+    let prev = rad;
+    for (const e of turnFade(rad, 150)) {
+      assert.ok(prev - e <= limit, `${rad} rad: frame step ${prev - e} rad`);
+      prev = e;
+    }
+    assert.ok(prev < 0.01, `${rad} rad: residual ${prev} after 2.5 s`);
+  }
 });
 
 test("pending inputs are capped at 120 (no growth while acks stall)", () => {
