@@ -12,7 +12,7 @@ const G = 9.81;
 const G_SMOOTH = 0.2;     // per tick low-pass of the g meter
 
 export type Sender = { send(m: ClientMsg): boolean };
-export type Controls = { stick: StickInput; fire: boolean; missile: boolean; flare: boolean; bomb: boolean };
+export type Controls = { stick: StickInput; fire: boolean; missile: boolean; flare: boolean; bomb: boolean; sel?: number };
 export type Shot = { pos: V3; vel: V3 };
 
 export class OwnPlane {
@@ -96,7 +96,7 @@ export class OwnPlane {
     const seq = this.seq + 1;
     const s = c.stick;
     const sent = out.send({ t: "in", seq, p: s.p, r: s.r, y: s.y, th: s.th, ab: s.ab, f: c.fire, m: c.missile, fl: c.flare,
-      g: !!s.g, br: !!s.br, bo: c.bomb });
+      g: !!s.g, br: !!s.br, bo: c.bomb, ...(c.sel ? { sel: c.sel } : {}) });
     if (!sent) return null;
     this.seq = seq;
     this.th = s.th;

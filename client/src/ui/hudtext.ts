@@ -5,7 +5,7 @@ import { lt, type Key } from "../i18n/index.ts";
 import { abHeat, AbHeatBar } from "./abheat.ts";
 import { h, text } from "./dom.ts";
 import { FlightLights } from "./flightlights.ts";
-import { missileText, ranges } from "./loadout.ts";
+import { ammoParts, ranges } from "./loadout.ts";
 import { formatDist } from "./reticle.ts";
 
 export class Gauges {
@@ -21,7 +21,8 @@ export class Gauges {
   private readonly heatFill = h("div", { class: "bar-fill" });
   private readonly heatBar = h("div", { class: "bar heat" }, this.heatFill);
   private readonly range = h("span", { class: "g-num range" });
-  private readonly ms = h("span", { class: "g-big" });
+  private readonly ms = h("span", { class: "g-big g-ms" });
+  private msKey = "";
   private readonly fl = h("span", { class: "g-big" });
   private readonly lights = new FlightLights();
 
@@ -54,17 +55,29 @@ export class Gauges {
     this.heatFill.style.width = `${Math.round(Math.min(1, v.heat) * 100)}%`;
     this.heatBar.classList.toggle("over", v.overheated);
     text(this.range, rangeText(v));
-    text(this.ms, missileText(v.missiles, v.radars, v.loadout));
+    this.ammo(v);
     text(this.fl, String(v.flares));
     this.lights.update(v);
   }
+
+  /** "IR 2  RADAR 1": every kind aboard, the one the missile key fires lit. */
+  private ammo(v: HudView): void {
+    const parts = ammoParts(v.missiles, v.radars, v.loadout, v.fires);
+    const key = parts.map((p) => `${p.text}${p.on ? "*" : ""}`).join("|");
+    if (key === this.msKey) return;
+    this.msKey = key;
+    this.ms.replaceChildren(...parts.map((p) => h("span", { class: `g-kind g-kind-${p.kind}${p.on && parts.length > 1 ? " on" : ""}` }, p.text)));
+  }
 }
 
-/** The lock-range readout: the IR range, the radar range, or "IR / radar" with both kinds aboard. */
-export function rangeText(v: Pick<HudView, "lockRange" | "missiles" | "radars" | "loadout">): string {
+/**
+ * The lock-range readout: the IR range, the radar range, or with both kinds
+ * aboard the picked kind's range ("IR / radar" while the key picks by range).
+ */
+export function rangeText(v: Pick<HudView, "lockRange" | "missiles" | "radars" | "loadout" | "fires" | "picked">): string {
   if (v.lockRange <= 0) return "—";
   const r = ranges(v.lockRange);
   if (v.loadout === "radar") return formatDist(r.radar);
-  if (v.loadout === "mixed") return `${formatDist(r.ir)} / ${formatDist(r.radar)}`;
+  if (v.loadout === "mixed") return v.picked ? formatDist(r[v.fires]) : `${formatDist(r.ir)} / ${formatDist(r.radar)}`;
   return formatDist(r.ir);
 }

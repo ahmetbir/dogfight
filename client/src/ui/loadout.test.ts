@@ -2,7 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { MissileJSON } from "../net/protocol.ts";
 import { v3 } from "../sim/vec.ts";
-import { beamCue, incoming, incomingIR, kindOf, loadoutCounts, loadoutOf, missileText, reach, ranges, warnText } from "./loadout.ts";
+import {
+  ammoParts, beamCue, incoming, incomingIR, kindOf, loadoutCounts, loadoutOf, missileText, otherKind, PICK_WIRE, pickedKind, reach, ranges, warnText,
+} from "./loadout.ts";
 
 test("loadout counts mirror sim.LoadoutCounts (same table as the Go test)", () => {
   const want: Record<number, [[number, number], [number, number], [number, number]]> = {
@@ -49,4 +51,31 @@ test("incoming kind, the IR-only flare distance and the beam cue", () => {
   assert.equal(incoming(me, [], 1), null);
   assert.equal(warnText({ kind: "radar", dist: 1200 }, (d) => `${d} m`), "FÜZE UYARISI · RADAR · 1200 m");
   assert.equal(warnText(null, String), "FÜZE UYARISI");
+});
+
+test("a pick fires its kind while it lasts, the other after (sim.pickedKind)", () => {
+  assert.equal(pickedKind("ir", 2, 1), "ir");
+  assert.equal(pickedKind("radar", 2, 1), "radar");
+  assert.equal(pickedKind("ir", 0, 1), "radar");
+  assert.equal(pickedKind("radar", 2, 0), "ir");
+  assert.equal(pickedKind("ir", 0, 0), "ir");
+  assert.equal(pickedKind("radar", 0, 0), "radar");
+  assert.equal(otherKind("ir"), "radar");
+  assert.deepEqual(PICK_WIRE, { ir: 1, radar: 2 }); // sim.PickIR, sim.PickRadar
+});
+
+test("HUD ammo: each kind aboard with its count, the fired one on", () => {
+  assert.deepEqual(ammoParts(5, 0, "ir", "ir"), [{ kind: "ir", text: "IR 5", on: true }]);
+  assert.deepEqual(ammoParts(0, 2, "radar", "radar"), [{ kind: "radar", text: "RADAR 2", on: true }]);
+  assert.deepEqual(ammoParts(2, 1, "mixed", "radar"), [
+    { kind: "ir", text: "IR 2", on: false }, { kind: "radar", text: "RADAR 1", on: true },
+  ]);
+});
+
+test("lock range readout: Mixed shows the picked kind's range, both without a pick", async () => {
+  const { rangeText } = await import("./hudtext.ts");
+  const v = { lockRange: 1000, missiles: 2, radars: 1, loadout: "mixed" as const, fires: "radar" as const };
+  assert.equal(rangeText({ ...v, picked: true }), rangeText({ ...v, loadout: "radar", picked: false }));
+  assert.ok(rangeText({ ...v, picked: false }).includes(" / "));
+  assert.equal(rangeText({ ...v, fires: "ir", picked: true }), rangeText({ ...v, loadout: "ir", picked: false }));
 });

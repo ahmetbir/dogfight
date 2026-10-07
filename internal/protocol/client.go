@@ -61,11 +61,12 @@ type ClientMsg struct {
 	F     bool    `json:"f,omitempty"`
 	M     bool    `json:"m,omitempty"`
 	FL    bool    `json:"fl,omitempty"`
-	G     bool    `json:"g,omitempty"`  // in: gear down wanted
-	BR    bool    `json:"br,omitempty"` // in: wheel brakes held
-	BO    bool    `json:"bo,omitempty"` // in: drop a bomb (one-shot)
-	TS    float64 `json:"ts,omitempty"` // ping
-	Chat  int     `json:"id,omitempty"` // chat: preset 1..ChatMax
+	G     bool    `json:"g,omitempty"`   // in: gear down wanted
+	BR    bool    `json:"br,omitempty"`  // in: wheel brakes held
+	BO    bool    `json:"bo,omitempty"`  // in: drop a bomb (one-shot)
+	Sel   uint8   `json:"sel,omitempty"` // in: missile kind picked, 1 IR, 2 radar (held; missing: auto)
+	TS    float64 `json:"ts,omitempty"`  // ping
+	Chat  int     `json:"id,omitempty"`  // chat: preset 1..ChatMax
 }
 
 var (
@@ -128,7 +129,7 @@ func (m ClientMsg) Input() sim.Input {
 	return sim.Input{
 		Pitch: m.P, Roll: m.R, Yaw: m.Y, Throttle: m.Th,
 		AB: m.AB, Fire: m.F, Missile: m.M, Flare: m.FL,
-		Gear: m.G, Brake: m.BR, Bomb: m.BO,
+		Gear: m.G, Brake: m.BR, Bomb: m.BO, Pick: sim.MissilePick(m.Sel),
 	}.Clamp()
 }
 

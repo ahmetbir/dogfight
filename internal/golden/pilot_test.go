@@ -49,7 +49,7 @@ func (p *autoPilot) input(snap protocol.Snap, seq uint32) protocol.ClientMsg {
 		}
 	}
 	return protocol.ClientMsg{T: protocol.TIn, Seq: seq, P: in.Pitch, R: in.Roll, Y: in.Yaw, Th: in.Throttle,
-		AB: in.AB, F: in.Fire, M: in.Missile, FL: in.Flare, G: in.Gear, BR: in.Brake, BO: in.Bomb}
+		AB: in.AB, F: in.Fire, M: in.Missile, FL: in.Flare, G: in.Gear, BR: in.Brake, BO: in.Bomb, Sel: uint8(in.Pick)}
 }
 
 // world rebuilds the part of the sim snapshot a brain reads from the wire.

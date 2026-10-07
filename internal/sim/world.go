@@ -223,7 +223,7 @@ func (w *World) Step(inputs map[ID]Input) []Event {
 		p.Heat = max(0, p.Heat-HeatCool*Dt)
 		ready := weaponClocks(p)
 		w.fireCannon(p, in, &evs)
-		w.updateLock(p, &evs)
+		w.updateLock(p, in.Pick, &evs)
 		w.fireMissile(p, in, &evs)
 		w.dropFlare(p, in, &evs)
 		w.dropBomb(p, in, &evs)

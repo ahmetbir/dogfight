@@ -140,6 +140,50 @@ func TestMixedSelection(t *testing.T) {
 	}
 }
 
+// A picked kind fires that kind while it lasts and the other one after,
+// and locks only at its own range: picked IR does not lock beyond IR range.
+func TestPickedKind(t *testing.T) {
+	const noFire = MissileKind(255)
+	irRange := SpecOf(F15).LockRange
+	cases := []struct {
+		name        string
+		pick        MissilePick
+		dz          float64
+		noIR, noRad bool
+		kind        MissileKind // fired; noFire: no lock at all
+	}{
+		{"IR close", PickIR, -irRange * 0.6, false, false, MissileIR},
+		{"IR far", PickIR, -irRange * 1.8, false, false, noFire},
+		{"radar close", PickRadar, -irRange * 0.6, false, false, MissileRadar},
+		{"radar close, radar empty", PickRadar, -irRange * 0.6, false, true, MissileIR},
+		{"IR far, IR empty", PickIR, -irRange * 1.8, true, false, MissileRadar},
+	}
+	for _, c := range cases {
+		w, hold := duelWorld(LoadMixed, c.dz)
+		if c.noIR {
+			w.planes[1].Missiles = 0
+		}
+		if c.noRad {
+			w.planes[1].Radars = 0
+		}
+		fired := noFire
+		for i := 0; i < 4*60 && fired == noFire; i++ {
+			hold()
+			for _, e := range w.Step(map[ID]Input{1: {Throttle: 1, Missile: true, Pick: c.pick}}) {
+				if e.Kind == EvMissileLaunch {
+					fired = e.Missile
+				}
+			}
+		}
+		if fired != c.kind {
+			t.Errorf("%s: fired %v, want %v", c.name, fired, c.kind)
+		}
+	}
+	if (Input{Pick: 7}).Clamp().Pick != PickAuto {
+		t.Fatal("an unknown pick must fall back to auto")
+	}
+}
+
 // radarChase puts a radar missile of plane 1 behind plane 2 and steps n
 // ticks; set places the planes before each tick.
 func radarChase(kind MissileKind, set func(w *World)) (w *World, m *Missile) {

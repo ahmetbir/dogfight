@@ -18,14 +18,14 @@ export const GEAR_KEYS = GEAR;
 /** Mouse aim: the mouse aims, these keys do the rest. Mouse0 also counts while the left button is held. */
 export const MOUSE_KEYS = {
   throttleUp: ["KeyW"], throttleDown: ["KeyS"], ab: ["ShiftLeft", "ShiftRight"], rollLeft: ["KeyA"], rollRight: ["KeyD"],
-  fire: ["Mouse0"], missile: ["Mouse2", "KeyE"], flare: ["Space"], gear: GEAR, brake: BRAKE, bomb: ["KeyH", "Mouse1"],
+  fire: ["Mouse0"], missile: ["Mouse2", "KeyE"], pick: ["KeyQ"], flare: ["Space"], gear: GEAR, brake: BRAKE, bomb: ["KeyH", "Mouse1"],
   lookBack: LOOK,
 } as const satisfies Record<string, Codes>;
 
 /** Keyboard: pitchDown is W by default (flight-sim convention; "Y ters" swaps pitch). */
 export const KEYBOARD_KEYS = {
   pitchDown: ["KeyW"], pitchUp: ["KeyS"], rollLeft: ["KeyA"], rollRight: ["KeyD"], yawLeft: ["KeyQ"], yawRight: ["KeyE"],
-  throttleUp: ["KeyR"], throttleDown: ["KeyF"], ab: ["KeyX"], fire: ["Space"], missile: ["KeyV"], flare: ["KeyG"],
+  throttleUp: ["KeyR"], throttleDown: ["KeyF"], ab: ["KeyX"], fire: ["Space"], missile: ["KeyV"], pick: ["KeyZ"], flare: ["KeyG"],
   gear: GEAR, brake: BRAKE, bomb: ["KeyH"], lookBack: LOOK,
 } as const satisfies Record<string, Codes>;
 
@@ -60,9 +60,9 @@ export type Scheme = "mouse" | "keyboard" | "touch";
 
 const REPLAY_S = Math.round(REPLAY_MS / 1000);
 /*
- * One missile key for every loadout (no kind toggle): it fires what the lock
- * is for. Mixed locks radar beyond the IR range, IR inside it (radar too
- * when the IR missiles are gone): sim lockKind.
+ * The missile key fires the picked kind (pick toggles IR / radar; it matters
+ * with Karışık, sim pickedKind). Touch has no pick key: Karışık there locks
+ * radar beyond the IR range, IR inside it (sim lockKind).
  */
 const flat = (m: Record<string, Codes>) => Object.values(m).flat();
 
@@ -95,7 +95,8 @@ export function keyRows(scheme: Scheme): KeyRow[] {
     return [
       [keys(k.pitchDown, k.pitchUp), t("row.pitch")], [keys(k.rollLeft, k.rollRight), t("row.roll")],
       [keys(k.yawLeft, k.yawRight), t("row.yaw")], [keys(k.throttleUp, k.throttleDown), t("row.throttleKeys")], [keys(k.ab), t("row.ab")],
-      [keys(k.fire), t("row.gun")], [keys(k.missile), t("row.missile")], [keys(k.flare), t("row.flare")], [keys(k.gear), t("row.gear")],
+      [keys(k.fire), t("row.gun")], [keys(k.missile), t("row.missile")], [keys(k.pick), t("row.pickKind")], [keys(k.flare), t("row.flare")],
+      [keys(k.gear), t("row.gear")],
       [keys(k.brake), t("row.brake")], [keys(k.bomb), t("row.bomb")], ...commonRows(k),
     ];
   }
@@ -103,7 +104,7 @@ export function keyRows(scheme: Scheme): KeyRow[] {
   return [
     [t("row.mouse"), t("row.aim")], [keys(m.throttleUp, m.throttleDown), t("row.throttleKeys")], [keys(m.ab), t("row.ab")],
     [keys(m.rollLeft, m.rollRight), t("row.rollExtra")], [keys(m.fire), t("row.gun")],
-    [keys(m.missile), t("row.missileMouse", { missile: t("row.missile") })], [keys(m.flare), t("row.flare")],
+    [keys(m.missile), t("row.missileMouse", { missile: t("row.missile") })], [keys(m.pick), t("row.pickKind")], [keys(m.flare), t("row.flare")],
     [keys(m.gear), t("row.gear")], [keys(m.brake), t("row.brake")], [keys(m.bomb), t("row.bomb")], ...commonRows(m),
   ];
 }

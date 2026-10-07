@@ -55,6 +55,7 @@ export type In = {
   g?: boolean;  // gear down wanted
   br?: boolean; // wheel brakes held
   bo?: boolean; // drop a bomb
+  sel?: number; // missile kind picked: 1 IR, 2 radar (held; missing: auto, the Karışık rule)
 };
 export type Ping = { t: "ping"; ts: number };
 export type ClientMsg = Hello | Create | Join | Quick | Pick | In | Ping | Chat | TeamMsg;

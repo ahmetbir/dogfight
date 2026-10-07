@@ -18,7 +18,7 @@ const effect: Record<string, (f: Frame) => boolean> = {
   rollLeft: (f) => f.stick.r < 0, rollRight: (f) => f.stick.r > 0, pitchDown: (f) => f.stick.p < 0, pitchUp: (f) => f.stick.p > 0,
   yawLeft: (f) => f.stick.y < 0, yawRight: (f) => f.stick.y > 0, fire: (f) => f.fire, missile: (f) => f.missile,
   flare: (f) => f.flare, gear: (f) => f.stick.g === true, brake: (f) => f.stick.br === true, bomb: (f) => f.bomb,
-  lookBack: (f) => f.lookBack,
+  lookBack: (f) => f.lookBack, pick: (f) => f.pick === true,
 };
 
 test("every listed binding drives its action in the scheme", () => {

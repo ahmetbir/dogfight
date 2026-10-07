@@ -19,6 +19,35 @@ func (k MissileKind) LockSeconds() float64 {
 	return LockSeconds
 }
 
+// MissilePick is the missile kind a pilot chose: PickAuto keeps the
+// Karışık rule (lockKind), PickIR and PickRadar fire that kind while it
+// lasts and the other one after.
+type MissilePick uint8
+
+const (
+	PickAuto MissilePick = iota
+	PickIR
+	PickRadar
+)
+
+// pickedKind is the kind pick fires with the missiles p has left; ok is
+// false for PickAuto.
+func pickedKind(p *Plane, pick MissilePick) (k MissileKind, ok bool) {
+	switch pick {
+	case PickIR:
+		if p.Missiles > 0 || p.Radars <= 0 {
+			return MissileIR, true
+		}
+		return MissileRadar, true
+	case PickRadar:
+		if p.Radars > 0 || p.Missiles <= 0 {
+			return MissileRadar, true
+		}
+		return MissileIR, true
+	}
+	return MissileIR, false
+}
+
 // lockKind is the kind the missile key fires at a target dist away: radar
 // when the target is beyond the IR range irRange or no IR missile is left
 // (and a radar one is), IR otherwise (Karışık selection rule).

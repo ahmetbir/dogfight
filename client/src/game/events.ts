@@ -16,6 +16,8 @@ export type HudView = {
   lockRange: number;             // my effective (IR) lock range (m): aircraft × weather; radar is ×RULES.radarRangeMul
   radars: number; loadout: Loadout; // radar missiles left (missiles: the IR ones); this sortie's loadout
   lockKind: "ir" | "radar";      // the kind my lock is for (what the missile key fires)
+  fires: "ir" | "radar";         // the kind the missile key fires now: the pick, or the lock's kind without one
+  picked: boolean;               // the kind is picked by the pick key (mouse, keyboard); touch picks by range
   gear: boolean; gearWanted: boolean; // gear down (actual) and as commanded
   brake: boolean; onGround: boolean;  // wheel brakes held; rolling on the wheels
   rearm: number; bombs: number;       // rearm progress 0..1; bombs left
