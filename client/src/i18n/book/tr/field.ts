@@ -69,7 +69,7 @@ export const field: Field = {
     p(b("KORUMA"), ": doğuş ya da yer koruması sürüyor. ", b("İsim etiketleri"), ": düşman adı yalnız ", dist(TAG_NEAR_M),
       " içinde ya da top hattının ", deg(TAG_GUN_RAD), " yakınında ve ", dist(TAG_GUN_M), " altındaysa görünür; dostlar her zaman."),
     p("Ekran kırmızı yanıp sönerse isabet aldın; ekranın ortasındaki küçük işaret isabet ettirdiğini gösterir. Can azalınca CAN çubuğu kırmızıya döner."),
-    p(b("Bağlantı"), ": radarın altındaki (telefon ve tablette yanındaki) çubuklar sunucuyla bağlantını gösterir: her şey yolundaysa dört yeşil çubuk, sonra orta, zayıf; ",
+    p(b("Bağlantı"), ": skorun altındaki çubuklar sunucuyla bağlantını gösterir: her şey yolundaysa dört yeşil çubuk, sonra orta, zayıf; ",
       "sunucu sustuğunda tek kırmızı çubuk. Gidiş-dönüş süresi (ms) için üstüne gel ya da dokun; bağlantı iyi değilse ms kendiliğinden görünür. Sunucudan ",
       sec(UNSTABLE_MS / 1000), " ses çıkmazsa skorun altında ", b(t("conn.unstable")), " yazar. Uçağın o sırada sunucunun aldığı son girdiyle uçmaya devam eder; ",
       "bağlantı dönünce sunucudaki yerine sıçramadan süzülür."),

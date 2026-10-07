@@ -75,8 +75,8 @@ export class Hud {
     this.state = state;
     this.menuOpen = menuOpen;
     this.el = h("div", { class: "hud" }, this.gfx.el, this.flash, this.reticle.el,
-      h("div", { class: "hud-top" }, this.objective.el, this.score, this.conn.banner, this.warn, this.flare.cue, this.flare.beam),
-      this.radar.el, this.conn.el, this.feed.el,
+      h("div", { class: "hud-top" }, this.objective.el, this.score, this.conn.el, this.conn.banner, this.warn, this.flare.cue, this.flare.beam),
+      this.radar.el, this.feed.el,
       h("div", { class: "hud-mid" }, this.center, this.sub, this.flare.note, this.outRange, this.prot, this.toast),
       this.hitMark, this.arrow, this.help.el, this.gauges.left, this.gauges.right, this.watch);
   }

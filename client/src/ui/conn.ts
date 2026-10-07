@@ -1,5 +1,5 @@
-// Connection indicator: signal bars in the HUD corner (the RTT on hover or
-// tap) and the "connection unstable" banner under the score line.
+// Connection indicator: signal bars under the score line (the RTT on hover or
+// tap, and whenever the link is not good) and the "connection unstable" banner.
 import { t } from "../i18n/index.ts";
 import type { LinkView, Quality } from "../net/link.ts";
 import { h, text } from "./dom.ts";

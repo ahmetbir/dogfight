@@ -53,9 +53,9 @@ Live demo: https://dogfight.ahmetbirinci.dev
   controls, flight, ground handling, weapons, HUD, game modes, the world and tips. It opens from
   the home page and from the in-game menu, and quotes gameplay numbers that tests keep in sync
   with the server.
-- **Connection indicator:** signal bars under the radar (beside it on touch screens; good / fair
-  / poor / lost from the round-trip time, server silence and lost snapshots; the RTT in ms on
-  hover or tap, and always when the link is not good) and a "connection unstable" banner after
+- **Connection indicator:** signal bars under the score line (good / fair / poor / lost from
+  the round-trip time, server silence and lost snapshots; the RTT in ms on hover or tap, and
+  always when the link is not good) and a "connection unstable" banner after
   1 s without server traffic. While inputs cannot reach the server, the own plane is predicted on
   the last input the server got, and the correction after a stall is drawn as a glide instead of
   a jump.

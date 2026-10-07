@@ -24,7 +24,6 @@
   .g-label.rearm-label { min-width: 70px; }
   .radar, .radar-canvas { width: 120px; height: 120px; }
   .radar { top: 10px; left: 10px; }
-  .hud-conn { top: 10px; left: 136px; } /* right of the radar: under it is the touch throttle */
   .killfeed { top: 10px; right: 10px; gap: 4px; }
   .kf-line { font-size: 11px; padding: 3px 8px; }
   .kf-name { max-width: 110px; }
@@ -44,7 +43,7 @@
 @media (max-width: 520px) {
   .hud-top { top: 152px; max-width: calc(100vw - 24px); }
   .hud-score { white-space: normal; text-align: center; }
-  .killfeed { max-width: calc(100vw - 210px); } /* clear of the radar and the connection bars */
+  .killfeed { max-width: calc(100vw - 150px); }
   .hud-panel { max-width: calc(50vw - 18px); }
   .hud-mid { top: 34%; }
   .ground-help { bottom: 170px; }
@@ -79,7 +78,6 @@
 body.touch .hud-right { right: 10px; bottom: auto; top: 96px; }
 body.touch.chat-open .hud-right { visibility: hidden; }
 body.touch .hud-left { left: 64px; }
-@media (min-width: 701px) and (min-height: 501px) { body.touch .hud-conn { top: 16px; left: 194px; } } /* right of the radar, clear of the throttle under it */
 body.touch .ground-help { bottom: auto; top: 22%; width: min(420px, 50vw); }
 body.touch .hud-mid { top: 36%; }
 /* the watching / replay label clears the MENÜ · UÇAK · SKOR · TEKRAR row */

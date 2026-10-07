@@ -44,8 +44,9 @@
 .radar-n { position: absolute; top: 3px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 700; color: var(--hud); }
 .radar-r { position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #c7d3df; }
 
-/* Connection: signal bars under the radar, the RTT on hover or tap; the banner under the score line. */
-.hud-conn { position: absolute; top: 206px; left: 16px; display: flex; align-items: flex-end; gap: 6px; padding: 4px 7px; border-radius: 7px; background: rgba(6, 12, 18, 0.42); pointer-events: auto; cursor: default; }
+/* Connection: signal bars centred under the score line (in its column, so never over it, the radar, the kill feed
+   or the touch controls), the RTT on hover or tap and whenever the link is not good; then the banner. */
+.hud-conn { display: flex; align-items: flex-end; gap: 6px; padding: 4px 7px; border-radius: 7px; background: rgba(6, 12, 18, 0.42); pointer-events: auto; cursor: default; }
 .conn-bars { display: flex; align-items: flex-end; gap: 2px; height: 14px; }
 .conn-bar { width: 4px; border-radius: 1px; background: rgba(255, 255, 255, 0.22); }
 .conn-bar.b1 { height: 4px; } .conn-bar.b2 { height: 7px; } .conn-bar.b3 { height: 10px; } .conn-bar.b4 { height: 14px; }
