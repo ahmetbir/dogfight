@@ -73,6 +73,20 @@ export const field: Field = {
       "sunucu sustuğunda tek kırmızı çubuk. Gidiş-dönüş süresi (ms) için üstüne gel ya da dokun; bağlantı iyi değilse ms kendiliğinden görünür. Sunucudan ",
       sec(UNSTABLE_MS / 1000), " ses çıkmazsa skorun altında ", b(t("conn.unstable")), " yazar. Uçağın o sırada sunucunun aldığı son girdiyle uçmaya devam eder; ",
       "bağlantı dönünce sunucudaki yerine sıçramadan süzülür."),
+    sub("Askerî HUD stili"),
+    p("Ayarlar → ", b("HUD stili"), " → ", b("Askerî"), ": gerçek bir savaş uçağı HUD'u gibi tek renkli, ince çizgili bir görünüm. Seçim tarayıcıda saklanır; ",
+      "renk (yeşil ya da kehribar) ve hız birimi (km/h ya da kt) de oradan seçilir. İrtifa metre, dikey hız m/s'dir."),
+    list(
+      [b("Üstte"), ": pusula şeridi (10°'de bir 01, 02 …) ve kutuda yön."],
+      [b("Solda"), ": hız kutusu; altında G, Mach (M), gaz (THR) ve AB yanarken ısısı."],
+      [b("Sağda"), ": irtifa kutusu; altında dikey hız (VS), takım (GEAR) ve fren (BRAKE)."],
+      [b("Ortada"), ": uçuş yolu işareti (kanatlı halka: uçağın gerçekten gittiği yön) ve çevresinde dar bir pencerede yunuslama merdiveni: ufka yakın 5°, ",
+        "ötesinde 10° basamak; ufkun altındakiler kesikli. Burun (—\\/\\/—) ve fare nişanı yalnız uçuş yolundan ayrıldıklarında çizilir."],
+      [b("Hedef"), ": kilit kurulurken hedefin çevresinde daralan bir baklava ve arayıcı konisi; kilitlenince baklava dolar ve LOCK yazar (radar kilidinde kesikli). ",
+        "Yanında füze türü ve mesafe (km), altında menzil çubuğu. Top hedefinde öndelik halkası; çevresindeki yay mesafeyle kısalır."],
+      [b("Sağ altta"), " (dokunmatikte sağ üstte): füzeler, menzil (RNG), flare (FLR), top ısısı (GUN), can (HP), hasar (ENG, CTL, AVN)."]),
+    p("Radar, skor, uyarılar ve olay akışı aynı yerlerinde, aynı renkte kalır. Açık gökyüzünde semboller arkalarındaki görüntüye göre hafif bir gölge, ",
+      "göstergeler de çok soluk bir zemin alır."),
   ],
 
   tips: () => [
