@@ -314,3 +314,20 @@ func TestRoundEndReturnsToLobby(t *testing.T) {
 		t.Fatalf("second round: %v players=%d", g.Round().Phase, len(g.Players()))
 	}
 }
+
+// SetHost hands the role to a seated human until it leaves; then the
+// earliest human is the host again.
+func TestSetHost(t *testing.T) {
+	g := lobbyGame(mode.FFA, 6)
+	a, _, c := seated(t, g, "a"), seated(t, g, "b"), seated(t, g, "c")
+	if g.SetHost(99) || g.Host() != a {
+		t.Fatal("no host from an empty seat")
+	}
+	if !g.SetHost(c) || g.Host() != c {
+		t.Fatalf("host %d, want %d", g.Host(), c)
+	}
+	g.RemoveHuman(c)
+	if g.Host() != a {
+		t.Fatalf("host %d after the named host left, want %d", g.Host(), a)
+	}
+}

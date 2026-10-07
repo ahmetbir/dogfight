@@ -218,3 +218,44 @@ func TestQuickPlaySkipsCreatedRooms(t *testing.T) {
 		}
 	})
 }
+
+// A host who drops and rejoins under its pilot token within
+// HostReturnTicks is the host again; later, or another pilot, is not.
+func TestHostReturnsAfterReconnect(t *testing.T) {
+	m := New(lobby2, nil)
+	host, _ := m.Join(room.Who{Name: "host", Pilot: "ph"})
+	friend, _ := m.Join(room.Who{Name: "friend", Pilot: "pf"})
+	m.Leave(host)
+	if m.g.Host() != sim.ID(friend) {
+		t.Fatal("the friend holds the room meanwhile")
+	}
+	stranger, _ := m.Join(room.Who{Name: "x", Pilot: "px"})
+	back, _ := m.Join(room.Who{Name: "host", Pilot: "ph"})
+	if m.g.Host() != sim.ID(back) || back <= stranger {
+		t.Fatalf("host %d, want the returning pilot %d", m.g.Host(), back)
+	}
+
+	late := New(lobby2, nil)
+	h, _ := late.Join(room.Who{Name: "host", Pilot: "ph"})
+	f, _ := late.Join(room.Who{Name: "friend", Pilot: "pf"})
+	late.Leave(h)
+	for range HostReturnTicks + 1 {
+		late.g.Step(nil)
+	}
+	if b, _ := late.Join(room.Who{Name: "host", Pilot: "ph"}); late.g.Host() != sim.ID(f) || b == f {
+		t.Fatal("a host back after the window takes the role over")
+	}
+}
+
+// A host whose new seat arrives before the old socket times out keeps the
+// role when the old seat leaves.
+func TestHostReconnectBeforeOldSeatLeaves(t *testing.T) {
+	m := New(lobby2, nil)
+	old, _ := m.Join(room.Who{Name: "host", Pilot: "ph"})
+	friend, _ := m.Join(room.Who{Name: "friend", Pilot: "pf"})
+	again, _ := m.Join(room.Who{Name: "host", Pilot: "ph"})
+	m.Leave(old)
+	if m.g.Host() != sim.ID(again) || again == friend {
+		t.Fatalf("host %d, want the new seat %d", m.g.Host(), again)
+	}
+}

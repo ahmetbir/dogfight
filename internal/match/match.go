@@ -62,7 +62,16 @@ type Match struct {
 	rosterVer int
 	round     roundKey
 	lobby     lobbyKey // last lobby state sent (lobby rooms only)
+	// The pilot (token hash) of a host who left, and the game tick it left:
+	// back within HostReturnTicks under a new seat, it is the host again.
+	hostPilot string
+	hostLeft  int
 }
+
+// HostReturnTicks is how long a host who dropped keeps the right to the
+// host role: the client's reconnect backoff (0.5, 1, 2, 4, 8, 8 … s)
+// rejoins within it, and the server idle-closes a silent socket at 30 s.
+const HostReturnTicks = 60 * tickRate
 
 // lobbyKey is what a lobby message carries, as a change detector.
 type lobbyKey struct {
@@ -109,6 +118,10 @@ func (m *Match) Join(who room.Who) (room.PlayerID, error) {
 		}
 	}
 	m.humans[id] = h
+	if who.Pilot != "" && who.Pilot == m.hostPilot && m.g.Tick()-m.hostLeft <= HostReturnTicks {
+		m.g.SetHost(id) // the host is back (a reconnect)
+		m.hostPilot = ""
+	}
 	return room.PlayerID(id), nil
 }
 
@@ -123,13 +136,31 @@ func (m *Match) Welcome(id room.PlayerID, code, newToken string, out room.Outbox
 	}
 }
 
+// Leave frees id's seat. A leaving host's pilot keeps the host role: at
+// once when the same pilot already sits again (it reconnected before the
+// old socket timed out), else when it rejoins within HostReturnTicks.
 func (m *Match) Leave(id room.PlayerID) {
 	sid := sim.ID(id)
-	if h, ok := m.humans[sid]; ok {
+	wasHost := m.g.Host() == sid
+	h, ok := m.humans[sid]
+	if ok {
 		m.leaveCount(sid, h)
 		delete(m.humans, sid)
 	}
 	m.g.RemoveHuman(sid)
+	if !wasHost || !ok || h.pilot == "" {
+		return
+	}
+	var again sim.ID // the earliest seat of the same pilot (map order is not defined)
+	for oid, o := range m.humans {
+		if o.pilot == h.pilot && (again == 0 || oid < again) {
+			again = oid
+		}
+	}
+	if again != 0 && m.g.SetHost(again) {
+		return
+	}
+	m.hostPilot, m.hostLeft = h.pilot, m.g.Tick()
 }
 
 func (m *Match) Handle(id room.PlayerID, msg protocol.ClientMsg, out room.Outbox) {

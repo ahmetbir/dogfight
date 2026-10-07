@@ -13,9 +13,13 @@ var (
 	ErrSideFull = errors.New("game: side has no free seat")
 )
 
-// Host is the room's host: the human who joined earliest among those still
-// seated (IDs only grow, so the lowest human ID). 0 when no human is seated.
+// Host is the room's host: the one SetHost named while seated, else the
+// human who joined earliest among those still seated (IDs only grow, so the
+// lowest human ID). 0 when no human is seated.
 func (g *Game) Host() sim.ID {
+	if p, ok := g.players[g.hostPin]; ok && !p.Bot {
+		return g.hostPin
+	}
 	var host sim.ID
 	for id, p := range g.players {
 		if !p.Bot && (host == 0 || id < host) {
@@ -23,6 +27,16 @@ func (g *Game) Host() sim.ID {
 		}
 	}
 	return host
+}
+
+// SetHost makes seated human id the host (a host's return under a new
+// seat); false when id is no seated human.
+func (g *Game) SetHost(id sim.ID) bool {
+	if p, ok := g.players[id]; !ok || p.Bot {
+		return false
+	}
+	g.hostPin = id
+	return true
 }
 
 // InLobby reports whether the room waits in the pre-match lobby.

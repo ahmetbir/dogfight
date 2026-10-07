@@ -86,6 +86,9 @@ func (g *Game) add(name string, team sim.Team, kind sim.Kind, isBot bool) sim.ID
 }
 
 func (g *Game) remove(id sim.ID) {
+	if g.hostPin == id {
+		g.hostPin = 0
+	}
 	delete(g.pending, id)
 	delete(g.players, id)
 	delete(g.bots, id)

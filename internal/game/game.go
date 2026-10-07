@@ -67,6 +67,7 @@ type Game struct {
 	hurtAt    map[sim.ID]int // tick a human's plane last took damage (team switch gate)
 	nextID    sim.ID
 	rosterVer int
+	hostPin   sim.ID // a host handed back by SetHost (0: the earliest human)
 
 	tick     int // own monotonic counter; advances while Ended too
 	phase    Phase
