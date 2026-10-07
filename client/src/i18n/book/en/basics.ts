@@ -59,7 +59,8 @@ export const basics: Basics = {
       [b("G effects"), ": the screen edges dim at high G and redden at negative G (visual only)."],
       [b("Missile camera"), ": follows the missile you fired in a small window."],
       [b("Performance mode"), ": fewer clouds, less rain and fewer particles, for smoother play on weaker devices."],
-      [b("Tilt aim"), ": on touch, tilt the device to aim while the stick is idle."]),
+      [b("Tilt aim"), ": on touch, tilt the device to aim while the stick is idle."],
+      [b("HUD style"), ": Classic (default) or Military: one colour and thin lines, like a real fighter's HUD. Military also picks the colour (green, amber) and the speed unit (km/h, kt) (see the HUD chapter)."]),
     note("tip", "On a Mac trackpad, fire missiles with a two-finger click or ctrl+click."),
   ],
 

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { V3 } from "../sim/vec.ts";
+import { LumaProbe } from "./luma.ts";
 
 /** Owns the WebGL renderer, the scene and the main camera. */
 export class Renderer {
@@ -10,6 +11,7 @@ export class Renderer {
   private w = 0;
   private h = 0;
   private readonly tmp = new THREE.Vector3();
+  private probe: LumaProbe | null = null;
 
   /** perf: performance mode, pixel ratio 1. */
   constructor(canvas: HTMLCanvasElement, perf = false) {
@@ -61,6 +63,17 @@ export class Renderer {
     g.render(this.scene, cam);
     g.setViewport(0, 0, this.w, this.h);
     g.setScissorTest(false);
+  }
+
+  /**
+   * The luma grid of what was drawn (render/luma.ts), sampled a few times a
+   * second without waiting on the GPU; call after the frame is rendered.
+   * null until the first read lands.
+   */
+  backdrop(now: number): Float32Array | null {
+    this.probe ??= new LumaProbe(this.gl.getContext() as WebGL2RenderingContext);
+    this.probe.capture(now);
+    return this.probe.current();
   }
 
   /** World point → CSS px on the canvas as of the last render; null when behind the camera. */

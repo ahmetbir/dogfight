@@ -11,21 +11,28 @@ import { TouchScheme, type TouchState } from "./touch.ts";
  * perf: performance mode (lighter rendering); tilt: aim by tilting the device
  * (touch scheme only); lever: mouse aim as a lever (mouse scheme only): the
  * aim keeps its offset from the nose, so a held offset keeps the plane turning.
+ * hud: the HUD style (classic, or the monochrome military one); hudColor and
+ * speedUnit belong to the military style.
  */
 export type Settings = {
   scheme: "mouse" | "keyboard" | "touch"; sensitivity: number; invertY: boolean; volume: number; gfx: boolean;
   missileCam: boolean; perf: boolean; tilt: boolean; lever: boolean;
+  hud: "classic" | "military"; hudColor: "green" | "amber"; speedUnit: "kmh" | "kt";
 };
 
 /** Defaults for a fine (mouse) or coarse (touch) pointer. */
 export function defaultSettings(coarse: boolean): Settings {
-  return { scheme: coarse ? "touch" : "mouse", sensitivity: 1, invertY: false, volume: 0.8, gfx: true, missileCam: !coarse, perf: coarse, tilt: false, lever: false };
+  return { scheme: coarse ? "touch" : "mouse", sensitivity: 1, invertY: false, volume: 0.8, gfx: true, missileCam: !coarse, perf: coarse, tilt: false, lever: false,
+    hud: "classic", hudColor: "green", speedUnit: "kmh" };
 }
 
 export const DEFAULT_SETTINGS: Settings = defaultSettings(false);
 
 const KEY = "dogfight.settings";
 const SCHEMES: readonly string[] = ["mouse", "keyboard", "touch"] satisfies Settings["scheme"][];
+const HUDS: readonly string[] = ["classic", "military"] satisfies Settings["hud"][];
+const HUD_COLORS: readonly string[] = ["green", "amber"] satisfies Settings["hudColor"][];
+const SPEED_UNITS: readonly string[] = ["kmh", "kt"] satisfies Settings["speedUnit"][];
 
 /** Whether the primary pointer is coarse (a touch screen); false where matchMedia is missing (tests). */
 function coarsePointer(): boolean {
@@ -49,6 +56,7 @@ export function loadSettings(store: Pick<Storage, "getItem"> | null = globalThis
   const num = (x: unknown, lo: number, hi: number, def: number) =>
     typeof x === "number" && Number.isFinite(x) ? Math.max(lo, Math.min(hi, x)) : def;
   const bool = (x: unknown, def: boolean) => (typeof x === "boolean" ? x : def);
+  const one = <T extends string>(x: unknown, of: readonly string[], def: T) => (typeof x === "string" && of.includes(x) ? (x as T) : def);
   return {
     scheme: typeof raw.scheme === "string" && SCHEMES.includes(raw.scheme) ? (raw.scheme as Settings["scheme"]) : d.scheme,
     sensitivity: num(raw.sensitivity, 0.1, 5, d.sensitivity),
@@ -59,6 +67,9 @@ export function loadSettings(store: Pick<Storage, "getItem"> | null = globalThis
     perf: bool(raw.perf, d.perf),
     tilt: bool(raw.tilt, d.tilt),
     lever: bool(raw.lever, d.lever),
+    hud: one(raw.hud, HUDS, d.hud),
+    hudColor: one(raw.hudColor, HUD_COLORS, d.hudColor),
+    speedUnit: one(raw.speedUnit, SPEED_UNITS, d.speedUnit),
   };
 }
 

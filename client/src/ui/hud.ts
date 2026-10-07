@@ -1,11 +1,14 @@
 // In-flight HUD overlay. Gauges and text refresh at 10 Hz; the projected
-// marks (reticle) move every frame.
+// marks (reticle) move every frame. Two styles: classic (default) and the
+// military one, whose symbology is one canvas (milhud.ts) and whose DOM parts
+// CSS restyles under .hud.mil.
 import type { GameHooks, HudView } from "../game/events.ts";
 import { enemyOnRadar } from "../game/sight.ts";
 import { threatened, type GameState } from "../game/state.ts";
 import { lt, t, type Key } from "../i18n/index.ts";
 import { fixed } from "../i18n/format.ts";
 import type { HitZone, Item, PlaneJSON, Team } from "../net/protocol.ts";
+import type { Settings } from "../input/schemes.ts";
 import { dist, type V3 } from "../sim/vec.ts";
 import { GroundHelp } from "./coach.ts";
 import { ConnHud } from "./conn.ts";
@@ -16,13 +19,14 @@ import { Gauges } from "./hudtext.ts";
 import { flareCue, FlareHud } from "./flarecue.ts";
 import { CHAT_LIFE_MS, chatText } from "./chat.ts";
 import { KillFeed, weaponName, whoEl, type Who } from "./killfeed.ts";
+import { MIL_COLORS, MilHud } from "./milhud.ts";
 import { waitWhen } from "./pick.ts";
 import { Radar, type Contact } from "./radar.ts";
 import { outOfRange } from "./lockinfo.ts";
 import { beamCue, incomingIR, ranges, reach, warnText } from "./loadout.ts";
 import { arrowAngle, beamTurn, clockOf, relBearing, threatSource } from "./threat.ts";
 import { enemyTargets, ObjectiveBar } from "./objective.ts";
-import { formatDist, inCone, Reticle } from "./reticle.ts";
+import { formatDist, inCone, Reticle, type ReticleView } from "./reticle.ts";
 import { boardRows, scoreLine, type BoardView } from "./scoreboard.ts";
 
 const TEXT_MS = 100;
@@ -43,6 +47,8 @@ export class Hud {
   private readonly state: GameState;
   private readonly menuOpen: () => boolean;
   private readonly reticle = new Reticle();
+  private readonly mil = new MilHud();
+  private military = false;
   private readonly radar = new Radar();
   private readonly feed = new KillFeed();
   private readonly score = h("div", { class: "hud-score" });
@@ -74,8 +80,11 @@ export class Hud {
   constructor(state: GameState, menuOpen: () => boolean) {
     this.state = state;
     this.menuOpen = menuOpen;
-    this.el = h("div", { class: "hud" }, this.gfx.el, this.flash, this.reticle.el,
-      h("div", { class: "hud-top" }, this.objective.el, this.score, this.conn.el, this.conn.banner, this.warn, this.flare.cue, this.flare.beam),
+    // hud-top's two groups are display: contents in the classic style (one column); the military style parts them.
+    this.el = h("div", { class: "hud" }, this.gfx.el, this.flash, this.reticle.el, this.mil.el,
+      h("div", { class: "hud-top" },
+        h("div", { class: "hud-mission" }, this.objective.el, this.score, this.conn.el, this.conn.banner),
+        h("div", { class: "hud-alerts" }, this.warn, this.flare.cue, this.flare.beam)),
       this.radar.el, this.feed.el,
       h("div", { class: "hud-mid" }, this.center, this.sub, this.flare.note, this.outRange, this.prot, this.toast),
       this.hitMark, this.arrow, this.help.el, this.gauges.left, this.gauges.right, this.watch);
@@ -121,6 +130,17 @@ export class Hud {
         this.toastUntil = performance.now() + TOAST_MS;
       },
     };
+  }
+
+  /** Applies the HUD style settings (classic or military, its colour and speed unit); perf mode drops the glow. */
+  setStyle(s: Pick<Settings, "hud" | "hudColor" | "speedUnit" | "perf">): void {
+    this.military = s.hud === "military";
+    this.el.classList.toggle("mil", this.military);
+    const color = MIL_COLORS[s.hudColor];
+    this.el.style.setProperty("--mil", color);
+    this.radar.setMono(this.military ? color : null);
+    this.mil.setStyle({ color: s.hudColor, unit: s.speedUnit, glow: !s.perf });
+    if (!this.military) this.mil.clear();
   }
 
   /** The connection indicator and banner; null while reconnecting. */
@@ -175,7 +195,7 @@ export class Hud {
     const myTeam = s.players.get(s.you)?.team ?? "none";
     const lockPlane = v.lockTarget ? v.planeAt(v.lockTarget) : null;
     // The box frames the drawn plane; the lead uses where it is now.
-    this.reticle.update({
+    const rv: ReticleView = {
       alive: v.alive, pos: v.pos, vel: v.vel, fwd: v.fwd, aimDir: v.aimDir, project: v.project, muzzle: v.muzzle,
       lock: lockPlane && v.lockProgress > 0
         ? {
@@ -184,7 +204,9 @@ export class Hud {
         }
         : null,
       lead: (v.lockTarget ? v.planeNow(v.lockTarget) : null) ?? this.gunTarget(v, myTeam),
-    });
+    };
+    if (this.military) this.mil.draw(v, rv);
+    else this.reticle.update(rv);
     const now = performance.now();
     this.gfx.update(v.gLoad, this.lastFrame ? (now - this.lastFrame) / 1000 : 0, v.gfx && v.alive);
     this.lastFrame = now;

@@ -147,3 +147,58 @@
 .hud-decoy.good { font-size: 30px; font-weight: 900; letter-spacing: 0.12em; color: #57ff8f; }
 .hud-decoy.on { animation: decoy-pop 0.25s ease-out; }
 @keyframes decoy-pop { from { transform: scale(1.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* hud-top's two groups: one column in the classic style */
+.hud-mission, .hud-alerts { display: contents; }
+
+/* ---------- military style (.hud.mil): one colour (--mil), monospace, thin lines, faint glow ----------
+   The symbology is the .mil-hud canvas; the DOM parts below keep their roles in the same look. */
+.mil-hud { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+.hud.mil .mil-hud { display: block; }
+.hud.mil .reticle, .hud.mil .hud-panel, .hud.waiting .mil-hud { display: none; }
+.hud.mil { --mil: #5dff8f; --mil-dim: color-mix(in srgb, var(--mil) 40%, transparent); color: var(--mil);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-weight: 400;
+  /* a dark halo for bright sky and cloud, then the faint glow */
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.75), 0 0 5px color-mix(in srgb, var(--mil) 35%, transparent); }
+.hud.mil .hud-top { inset: 0; transform: none; display: block; }
+.hud.mil .hud-mission { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; position: absolute; top: 14px; left: 18px; }
+.hud.mil .hud-alerts { display: flex; flex-direction: column; align-items: center; gap: 6px; position: absolute; left: 50%; top: 112px; transform: translateX(-50%); }
+.hud.mil .hud-score { font-size: 12px; font-weight: 400; padding: 0; background: none; border: 0; border-radius: 0; letter-spacing: 0.04em; }
+.hud.mil .objective { gap: 10px; }
+.hud.mil .obj-side, .hud.mil .obj-side.nato, .hud.mil .obj-side.soviet { color: var(--mil); background: none; padding: 1px 4px; border-radius: 0; font-size: 11px; font-weight: 400; }
+.hud.mil .obj-hp { color: var(--mil); }
+.hud.mil .bar { background: none; border: 1px solid var(--mil-dim); border-radius: 0; }
+.hud.mil .bar .bar-fill { background: var(--mil); border-radius: 0; }
+.hud.mil .hud-conn { background: none; padding: 1px 0; }
+.hud.mil .conn-bar { background: var(--mil-dim); border-radius: 0; width: 3px; }
+.hud.mil .hud-conn .conn-bar.on { background: var(--mil); }
+.hud.mil .conn-ms { color: var(--mil); font-weight: 400; font-size: 11px; }
+.hud.mil .hud-conn-warn, .hud.mil .hud-warn, .hud.mil .hud-flarecue, .hud.mil .hud-flarecue.beam {
+  color: var(--mil); background: none; border: 1px solid var(--mil); border-radius: 0; text-shadow: inherit; box-shadow: 0 0 6px var(--mil-dim); }
+.hud.mil .hud-conn-warn { font-size: 12px; font-weight: 400; padding: 2px 8px; }
+.hud.mil .hud-warn { font-size: 16px; font-weight: 700; letter-spacing: 0.22em; padding: 3px 14px; }
+.hud.mil .hud-flarecue { font-size: 15px; font-weight: 700; padding: 3px 12px; }
+.hud.mil .hud-key { color: var(--mil); background: none; border: 1px solid var(--mil); border-radius: 0; font-size: 12px; }
+.hud.mil .beam-bar { background: var(--mil-dim); border-radius: 0; height: 3px; }
+.hud.mil .beam-fill { background: var(--mil); }
+.hud.mil .killfeed { gap: 2px; }
+.hud.mil .kf-line { background: none; padding: 1px 0; font-size: 12px; font-weight: 400; gap: 6px; }
+.hud.mil .kf-name, .hud.mil .kf-name.nato, .hud.mil .kf-name.soviet, .hud.mil .kf-weapon, .hud.mil .kf-line.chat { color: var(--mil); }
+.hud.mil .kf-name.me { font-weight: 700; text-decoration: underline; }
+.hud.mil .kf-line.chat { border-left-color: var(--mil-dim); padding-left: 6px; }
+.hud.mil .hud-center, .hud.mil .hud-center.alert { font-size: 20px; font-weight: 700; color: var(--mil); letter-spacing: 0.08em; }
+.hud.mil .hud-sub, .hud.mil .hud-range, .hud.mil .hud-toast, .hud.mil .hud-coach, .hud.mil .hud-decoy, .hud.mil .hud-decoy.good { color: var(--mil); font-size: 14px; font-weight: 700; letter-spacing: 0.1em; text-shadow: inherit; }
+.hud.mil .hud-tag { color: var(--mil); background: none; border-color: var(--mil); border-radius: 0; font-weight: 400; }
+.hud.mil .ground-hint { color: var(--mil); background: rgba(0, 0, 0, 0.35); border-color: var(--mil-dim); border-radius: 0; }
+.hud.mil .hint-close { color: var(--mil); }
+.hud.mil .hud-watch, .hud.mil .hud-watch.replay { color: var(--mil); background: rgba(0, 0, 0, 0.3); border-radius: 0; font-size: 14px; font-weight: 400; }
+.hud.mil .hud-threat-tip { background: var(--mil); width: 16px; height: 16px; left: -8px; }
+.hud.mil .hud-threat.lock .hud-threat-tip { background: var(--mil); opacity: 0.55; animation: none; }
+.hud.mil .hud-hit { background: linear-gradient(45deg, transparent 47%, var(--mil) 47%, var(--mil) 53%, transparent 53%), linear-gradient(-45deg, transparent 47%, var(--mil) 47%, var(--mil) 53%, transparent 53%); }
+.hud.mil .radar { background: rgba(0, 0, 0, 0.3); border-color: var(--mil-dim); }
+.hud.mil .radar-n, .hud.mil .radar-r { color: var(--mil); font-weight: 400; }
+/* the radar takes the classic left panel's corner; the mission text has the top left (touch keeps its layout: below) */
+body:not(.touch) .hud.mil .radar { top: auto; bottom: 34px; left: 18px; }
+/* messages and hints leave the centre: bottom centre, small */
+.hud.mil .hud-mid { top: auto; bottom: 13%; gap: 4px; }
+.hud.mil .hud-sub { font-size: 12px; font-weight: 400; letter-spacing: 0.06em; opacity: 0.8; }
