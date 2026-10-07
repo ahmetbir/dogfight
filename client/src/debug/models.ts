@@ -7,6 +7,7 @@
 // &sweep=0,1,... sets each slot's swing wings (0 forward .. 1 back; F-14, MiG-23).
 import * as THREE from "three";
 import { dressGlb, type Rig } from "../render/glb.ts";
+import { validSkin } from "../render/skins.ts";
 import { buildModel, tryLoadGlb } from "../render/models.ts";
 import type { Team } from "../render/models/common.ts";
 import { Renderer } from "../render/renderer.ts";
@@ -47,7 +48,7 @@ export function debugModels(canvas: HTMLCanvasElement, params: URLSearchParams):
       void tryLoadGlb(kind).then((g) => {
         if (!g) return;
         for (const o of [...m.children]) m.remove(o);
-        const d = dressGlb(g, tm, own);
+        const d = dressGlb(g, tm, own, validSkin(kind, params.get("skin")));
         d.body.scale.setScalar(1 / m.scale.x);
         m.add(d.body);
         lights(d.body);

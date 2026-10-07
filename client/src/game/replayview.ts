@@ -119,7 +119,7 @@ export class ReplayView {
       const isMe = p.id === s.you;
       planes.set(p.id, {
         id: p.id, kind: p.k, team: p.tm, pos: p.pos, rot: p.rot, alive: p.a, hp: 1, maxHP: 1,
-        ab: !!p.ab, gForce: 1, name: s.players.get(p.id)?.name ?? "", isMe, gear: !!p.gr,
+        ab: !!p.ab, gForce: 1, name: s.players.get(p.id)?.name ?? "", isMe, gear: !!p.gr, skin: s.players.get(p.id)?.skin,
         msl: p.msl, ctl: p.ctl,
       });
       const v = vel(p.id, p.pos);

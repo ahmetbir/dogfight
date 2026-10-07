@@ -8,6 +8,7 @@ import { dressGlb, NEUTRAL, sweepTarget, type Controls, type Dressed, type Rig }
 import { buildModel, tryLoadGlb } from "./models.ts";
 import type { Team } from "./models/common.ts";
 import { measure } from "./shape.ts";
+import { validSkin, type SkinId } from "./skins.ts";
 
 export type PlaneRender = {
   id: number; kind: string; team: string; pos: V3; rot: Q; alive: boolean;
@@ -15,6 +16,7 @@ export type PlaneRender = {
   gear: boolean; // landing gear down
   ctl?: Controls; // control surfaces: my stick, or others' turn rates (absent: neutral)
   msl?: number;   // missiles left on the rails, IR + radar (absent: a full load)
+  skin?: string;  // paint scheme from the roster (absent or not the kind's: standard)
 };
 
 const LABEL_RANGE = 3000; // m: friendly tags (enemies: game/sight.ts)
@@ -145,6 +147,7 @@ class PlaneView {
   private readonly model: THREE.Group;
   private readonly team: Team;
   private readonly own: boolean;
+  private readonly skin: SkinId;
   private glbParts: Dressed | null = null;
   private rig: Rig | null = null;
   private readonly ctl: Controls = { ...NEUTRAL };
@@ -163,6 +166,7 @@ class PlaneView {
     this.kind = p.kind;
     this.team = asTeam(p.team);
     this.own = p.isMe;
+    this.skin = validSkin(p.kind, p.skin);
     const model = buildModel(p.kind, this.team, this.own);
     this.model = model;
     this.body = model.children[0];
@@ -187,7 +191,7 @@ class PlaneView {
       this.model.remove(o);
       disposeTree(o);
     }
-    const d = dressGlb(g, this.team, this.own);
+    const d = dressGlb(g, this.team, this.own, this.skin);
     d.body.scale.setScalar(1 / this.model.scale.x); // the .glb is in true metres
     this.model.add(d.body);
     this.body = d.body;
@@ -278,9 +282,9 @@ class PlaneView {
   dispose(): void {
     this.scene.remove(this.root, ...this.trails.map((t) => t.line));
     if (this.glbParts) {
-      // Geometry and textures of a .glb are shared; its flames and materials are ours.
+      // Geometry, textures and materials of a .glb are shared; its flames are ours.
       for (const e of this.glbParts.engines) disposeTree(e);
-      for (const m of this.glbParts.materials) m.dispose();
+      this.glbParts.release();
       this.body.removeFromParent();
     }
     disposeTree(this.root);
@@ -333,7 +337,7 @@ export class PlaneViews {
     for (const p of planes.values()) if (p.isMe && p.alive) mine = { pos: p.pos, fwd: qForward(p.rot) };
     for (const [id, p] of planes) {
       const friend = !p.isMe && p.team !== "none" && p.team === myTeam;
-      const key = `${p.kind}|${p.team}|${p.isMe}|${p.name}|${friend}`;
+      const key = `${p.kind}|${p.team}|${p.isMe}|${p.name}|${friend}|${validSkin(p.kind, p.skin)}`;
       let v = this.views.get(id);
       if (v && v.key !== key) {
         v.dispose();

@@ -51,7 +51,7 @@ export function planeRenders(
       alive: p.a && (!isMe || mine.fs !== null),
       hp: p.hp, maxHP: s.aircraft.get(p.k)?.maxHP ?? 100,
       ab: isMe ? p.a && mine.ab : !!p.ab, gForce: g,
-      name: s.players.get(p.id)?.name ?? "", isMe,
+      name: s.players.get(p.id)?.name ?? "", isMe, skin: s.players.get(p.id)?.skin,
       gear: isMe ? !!fs.gear : !!p.gr, // mine from prediction, others from the wire
       ctl: isMe ? mine.stick : ratesToControls(toFlight(p).w, s.aircraft.get(p.k)),
       msl: p.ms + (p.rm ?? 0), // every plane's snapshot carries both kinds (rearm refills them)

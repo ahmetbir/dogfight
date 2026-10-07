@@ -46,7 +46,8 @@ export type Chat = { t: "chat"; id: number };
 export type Loadout = "ir" | "radar" | "mixed";
 export const LOADOUTS: readonly Loadout[] = ["ir", "radar", "mixed"];
 /** lo: the loadout from the next spawn (or at once with a respawning pick); missing keeps the current one. */
-export type Pick = { t: "pick"; kind: AircraftKind; lo?: Loadout };
+/** skin: the paint scheme id (render/skins.ts); missing or unknown: standard. */
+export type Pick = { t: "pick"; kind: AircraftKind; lo?: Loadout; skin?: string };
 /** Team choice (team and base modes); "auto" lets the server balance. */
 export type TeamChoice = "nato" | "soviet" | "auto";
 export type TeamMsg = { t: "team"; team: TeamChoice };
@@ -174,7 +175,8 @@ export type RoundMsg = {
   obj?: { nato: number; soviet: number }; // base attack: remaining target HP per side
 };
 
-export type PlayerJSON = { id: number; name: string; team: Team; kind: AircraftKind; bot: boolean };
+/** skin: omitted for the standard paint. */
+export type PlayerJSON = { id: number; name: string; team: Team; kind: AircraftKind; bot: boolean; skin?: string };
 export type PlayersMsg = { t: "players"; list: PlayerJSON[] };
 export type Pong = { t: "pong"; ts: number };
 /** A fatal server error: code (net/codes.ts) picks the shown text, msg is the server's own text (fallback). */
