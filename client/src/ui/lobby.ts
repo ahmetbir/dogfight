@@ -86,6 +86,8 @@ export type LobbyActions = {
   side(s: Side): void;
   plane(): void;
   start(): void;
+  settings(): void; // the menu: controls, language, the manual
+  leave(): void;    // back to the home page
 };
 
 /**
@@ -140,10 +142,15 @@ export class LobbyScreen {
     } else {
       go = h("span", { class: "muted lobby-wait" }, h("span", { class: "spinner" }), t("lobby.wait", { name: v.hostName }));
     }
+    const settings = h("button", { type: "button", class: "btn small" }, lt("settings.title"));
+    settings.addEventListener("click", () => this.act.settings());
+    const leave = h("button", { type: "button", class: "btn small" }, lt("settings.leave"));
+    leave.addEventListener("click", () => this.act.leave());
     this.body = h("div", { class: "lobby-body" },
       h("p", { class: "muted lobby-hint" }, lt(v.host ? "lobby.hintHost" : "lobby.hint")),
       h("div", { class: `lobby-cols${v.columns.length > 1 ? " two" : ""}` }, ...cols),
-      h("div", { class: "lobby-me" }, h("span", { class: "muted" }, lt("lobby.mine")), h("b", { class: "lobby-myplane" }, v.plane), plane),
+      h("div", { class: "lobby-me" }, h("span", { class: "muted" }, lt("lobby.mine")), h("b", { class: "lobby-myplane" }, v.plane), plane,
+        h("span", { class: "lobby-tools" }, settings, leave)),
       this.note,
       h("div", { class: "panel-foot" }, h("span", { class: "muted" }, lt("lobby.late")), go));
     fill(this.el, h("div", { class: "panel wide lobby-panel" },

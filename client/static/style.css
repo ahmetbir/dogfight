@@ -165,6 +165,7 @@ body.in-lobby .hud { visibility: hidden; } /* no flight readouts before Start */
 .lobby-action { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .lobby-here { font-size: 13px; }
 .lobby-me { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.lobby-tools { margin-left: auto; display: inline-flex; gap: 8px; }
 .lobby-wait { display: inline-flex; align-items: center; gap: 10px; }
 .lobby-start { min-width: 160px; }
 .btn.team-switch.nato:not(:disabled) { border-color: rgba(90, 169, 255, 0.55); }

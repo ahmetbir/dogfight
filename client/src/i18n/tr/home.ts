@@ -32,7 +32,7 @@ export const home = {
   "rooms.none": "Açık oda yok — Hızlı Oyna yeni oda kurar.",
   "rooms.full": "Dolu",
   "rooms.break": "ara",
-  "rooms.lobby": "lobide",
+  "rooms.lobby": "bekleme odasında",
   "lb.title": "Liderlik",
   "lb.period": "Dönem",
   "lb.week": "Bu hafta",

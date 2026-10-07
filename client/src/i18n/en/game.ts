@@ -72,6 +72,7 @@ export const game: Area<typeof tr> = {
   "lobby.plane": "Choose aircraft",
   "lobby.start": "Start",
   "lobby.wait": "Waiting for the host ({name}) to start",
+  "lobby.closedTitle": "Lobby closed",
   "lobby.late": "Players who come later can still join the running round.",
   "team.title": "Team",
   "team.switch": "Switch to {team}",

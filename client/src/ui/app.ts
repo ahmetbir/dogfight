@@ -23,6 +23,7 @@ import { ChatMenu, ChatThrottle } from "./chat.ts";
 import { Hud } from "./hud.ts";
 import { escapeAction, keyRouter } from "./keys.ts";
 import { LobbyScreen, lobbyView } from "./lobby.ts";
+import { LobbyFlow, lobbyEscape } from "./lobbyflow.ts";
 import { kindsFor, PickScreen, waitLeft } from "./pick.ts";
 import { RoundEnd, Scoreboard } from "./scoreboard.ts";
 import { SettingsMenu } from "./settings.ts";
@@ -68,8 +69,11 @@ export function play(o: PlayOpts): void {
       }
     },
     plane: () => openPick(),
-    start: () => { socket.send({ t: "start" }); },
+    start: () => { if (flow.start(performance.now())) socket.send({ t: "start" }); },
+    settings: () => openMenu(),
+    leave: () => leaveRoom(),
   });
+  const flow = new LobbyFlow();
   const menu = new SettingsMenu(settings, {
     changed: (s) => {
       extra.changed?.(s);
@@ -78,12 +82,7 @@ export function play(o: PlayOpts): void {
       syncTouch();
     },
     resume: () => closeMenus(true),
-    leave: () => {
-      clearInterval(uiTimer);
-      pick.dispose(); // the hangar's renderer and thumbnails
-      socket.close();
-      location.assign("/");
-    },
+    leave: () => leaveRoom(),
     book: () => {
       menu.close();
       book.open();
@@ -134,9 +133,16 @@ export function play(o: PlayOpts): void {
   });
   const waiting = () => !state.planes.has(state.you) && !state.inLobby(); // joined, no plane until the first pick
   const showLobby = () => {
+    if (state.round === null) return; // a fresh seat: the phase comes with the round message
+    const turn = flow.sync(state.inLobby() && state.lobby !== null);
+    if (turn === "opened") releasePointer(); // back from a round with the mouse captured: the lobby needs a cursor
     if (!state.inLobby() || !state.lobby) {
       if (lobby.isOpen()) lobby.close();
       document.body.classList.remove("in-lobby");
+      if (turn === "closed") { // the host started: fly
+        pick.close();
+        closeMenus(true);
+      }
       return;
     }
     const now = performance.now();
@@ -246,6 +252,10 @@ export function play(o: PlayOpts): void {
     menuOpen: () => menu.isOpen() || book.isOpen(),
     board: showBoard,
     escape: () => {
+      if (lobbyEscape({ lobby: lobby.isOpen(), pick: pick.isOpen(), menu: menu.isOpen(), book: book.isOpen() }) === "menu") {
+        openMenu(); // the lobby alone on screen: Esc opens the menu (Leave, settings, language)
+        return;
+      }
       const act = escapeAction({ sinceLockMenuMs: performance.now() - lockMenuAt, blocked: blocked(), replaying: !!game?.replaying() });
       if (act === "close") {
         if (pick.isOpen()) pick.leave(() => closeMenus(false)); // waiting: Esc flies the selected card, like Back
@@ -295,14 +305,7 @@ export function play(o: PlayOpts): void {
     feed.emit(m, evs);
     // Switched teams: the new team's aircraft, with a fresh pick timer (the lobby keeps its own screen).
     if (teams.apply(m, evs, performance.now()) && !state.inLobby()) { chosen = null; welcomeAt = performance.now(); openPick(); }
-    if (m.t === "lobby" || m.t === "round") {
-      const wasOpen = lobby.isOpen();
-      showLobby();
-      if (wasOpen && !lobby.isOpen()) { // the host started: fly
-        pick.close();
-        closeMenus(true);
-      }
-    }
+    if (m.t === "lobby" || m.t === "round") showLobby();
     if (m.t === "welcome") {
       if (m.tok) { // a new pilot: keep the token for the next hello and /api/me
         storeToken(m.tok);
@@ -325,6 +328,10 @@ export function play(o: PlayOpts): void {
       }
     }
     if (m.t === "chat") hud.chat(m.from, m.id);
+    if (m.t === "notice" && m.code === "lobby_closed") { // the server is being updated: this lobby is gone
+      endSession(t("notice.lobby_closed"));
+      return;
+    }
     if (m.t === "notice") { // a refused team choice or lobby request
       hooks.notice?.(noticeOf(m));
       lobbyNote = noticeOf(m);
@@ -347,6 +354,27 @@ export function play(o: PlayOpts): void {
       if (!state.inLobby()) openPick();
     }
   };
+
+  function leaveRoom(): void {
+    clearInterval(uiTimer);
+    pick.dispose(); // the hangar's renderer and thumbnails
+    socket.close();
+    location.assign("/");
+  }
+
+  /** The session ends on our side (a closed lobby): stop, close the socket, a card with the way home. */
+  function endSession(msg: string): void {
+    clearInterval(uiTimer);
+    game?.stop();
+    extra.stop?.();
+    closeMenus(false);
+    board.hide();
+    releasePointer();
+    pick.dispose();
+    socket.close();
+    document.body.classList.remove("in-game", "in-lobby", "touch");
+    errorCard(ui, t("lobby.closedTitle"), msg);
+  }
 
   const socket: Socket = openSocket(socketURL(location), o.name, o.entry, {
     onMsg,

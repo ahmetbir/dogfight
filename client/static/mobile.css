@@ -12,6 +12,8 @@
   .lobby-panel .room-link .input.link { flex: 1 1 100%; width: auto; min-width: 0; order: 3; }
   .lobby-panel .panel-foot { flex-direction: column-reverse; align-items: stretch; text-align: center; }
   .lobby-start { width: 100%; }
+  .lobby-tools { margin-left: 0; width: 100%; }
+  .lobby-tools .btn { flex: 1; }
 }
 @media (max-height: 500px) and (min-width: 701px) {
   .lobby-panel { max-height: calc(100vh - 16px); padding: 12px 16px; gap: 10px; }

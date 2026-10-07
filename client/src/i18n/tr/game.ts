@@ -70,6 +70,7 @@ export const game = {
   "lobby.plane": "Uçak seç",
   "lobby.start": "Başlat",
   "lobby.wait": "Oda sahibinin ({name}) başlatması bekleniyor",
+  "lobby.closedTitle": "Bekleme odası kapandı",
   "lobby.late": "Raund başladıktan sonra gelenler de katılabilir.",
   "team.title": "Takım",
   "team.switch": "{team} takımına geç",
