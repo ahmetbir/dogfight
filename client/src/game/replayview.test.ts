@@ -29,3 +29,22 @@ test("the replay draws the missiles left and the surfaces as recorded", () => {
   const late = rv.scene(1500)!.planes.get(1)!;
   assert.ok(late.msl! < 5, `rails ${late.msl}`);
 });
+
+test("the replay draws each plane in the paint it wore then", () => {
+  const s = new GameState();
+  s.you = 1;
+  s.aircraft.set("f16", { kind: "f16", maxHP: 100, pitchRate: 1.6, rollRate: 4.2, yawRate: 0.5 } as never);
+  const rv = new ReplayView(s);
+  s.players = new Map([[1, { id: 1, name: "a", team: "none", kind: "f16", bot: false, skin: "desert" }]]);
+  for (const tick of [0, 60, 120]) {
+    s.tick = tick;
+    s.planes = new Map([[1, plane(2, 0)]]);
+    rv.record();
+  }
+  s.players = new Map([[1, { id: 1, name: "a", team: "none", kind: "f16", bot: false, skin: "winter" }]]); // repainted since
+  s.tick = 180;
+  s.planes = new Map([[1, plane(2, 0, false)]]);
+  rv.died(120);
+  assert.ok(rv.start(0));
+  assert.equal(rv.scene(0)!.planes.get(1)!.skin, "desert");
+});

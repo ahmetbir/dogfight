@@ -175,8 +175,11 @@ export type RoundMsg = {
   obj?: { nato: number; soviet: number }; // base attack: remaining target HP per side
 };
 
-/** skin: omitted for the standard paint. */
-export type PlayerJSON = { id: number; name: string; team: Team; kind: AircraftKind; bot: boolean; skin?: string };
+/**
+ * skin: the paint of kind (omitted: standard); fskin: the paint of the jet
+ * still in the air when it is another kind (a pick for the next spawn).
+ */
+export type PlayerJSON = { id: number; name: string; team: Team; kind: AircraftKind; bot: boolean; skin?: string; fskin?: string };
 export type PlayersMsg = { t: "players"; list: PlayerJSON[] };
 export type Pong = { t: "pong"; ts: number };
 /** A fatal server error: code (net/codes.ts) picks the shown text, msg is the server's own text (fallback). */
