@@ -404,14 +404,23 @@ bucket; otherwise players get kicked with `flood`. Core types (`hello`, `create`
 
 - Cosmetic only. Ids and who may wear them: `internal/game/skin.go` and `SKIN_KINDS` in
   `client/src/render/skins.ts`, pinned by `TestClientSkinsMatchServer`. Add a scheme to both.
-- Wire: optional `skin` on `pick`, optional `skin` on each roster entry (omitted = standard), so
-  older clients are unaffected. The server keeps a valid id per player (unknown or another jet's:
-  standard); bots draw one per seat from the room seed. Bot skins are in the room goldens.
-- Drawing (`render/camo.ts`): the stripe role always keeps the team colour; body and secondary
+- Wire: optional `skin` on `pick`, optional `skin` on each roster and lobby entry (omitted =
+  standard), and `fskin` on a roster entry while the jet in the air is another kind than the one
+  picked for the next spawn (its own paint). Older clients are unaffected. The server keeps the
+  paint per player and kind (`SetSkin` checks it against the picked jet; unknown or another
+  jet's: standard), so a team or side change never pairs a jet with another jet's scheme; a
+  lobby seat return restores it; bots draw one per seat from the room seed (room goldens).
+- Sending: browsing the paint row sends nothing; one pick goes out 1 s after the last chip or
+  when the pick screen closes (`ui/skinsync.ts`), and a seat that came up in another paint
+  (reconnect, pick-timeout spawn, team or side change) is mended with one pick. `pick` is a
+  kicking rate class (2/s, burst 4): never send one per UI event.
+- Drawing (`render/camo.ts`): the stripe role always keeps the team colour, and every body
+  (standard too) wears a team-coloured band round the rear fuselage (70-77 % of the length); body and secondary
   take the scheme's colours, the canopy its tint. A camo tile (64 px, nearest, one per scheme) is
   projected in the airframe's rest pose (metres from the nose; top or side by face normal) and
   multiplied over the atlas. Role materials are shared per (material, team, skin): `dressGlb`
-  returns `release()`; never dispose them directly.
+  returns `release()` and `repaint(skin)` (in place); never dispose them directly. The hangar
+  dresses in its own scope so its materials go with its renderer.
 - Client choice: `dogfight.skins` in localStorage (`ui/skinstore.ts`); a jet never chosen wears
   its default (`DEFAULTS` in skins.ts).
 
