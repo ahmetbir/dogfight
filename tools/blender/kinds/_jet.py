@@ -82,6 +82,7 @@ R3S = dict(length=2.84, r=0.064, uv=missile_uv, fins=((0.10, 0.09, 0.14), (0.86,
 KH25 = dict(length=3.70, r=0.14, uv=missile_uv, fins=((0.10, 0.10, 0.20), (0.80, 0.24, 0.46)))
 MICA = dict(length=3.10, r=0.08, uv=missile_uv, fins=((0.22, 0.05, 1.50), (0.88, 0.13, 0.30)))
 METEOR = dict(length=3.65, r=0.089, uv=missile_uv, fins=((0.86, 0.15, 0.36),))
+R40 = dict(length=6.20, r=0.155, uv=missile_uv, fins=((0.08, 0.16, 0.26), (0.80, 0.36, 0.80)))
 IRIST = dict(length=2.94, r=0.064, uv=missile_uv, fins=((0.10, 0.05, 0.10), (0.87, 0.12, 0.28)))
 
 

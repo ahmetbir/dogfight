@@ -104,7 +104,7 @@ def build():
     from parts import Surface
     c, sn = math.cos(math.radians(15)), math.sin(math.radians(15))
     Surface(0.0, 0.80, (5.80, 6.50), (7.40, 7.30), (0.06, 0.03),
-            lambda s, n, z: (1.70 + s * sn + n * c, -0.62 - s * c + n * sn, z), J.fin_uv).build(half, [], root_cap=False)
+            lambda s, n, z: (1.70 + s * sn + n * c, -0.62 - s * c + n * sn, z), lambda p: J.fin_uv((p[0], FIN_Y + 0.1, p[2]))).build(half, [], root_cap=False)
 
     st = stabilator(stab_surface(), (2.10, 0.02, 7.6), (1.0, 0.0, 0.0), stations=[3.4])
 
