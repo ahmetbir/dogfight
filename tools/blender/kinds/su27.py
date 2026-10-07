@@ -98,7 +98,8 @@ def build():
     c, sn = math.cos(math.radians(10)), math.sin(math.radians(10))
     from parts import Surface
     Surface(0.0, 0.85, (5.80, 6.40), (7.20, 7.00), (0.06, 0.03),
-            lambda s, n, z: (2.20 + s * sn + n * c, -0.30 - s * c + n * sn, z), J.fin_uv).build(half, [], root_cap=False)
+            lambda s, n, z: (2.20 + s * sn + n * c, -0.30 - s * c + n * sn, z),
+            lambda p: J.fin_uv((p[0], FIN_Y + 0.1, p[2]))).build(half, [], root_cap=False)  # sample the fin's paint, not below it
 
     st = stabilator(stab_surface(), (2.30, -0.25, 8.8), (1.0, 0.0, 0.0), stations=[3.8])
 
