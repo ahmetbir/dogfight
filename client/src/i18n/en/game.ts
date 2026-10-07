@@ -5,6 +5,7 @@ import type { Area } from "../types.ts";
 export const game: Area<typeof tr> = {
   "pick.title": "Choose your aircraft",
   "pick.back": "Back to flight",
+  "pick.done": "Done",
   "pick.reopen": "  ·  P opens this again",
   "pick.flying": "Flying now",
   "hangar.speed": "Speed",
@@ -13,6 +14,7 @@ export const game: Area<typeof tr> = {
   "hangar.missiles": "Missiles",
   "hangar.lock": "Lock range",
   "hangar.fly": "Fly this jet",
+  "hangar.choose": "Choose this jet",
   "role.light": "Light, agile",
   "role.multi": "All-rounder",
   "role.stealth": "Stealth, 5th gen",
@@ -43,6 +45,7 @@ export const game: Area<typeof tr> = {
   "pick.noteWait": "You spawn in the aircraft you pick; if you don't pick, you start {when} in the default one.",
   "pick.noteProt": "You're spawn-protected: the pick applies right away.",
   "pick.noteNext": "The pick applies on your next spawn.",
+  "pick.noteLobby": "Your jet for the match: you take off in it when the host starts.",
   "lo.title": "Missile loadout",
   "lo.ir": "IR (short range)",
   "lo.radar": "Radar (medium range)",

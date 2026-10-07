@@ -18,6 +18,7 @@ export type PickView = {
   waitLeft: number;             // while waiting: whole seconds until the default spawn
   teamPick?: TeamPickView | null; // team modes, before the first plane: auto / NATO / Soviet
   loadout?: Loadout;            // the missile loadout my next pick carries (default IR)
+  lobby?: boolean;              // pre-match lobby: the pick is my jet for the match (no spawn, no timeout)
 };
 
 /** Server-side pick timeout (game.PickTimeoutTicks / 60). */
@@ -40,7 +41,7 @@ export function kindsFor(team: Team, aircraft: AircraftInfo[]): AircraftInfo[] {
 
 /** What the cards are built from; anything else is updated in place. */
 export function pickKey(v: PickView): string {
-  return JSON.stringify([v.code, v.team, v.aircraft.map((a) => a.kind), !!v.teamPick]);
+  return JSON.stringify([v.code, v.team, v.aircraft.map((a) => a.kind), !!v.teamPick, !!v.lobby]);
 }
 
 /**
@@ -48,17 +49,18 @@ export function pickKey(v: PickView): string {
  * plane, the selected card (else the default kind would spawn, silently);
  * flying, nothing (the selection is only a look until it is flown).
  */
-export function pickOnLeave(v: Pick<PickView, "waiting">, selected: AircraftKind | null): AircraftKind | null {
-  return v.waiting ? selected : null;
+export function pickOnLeave(v: Pick<PickView, "waiting" | "lobby">, selected: AircraftKind | null): AircraftKind | null {
+  return v.waiting || v.lobby ? selected : null; // the lobby: Done keeps the selection as the match's jet
 }
 
 /** The name of a selected card that leaving would not fly (flying, another jet selected), else "". */
-export function unpickedName(v: Pick<PickView, "waiting" | "chosen" | "current" | "aircraft">, selected: AircraftKind | null): string {
-  if (v.waiting || !selected || selected === (v.chosen ?? v.current)) return "";
+export function unpickedName(v: Pick<PickView, "waiting" | "chosen" | "current" | "aircraft" | "lobby">, selected: AircraftKind | null): string {
+  if (v.waiting || v.lobby || !selected || selected === (v.chosen ?? v.current)) return "";
   return v.aircraft.find((a) => a.kind === selected)?.name ?? "";
 }
 
 export function pickNote(v: PickView): string {
+  if (v.lobby) return t("pick.noteLobby");
   if (v.waiting) return t("pick.noteWait", { when: waitWhen(v.waitLeft) });
   return t(v.protectedNow ? "pick.noteProt" : "pick.noteNext");
 }
@@ -131,7 +133,7 @@ export class PickScreen {
       this.build(v);
     }
     const lo = v.loadout ?? "ir";
-    this.hangar.update({ team: v.team, kinds: kindsFor(v.team, v.aircraft), all: v.aircraft, current: v.current, chosen: v.chosen, waiting: v.waiting, loadout: lo });
+    this.hangar.update({ team: v.team, kinds: kindsFor(v.team, v.aircraft), all: v.aircraft, current: v.current, chosen: v.chosen, waiting: v.waiting, loadout: lo, lobby: !!v.lobby });
     if (v.teamPick) this.teams?.update(v.teamPick);
     this.loadouts?.update(lo);
     text(this.note, pickNote(v));
@@ -146,7 +148,7 @@ export class PickScreen {
   private build(v: PickView): void {
     this.teams = v.teamPick ? new TeamSelector(this.onTeam) : null;
     this.loadouts = new LoadoutSelector(this.onLoadout);
-    const go = h("button", { type: "button", class: "btn" }, lt("pick.back"));
+    const go = h("button", { type: "button", class: "btn" }, lt(v.lobby ? "pick.done" : "pick.back"));
     go.addEventListener("click", () => this.leave());
     this.hangar.el.addEventListener("click", () => this.syncUnpicked());
     this.hangar.el.addEventListener("keyup", () => this.syncUnpicked());

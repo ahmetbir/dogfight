@@ -3,6 +3,7 @@
 export const game = {
   "pick.title": "Uçağını seç",
   "pick.back": "Uçuşa dön",
+  "pick.done": "Tamam",
   "pick.reopen": "  ·  P ile tekrar açılır",
   "pick.flying": "Şu an uçtuğun",
   "hangar.speed": "Hız",
@@ -11,6 +12,7 @@ export const game = {
   "hangar.missiles": "Füze",
   "hangar.lock": "Kilit menzili",
   "hangar.fly": "Bu uçakla uç",
+  "hangar.choose": "Bu uçağı seç",
   "role.light": "Hafif, çevik",
   "role.multi": "Çok amaçlı",
   "role.stealth": "Gizli, 5. nesil",
@@ -41,6 +43,7 @@ export const game = {
   "pick.noteWait": "Seçtiğin uçakla doğarsın; seçmezsen {when} varsayılan uçakla başlarsın.",
   "pick.noteProt": "Koruma süresindesin: seçim hemen geçerli olur.",
   "pick.noteNext": "Seçim bir sonraki doğuşta geçerli olur.",
+  "pick.noteLobby": "Maçtaki uçağın: oda sahibi başlatınca bununla kalkarsın.",
   "lo.title": "Füze yükü",
   "lo.ir": "IR (kısa menzil)",
   "lo.radar": "Radar (orta menzil)",

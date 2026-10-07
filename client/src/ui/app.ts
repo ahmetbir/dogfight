@@ -129,6 +129,7 @@ export function play(o: PlayOpts): void {
     protectedNow: !!state.planes.get(state.you)?.pr, waiting: waiting(),
     waitLeft: waitLeft(welcomeAt, performance.now()),
     teamPick: state.inLobby() ? null : teams.pickView(performance.now()),
+    lobby: state.inLobby(),
     loadout,
   });
   const waiting = () => !state.planes.has(state.you) && !state.inLobby(); // joined, no plane until the first pick

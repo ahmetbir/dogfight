@@ -85,3 +85,14 @@ test("leaving the picker flies the selected card only before the first plane; fl
   assert.equal(unpickedName({ ...v, chosen: "a10" }, "a10"), "");
   assert.equal(unpickedName({ ...v, waiting: true }, "a10"), "");
 });
+
+test("in the lobby the picker chooses the match's jet: Done keeps the selection, no spawn wording", async () => {
+  const { pickOnLeave, unpickedName, pickNote } = await import("./pick.ts");
+  const { setLang, t } = await import("../i18n/index.ts");
+  setLang("en");
+  assert.equal(pickOnLeave({ waiting: false, lobby: true }, "f15"), "f15");
+  assert.equal(unpickedName({ waiting: false, lobby: true, chosen: "f16", current: null, aircraft: ALL }, "a10"), "");
+  const v = { code: "K7QX", team: "nato" as const, aircraft: ALL, current: null, chosen: null, protectedNow: false, waiting: false, waitLeft: 0, lobby: true };
+  assert.equal(pickNote(v), t("pick.noteLobby"));
+  assert.notEqual(pickNote({ ...v, lobby: false }), t("pick.noteLobby"));
+});
