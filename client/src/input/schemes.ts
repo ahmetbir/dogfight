@@ -74,6 +74,7 @@ export type Controls = Pick<InputState, "keys" | "buttons" | "consumeMouse" | "t
 /** stick.g = gear down wanted, stick.br = wheel brakes held; bomb is one-shot. */
 export type Frame = {
   stick: StickInput; fire: boolean; missile: boolean; flare: boolean; bomb: boolean; aimDir: V3 | null; lookBack: boolean;
+  pick?: boolean; // the pick key went down: toggle IR / radar (mouse, keyboard)
 };
 
 /**
@@ -205,6 +206,7 @@ class MouseScheme implements Scheme {
       stick: { p: ap.p, r: roll !== 0 ? roll : ap.r, y: ap.y, th: this.th, ab: down(st, M.ab), g, br: down(st, M.brake) },
       fire: held(takeAny(st, M.fire), (st.buttons & LEFT) !== 0), // M.fire is the left button
       missile: takeAny(st, M.missile),
+      pick: takeAny(st, M.pick),
       flare: held(takeAny(st, M.flare), down(st, M.flare)),
       bomb: takeAny(st, M.bomb),
       aimDir,
@@ -245,6 +247,7 @@ class KeyboardScheme implements Scheme {
       },
       fire: held(takeAny(st, K.fire), down(st, K.fire)),
       missile: takeAny(st, K.missile),
+      pick: takeAny(st, K.pick),
       flare: held(takeAny(st, K.flare), down(st, K.flare)),
       bomb: takeAny(st, K.bomb),
       aimDir: null,

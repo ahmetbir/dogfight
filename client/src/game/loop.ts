@@ -25,7 +25,7 @@ import { toFlight, type GameState } from "./state.ts";
 import { planeRenders } from "./view.ts";
 import { buildWorld } from "./world.ts";
 import { effectiveRange } from "../ui/lockinfo.ts";
-import { kindOf, loadoutOf, noLockNotice } from "../ui/loadout.ts";
+import { kindOf, loadoutOf, noLockNotice, otherKind, PICK_WIRE, pickedKind, type MissileKind } from "../ui/loadout.ts";
 
 const MAX_STEPS = 5;      // ticks simulated per frame before dropping the backlog
 const MAX_FRAME_S = 0.25;
@@ -84,6 +84,7 @@ export function startGame(ctx: GameCtx): Game {
   let paused = document.hidden;
   let raf = 0;
   let ctl: Frame | null = null; // last tick's controls
+  let pick: MissileKind = "ir";  // the pick key's choice (mouse, keyboard); touch picks by range
   let lastShotAt = -Infinity;
   let perf = ctx.settings.perf; // the menu can switch it mid-game
   const t0 = last;
@@ -132,13 +133,18 @@ export function startGame(ctx: GameCtx): Game {
     if (menu) input.clear();
     const fs = own.state();
     ctl = scheme.frame(input, planeView(fs), DT);
+    const picks = scheme.kind !== "touch";
+    const me = state.planes.get(state.you);
+    if (ctl.pick && picks) {
+      pick = otherKind(pick);
+      if (me && loadoutOf(me.lo) === "mixed") hooks.notice?.(t("lo.picked", { k: t(pick === "ir" ? "lo.kindIr" : "lo.kindRadar") }));
+    }
     if (ctl.missile && fs) {
       // The server fires only with a lock and ammo; say why nothing happened.
-      const me = state.planes.get(state.you);
       if (me && me.ms + (me.rm ?? 0) <= 0) hooks.notice?.(t("lo.none"));
-      else if (me && !me.ld) hooks.notice?.(noLockNotice(loadoutOf(me.lo)));
+      else if (me && !me.ld) hooks.notice?.(noLockNotice(loadoutOf(me.lo), picks ? pickedKind(pick, me.ms, me.rm ?? 0) : undefined));
     }
-    const shot = own.tick(ctl, socket);
+    const shot = own.tick(picks ? { ...ctl, sel: PICK_WIRE[pick] } : ctl, socket);
     if (shot) {
       bullets.spawn(shot.pos, shot.vel, 0, true);
       lastShotAt = performance.now();
@@ -199,6 +205,8 @@ export function startGame(ctx: GameCtx): Game {
         hp: me.hp, maxHP: state.aircraft.get(me.k)?.maxHP ?? 100,
         th: ctl?.stick.th ?? me.th, ab: !!ctl?.stick.ab && !!mine && !mine.abl, heat: me.ht, overheated: me.oh,
         missiles: me.ms, radars: me.rm ?? 0, loadout: loadoutOf(me.lo), lockKind: kindOf(me.lkk),
+        picked: scheme.kind !== "touch",
+        fires: scheme.kind !== "touch" ? pickedKind(pick, me.ms, me.rm ?? 0) : kindOf(me.lkk),
         flares: me.fl, respawnS: (me.rs ?? 0) / 60,
         lockProgress: me.lp ?? 0, locked: !!me.ld, oobS: me.oob ?? 0,
         scheme: ctx.settings.scheme, pointerLocked: input.locked(),

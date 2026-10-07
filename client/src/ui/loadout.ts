@@ -3,6 +3,7 @@
 import { RULES } from "../book/rules.ts";
 import { lattr, lt, t } from "../i18n/index.ts";
 import { num, sec } from "../i18n/format.ts";
+import { KEYBOARD_KEYS, keys, MOUSE_KEYS } from "../input/bindings.ts";
 import { LOADOUTS, type Loadout, type MissileJSON } from "../net/protocol.ts";
 import { dist, v3, type V3 } from "../sim/vec.ts";
 import { h, text } from "./dom.ts";
@@ -18,11 +19,13 @@ export const loadoutLabel = (lo: Loadout) => t(LABEL_KEY[lo]);
 /** The pick screen's hint under the loadout buttons. */
 export function loadoutHint(lo: Loadout): string {
   if (lo === "radar") return t("lo.hintRadar", { mul: num(R.radarRangeMul), lock: sec(R.radarLockS), leash: R.radarLeashDeg, beam: sec(R.radarBeamS) });
-  return t(lo === "mixed" ? "lo.hintMixed" : "lo.hintIr");
+  if (lo === "mixed") return t("lo.hintMixed", { mk: keys(MOUSE_KEYS.pick), kk: keys(KEYBOARD_KEYS.pick) });
+  return t("lo.hintIr");
 }
 
-/** Why the missile key did nothing without a lock: how long to hold the target per loadout. */
-export function noLockNotice(lo: Loadout): string {
+/** Why the missile key did nothing without a lock: how long to hold the target per loadout, or for the picked kind. */
+export function noLockNotice(lo: Loadout, picked?: MissileKind): string {
+  if (picked) return t("lo.noLock", { s: sec(picked === "radar" ? R.radarLockS : R.lockS) });
   if (lo === "radar") return t("lo.noLock", { s: sec(R.radarLockS) });
   if (lo === "mixed") return t("lo.noLockMixed", { s: sec(R.lockS), r: sec(R.radarLockS) });
   return t("lo.noLock", { s: sec(R.lockS) });
@@ -50,6 +53,24 @@ export function missileText(ir: number, radar: number, lo: Loadout): string {
   if (lo === "ir") return String(ir);
   if (lo === "radar") return `${radar} R`;
   return `${ir} IR + ${radar} R`;
+}
+
+/** Wire number of a picked kind (In.sel; missing: auto, the Karışık rule). */
+export const PICK_WIRE = { ir: 1, radar: 2 } as const satisfies Record<MissileKind, number>;
+
+/** The other kind: the pick key's toggle. */
+export const otherKind = (k: MissileKind): MissileKind => (k === "ir" ? "radar" : "ir");
+
+/** The kind a pick fires with ir / radar missiles left: the picked kind while it lasts, the other after (mirrors sim.pickedKind). */
+export function pickedKind(pick: MissileKind, ir: number, radar: number): MissileKind {
+  if (pick === "ir") return ir > 0 || radar <= 0 ? "ir" : "radar";
+  return radar > 0 || ir <= 0 ? "radar" : "ir";
+}
+
+/** The HUD's missile readout: one entry per kind aboard, the one the key fires marked on ("IR 2", "RADAR 1"). */
+export function ammoParts(ir: number, radar: number, lo: Loadout, fires: MissileKind): { kind: MissileKind; text: string; on: boolean }[] {
+  const kinds: MissileKind[] = lo === "ir" ? ["ir"] : lo === "radar" ? ["radar"] : ["ir", "radar"];
+  return kinds.map((kind) => ({ kind, text: `${kind === "ir" ? "IR" : "RADAR"} ${kind === "ir" ? ir : radar}`, on: kind === fires }));
 }
 
 /** IR and radar lock ranges (m) for an effective (weather-scaled) lock range. */

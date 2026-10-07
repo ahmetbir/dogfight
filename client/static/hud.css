@@ -11,6 +11,10 @@
 .g-row .bar { flex: 1; height: 8px; }
 .g-row.ammo .g-big { min-width: 30px; margin-right: 14px; }
 .g-row.ammo .g-label { width: auto; }
+.g-row.ammo .g-ms { display: flex; gap: 8px; font-size: 18px; text-align: left; }
+.g-kind { white-space: nowrap; }
+.g-ms:has(.g-kind + .g-kind) .g-kind { color: rgba(255, 255, 255, 0.35); }
+.g-ms .g-kind.on { color: var(--hud); padding: 0 5px; border: 1px solid var(--hud); border-radius: 4px; }
 .bar.throttle .bar-fill { background: var(--hud); }
 .bar.hp .bar-fill { background: var(--hud); }
 .bar.hp .bar-fill.low { background: var(--danger); }

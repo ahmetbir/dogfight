@@ -19,8 +19,9 @@ Live demo: https://dogfight.ahmetbirinci.dev
   - **Radar** (medium range, about 2.2× the IR lock range, half the missile count):
     semi-active, so the launcher must keep the target within 60° of its nose. Flares do nothing;
     the target breaks the lock by *beaming* (flying perpendicular to the missile's line of sight).
-  - **Mixed** (*Karışık*): half the IR missiles plus one radar missile. One missile key fires
-    radar beyond IR range and IR inside it.
+  - **Mixed** (*Karışık*): half the IR missiles plus one radar missile. `Q` (mouse) or `Z`
+    (keyboard) picks the kind the missile key fires; the HUD frames the picked kind. When it runs
+    out the other kind fires. Touch has no pick: radar beyond IR range, IR inside it.
   - The HUD warns of incoming missiles: a blinking `FLARE!` against an IR missile, `DİK UÇ!`
     ("beam it!") against a radar missile.
 - **Afterburner heat:** about 15 s of continuous afterburner, then a lockout while it cools down.
@@ -166,6 +167,7 @@ is generated from `client/src/input/bindings.ts`.
 | A / D | Extra roll, left / right |
 | Left click | Cannon |
 | Right click / E | Missile (needs a lock; on a Mac trackpad: two-finger click or ctrl+click) |
+| Q | Missile kind: IR / radar (Mixed loadout) |
 | Space | Flare |
 | L | Landing gear up / down |
 | B (hold) | Wheel brake |
@@ -182,6 +184,7 @@ is generated from `client/src/input/bindings.ts`.
 | X | Afterburner |
 | Space | Cannon |
 | V | Missile (needs a lock) |
+| Z | Missile kind: IR / radar (Mixed loadout) |
 | G | Flare |
 | L | Landing gear up / down |
 | B (hold) | Wheel brake |
