@@ -67,7 +67,7 @@ export function debugFly(canvas: HTMLCanvasElement, params: URLSearchParams): vo
     }
     const me: PlaneRender = {
       id: 1, kind: "f16", team: "none", pos: fs.pos, rot: fs.rot, alive: true, hp: 100, maxHP: 100,
-      ab: out.stick.ab, gForce: 1, name: "me", isMe: true, gear: !!fs.gear,
+      ab: out.stick.ab, gForce: 1, name: "me", isMe: true, gear: !!fs.gear, ctl: out.stick,
     };
     views.sync(new Map([[1, me]]));
     cam.update(dt, fs.pos, fs.rot, len(fs.vel), out.lookBack, out.aimDir);
