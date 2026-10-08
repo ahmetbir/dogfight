@@ -30,7 +30,7 @@ func newServerRooms(t *testing.T, o server.Options, maxRooms int) *httptest.Serv
 		o.Limits = server.Limits{MaxConnsIP: 1000, CreatePerMinIP: 1000, JoinFailPerMinIP: 1000, JoinPerMinIP: 1000}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	srv := httptest.NewServer(NewServer(match.NewLobby(ctx, maxRooms, nil, nil, nil), o))
+	srv := httptest.NewServer(NewServer(match.NewLobby(ctx, maxRooms, nil, nil, nil, match.Moderation{}), o))
 	t.Cleanup(func() { cancel(); srv.Close() })
 	return srv
 }

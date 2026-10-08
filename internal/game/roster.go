@@ -56,6 +56,10 @@ func teamKinds(t sim.Team) []sim.Kind {
 	return out
 }
 
+// CleanName is the roster name a hello name becomes (trimmed, valid UTF-8,
+// at most 16 runes, "Pilot" when empty): the name shown, tallied and stored.
+func CleanName(name string) string { return cleanName(name) }
+
 func cleanName(name string) string {
 	name = strings.TrimSpace(name)
 	if !utf8.ValidString(name) {

@@ -28,11 +28,14 @@ type statsHandoff struct {
 	slot        *stats.Slot
 	dir         string
 	retry, wait time.Duration
+	opts        stats.Options // the store's options (its rename hook)
 }
 
-func (h statsHandoff) Acquire(ctx context.Context) { acquireStats(ctx, h.slot, h.dir, h.retry, h.wait) }
-func (h statsHandoff) Release() error              { return h.slot.Close() }
-func (h statsHandoff) Reopen()                     { h.slot.Reopen() }
+func (h statsHandoff) Acquire(ctx context.Context) {
+	acquireStats(ctx, h.slot, h.dir, h.retry, h.wait, h.opts)
+}
+func (h statsHandoff) Release() error { return h.slot.Close() }
+func (h statsHandoff) Reopen()        { h.slot.Reopen() }
 
 // acquireStats opens the store under dir into slot. While another server
 // holds the directory's lock it retries every retry. After wait it logs
@@ -41,11 +44,11 @@ func (h statsHandoff) Reopen()                     { h.slot.Reopen() }
 // operator stopped a stuck old server); the slot keeps queueing meanwhile.
 // A store that cannot open for another reason (corrupt snapshot, unwritable
 // dir) leaves stats off for good: logged, the slot is closed, the game runs.
-func acquireStats(ctx context.Context, slot *stats.Slot, dir string, retry, wait time.Duration) {
+func acquireStats(ctx context.Context, slot *stats.Slot, dir string, retry, wait time.Duration, o stats.Options) {
 	deadline := time.Now().Add(wait)
 	waiting, late := false, false
 	for {
-		st, err := stats.Open(dir, stats.Options{})
+		st, err := stats.Open(dir, o)
 		if err == nil {
 			if slot.Set(st) {
 				slog.Info("stats opened", "dir", dir)

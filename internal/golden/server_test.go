@@ -47,9 +47,9 @@ func newServer(t *testing.T, so srvOpts) (*httptest.Server, *front.Server, conte
 	ctx, cancel := context.WithCancel(context.Background())
 	o := server.Options{Web: web, Limits: so.lim, HandshakeTimeout: 300 * time.Millisecond, Now: so.now}
 	if so.stats != nil {
-		o.Stats = front.NewStats(so.stats)
+		o.Stats = front.NewStats(so.stats, nil)
 	}
-	s := front.NewServer(match.NewLobby(ctx, so.maxRooms, nil, nil, nil), o)
+	s := front.NewServer(match.NewLobby(ctx, so.maxRooms, nil, nil, nil, match.Moderation{}), o)
 	srv := httptest.NewServer(s)
 	t.Cleanup(func() { cancel(); srv.Close() })
 	return srv, s, cancel

@@ -10,6 +10,7 @@ import (
 
 	"github.com/ahmetbir/roomkit/room"
 	"github.com/ahmetbir/roomkit/wsconn"
+	"playground/internal/audit"
 	"playground/internal/game"
 	"playground/internal/mode"
 	"playground/internal/protocol"
@@ -24,8 +25,26 @@ const (
 	MatchTicks = 60 * tickRate // presence in a round's play (plus airborne once) that counts as a match
 )
 
+// Names is the blocked-name check (moderation.Names); it must not block.
+type Names interface{ Blocked(name string) bool }
+
+// Audit takes session events (audit.Log); it must not block.
+type Audit interface{ Record(audit.Event) }
+
+// Moderation is what every room checks and records about its humans:
+// blocked names (nil: none) and the session audit (nil: none).
+type Moderation struct {
+	Names Names
+	Audit Audit
+}
+
 // StatsSink takes a pilot's tally; it must not block (spec §10.3 of v2).
-type StatsSink interface{ Record(stats.Delta) bool }
+// Rename gives a known pilot's stored name the name it was seated with
+// (nothing for an unknown pilot or an unchanged name); it must not block.
+type StatsSink interface {
+	Record(stats.Delta) bool
+	Rename(pilot, name string)
+}
 
 // Info is Dogfight's part of the lobby summary.
 type Info struct {
@@ -45,6 +64,8 @@ type roundKey struct {
 type human struct {
 	pilot      string // token hash; "" = not counted
 	name       string // roster name, reported with the tally
+	entered    string // the name as the hello sent it (audit)
+	ip         string // client address (audit; see addrOf)
 	tally      stats.Delta
 	roundTicks int
 	airborne   bool
@@ -64,8 +85,10 @@ type Match struct {
 	lobby     lobbyKey // last lobby state sent (lobby rooms only)
 	back      returns  // seats of pilots who dropped, kept for their return (session.go)
 	drain     *Drain   // the server's drain state (nil: never drains)
-	drainAt   int      // game tick the drain was first seen in the lobby (-1: not draining)
-	closed    bool     // lobby_closed went out for this drain
+	mod       Moderation
+	code      string // room code, learnt from the first Welcome (audit)
+	drainAt   int    // game tick the drain was first seen in the lobby (-1: not draining)
+	closed    bool   // lobby_closed went out for this drain
 }
 
 // lobbyKey is what a lobby message carries, as a change detector: outside
@@ -93,16 +116,27 @@ func New(s game.Settings, sink StatsSink) *Match {
 }
 
 // Factory is the lobby's room factory for Dogfight; every room watches d
-// (nil: no drain signal).
-func Factory(sink StatsSink, d *Drain) func(game.Settings) (room.Game[protocol.ClientMsg, sim.Input, Info], error) {
+// (nil: no drain signal), refuses names mod blocks and records sessions to
+// mod's audit.
+func Factory(sink StatsSink, d *Drain, mod Moderation) func(game.Settings) (room.Game[protocol.ClientMsg, sim.Input, Info], error) {
 	return func(s game.Settings) (room.Game[protocol.ClientMsg, sim.Input, Info], error) {
 		m := New(s, sink)
-		m.drain = d
+		m.drain, m.mod = d, mod
 		return m, nil
 	}
 }
 
+// Join seats a human. A name the blocked-name list matches is refused
+// before the seat (name_blocked): the name as sent and the roster's cleaned
+// name, which is the one shown, tallied and stored, are both checked. A
+// counted pilot's stored name becomes the seated name at once, so a pilot
+// whose old name became blocked (refused, then back with another) is
+// renamed on this join.
 func (m *Match) Join(who room.Who) (room.PlayerID, error) {
+	if n := m.mod.Names; n != nil && (n.Blocked(who.Name) || n.Blocked(game.CleanName(who.Name))) {
+		m.audit(audit.Event{Event: audit.NameRefused, Pilot: who.Pilot, Name: who.Name, IP: addrOf(who), Room: m.code})
+		return 0, room.Refuse(protocol.CodeNameBlocked)
+	}
 	id, err := m.g.AddHuman(who.Name)
 	if errors.Is(err, game.ErrFull) {
 		return 0, fmt.Errorf("%w: %w", room.ErrFull, err)
@@ -110,18 +144,25 @@ func (m *Match) Join(who room.Who) (room.PlayerID, error) {
 	if err != nil {
 		return 0, err
 	}
-	h := &human{pilot: who.Pilot}
+	h := &human{pilot: who.Pilot, entered: who.Name, ip: addrOf(who)}
 	for _, p := range m.g.Players() {
 		if p.ID == id {
 			h.name = p.Name // the roster's cleaned name
 		}
 	}
 	m.humans[id] = h
+	if h.pilot != "" && m.stats != nil {
+		m.stats.Rename(h.pilot, h.name)
+	}
 	m.returned(id, who.Pilot)
 	return room.PlayerID(id), nil
 }
 
 func (m *Match) Welcome(id room.PlayerID, code, newToken string, out room.Outbox) {
+	m.code = code
+	if h, ok := m.humans[sim.ID(id)]; ok { // the join is recorded here: the room code is known
+		m.audit(audit.Event{Event: audit.Join, Pilot: h.pilot, Name: h.entered, Accepted: h.name, IP: h.ip, Room: code})
+	}
 	w := protocol.NewWelcome(sim.ID(id), code, m.g, m.static)
 	w.Tok = newToken
 	out.To(id, w)
@@ -138,6 +179,7 @@ func (m *Match) Leave(id room.PlayerID) {
 	h, ok := m.humans[sid]
 	var kept seatMemo
 	if ok {
+		m.audit(audit.Event{Event: audit.Leave, Pilot: h.pilot, Name: h.entered, Accepted: h.name, IP: h.ip, Room: m.code})
 		kept = m.memo(sid)
 		m.leaveCount(sid, h)
 		delete(m.humans, sid)
@@ -273,3 +315,15 @@ func (m *Match) Info() room.Info[Info] {
 }
 
 func (m *Match) Label() string { return m.g.Settings().Mode.String() }
+
+func (m *Match) audit(e audit.Event) {
+	if m.mod.Audit != nil {
+		m.mod.Audit.Record(e)
+	}
+}
+
+// addrOf is the client address of who, for the audit. roomkit v0.3.0 does
+// not hand the game the address (room.Who has no field for it; the server
+// derives it from X-Real-IP behind -trust-proxy but keeps it to itself), so
+// it is "" until room.Who carries it; then this returns who.Addr.
+func addrOf(room.Who) string { return "" }

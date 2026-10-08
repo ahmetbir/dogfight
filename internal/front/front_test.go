@@ -75,8 +75,8 @@ func TestRowBytes(t *testing.T) {
 
 // Review Focus 3: stats off must be a nil interface, not a typed nil.
 func TestNewStatsNilIsNilInterface(t *testing.T) {
-	if NewStats(nil) != nil {
-		t.Fatal("NewStats(nil) must be a nil server.Stats")
+	if NewStats(nil, nil) != nil {
+		t.Fatal("NewStats(nil, nil) must be a nil server.Stats")
 	}
 }
 

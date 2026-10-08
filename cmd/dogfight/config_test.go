@@ -26,7 +26,7 @@ func TestProductionFlags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	o := c.server(nil, nil)
+	o := c.server(nil, nil, nil)
 	if len(o.TrustProxy) != 1 || len(o.Origins) != 1 || o.Origins[0] != "dogfight.example.com" || c.logFormat != "json" ||
 		len(o.ConnectSrc) != 1 || o.ConnectSrc[0] != "wss://dogfight.example.com" {
 		t.Fatalf("%+v", o)

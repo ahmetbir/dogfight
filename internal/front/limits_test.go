@@ -195,7 +195,7 @@ func TestJoinFailsPerIP(t *testing.T) {
 func TestDrainOnShutdown(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	l := match.NewLobby(ctx, 0, nil, nil, nil)
+	l := match.NewLobby(ctx, 0, nil, nil, nil, match.Moderation{})
 	s := NewServer(l, server.Options{Web: web})
 	srv := httptest.NewServer(s)
 	defer srv.Close()

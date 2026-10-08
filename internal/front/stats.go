@@ -9,15 +9,21 @@ import (
 
 const boardSize = 20
 
-type statsAPI struct{ slot *stats.Slot }
+type statsAPI struct {
+	slot *stats.Slot
+	hide func(name string) bool // nil = hide nobody
+}
 
 // NewStats is the pilot API over slot; nil slot (stats off) is a nil
-// server.Stats, never a typed nil.
-func NewStats(slot *stats.Slot) server.Stats {
+// server.Stats, never a typed nil. hide (nil = none) leaves pilots off the
+// leaderboards by their stored name: the blocked-name list, checked on each
+// rebuild, so a block shows on the next board (at most the board cache's
+// 10 s later, plus the list's reload in the other colour).
+func NewStats(slot *stats.Slot, hide func(name string) bool) server.Stats {
 	if slot == nil {
 		return nil
 	}
-	return statsAPI{slot}
+	return statsAPI{slot, hide}
 }
 
 func (a statsAPI) Ready() bool { return a.slot.Ready() }
@@ -39,7 +45,7 @@ func (a statsAPI) Board(id server.BoardID) []byte {
 	if !ok || id.Key != "" {
 		return nil
 	}
-	top, week := a.slot.Top(period, boardSize)
+	top, week := a.slot.TopVisible(period, boardSize, a.hide)
 	if week == "" {
 		return nil
 	}

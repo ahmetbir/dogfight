@@ -184,7 +184,7 @@ func TestQuickPlaySkipsCreatedRooms(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
-		l := NewLobby(ctx, 0, nil, nil, nil)
+		l := NewLobby(ctx, 0, nil, nil, nil, Moderation{})
 		created := lobby2
 		created.Listed = true
 		r, err := l.Create(created)
@@ -323,9 +323,9 @@ func playerOf(t *testing.T, m *Match, id room.PlayerID) game.Player {
 func TestDrainClosesLobby(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		d := &Drain{}
-		mk, _ := Factory(nil, d)(lobby2)
+		mk, _ := Factory(nil, d, Moderation{})(lobby2)
 		r := room.New("ABCD", mk, room.Options{})
-		quick, _ := Factory(nil, d)(game.Settings{Mode: mode.Team, Size: 1, Difficulty: bot.Easy, Seed: 1})
+		quick, _ := Factory(nil, d, Moderation{})(game.Settings{Mode: mode.Team, Size: 1, Difficulty: bot.Easy, Seed: 1})
 		q := room.New("QQQQ", quick, room.Options{})
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()

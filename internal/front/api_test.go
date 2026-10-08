@@ -82,7 +82,7 @@ func storeServer(t *testing.T) (*httptest.Server, *stats.Store) {
 	sl := stats.NewSlot()
 	sl.Set(st)
 	t.Cleanup(func() { sl.Close() })
-	return newServer(t, server.Options{Stats: NewStats(sl)}), st
+	return newServer(t, server.Options{Stats: NewStats(sl, nil)}), st
 }
 
 func TestLeaderboard(t *testing.T) {

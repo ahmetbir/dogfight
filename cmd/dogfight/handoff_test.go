@@ -15,7 +15,7 @@ import (
 
 func TestAcquireStatsOpensAFreshDir(t *testing.T) {
 	sl := stats.NewSlot()
-	acquireStats(t.Context(), sl, t.TempDir(), time.Millisecond, time.Second)
+	acquireStats(t.Context(), sl, t.TempDir(), time.Millisecond, time.Second, stats.Options{})
 	if !sl.Ready() {
 		t.Fatal("a fresh dir opens")
 	}
@@ -31,7 +31,7 @@ func TestAcquireStatsCorruptSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	sl := stats.NewSlot()
-	acquireStats(t.Context(), sl, dir, time.Millisecond, time.Second)
+	acquireStats(t.Context(), sl, dir, time.Millisecond, time.Second, stats.Options{})
 	if sl.Ready() || sl.Record(stats.Delta{Pilot: "aa", Kills: 1}) {
 		t.Fatal("a corrupt snapshot must disable stats (and not queue forever)")
 	}
@@ -50,7 +50,10 @@ func TestAcquireStatsWaitsForTheLock(t *testing.T) {
 	}
 	sl := stats.NewSlot()
 	done := make(chan struct{})
-	go func() { acquireStats(t.Context(), sl, dir, 5*time.Millisecond, 5*time.Second); close(done) }()
+	go func() {
+		acquireStats(t.Context(), sl, dir, 5*time.Millisecond, 5*time.Second, stats.Options{})
+		close(done)
+	}()
 	time.Sleep(50 * time.Millisecond)
 	if sl.Ready() {
 		t.Fatal("opened while the old store holds the lock")
@@ -77,7 +80,10 @@ func TestAcquireStatsKeepsRetryingAfterWait(t *testing.T) {
 	}
 	sl := stats.NewSlot()
 	done := make(chan struct{})
-	go func() { acquireStats(t.Context(), sl, dir, 2*time.Millisecond, 20*time.Millisecond); close(done) }()
+	go func() {
+		acquireStats(t.Context(), sl, dir, 2*time.Millisecond, 20*time.Millisecond, stats.Options{})
+		close(done)
+	}()
 	time.Sleep(80 * time.Millisecond)
 	if sl.Ready() {
 		t.Fatal("ready while the old store holds the lock")
