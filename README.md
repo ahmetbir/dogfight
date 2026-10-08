@@ -192,7 +192,7 @@ of 5+ letters also match with doubled letters collapsed. A pattern needs 3+ lett
 | `*kartal*` | anywhere, also inside words | `*sik*` blocks `Işık` too: use with care |
 | `=zorlu kartal` | the whole name only | not `Zorlu Kartal 2` |
 
-- A refused join gets the error code `name_blocked` before it is seated; the client forgets the
+- A refused player gets the error code `name_blocked` at the handshake, before any room is made or joined; the client forgets the
   stored name and returns to the name field with "This name can't be used — pick another".
 - The name checked is both the name sent and the cleaned roster name, which is the one shown,
   tallied and stored on the leaderboard.
@@ -212,9 +212,8 @@ the pilot token's SHA-256 (the stats key, never the token); `name` as entered, `
 `O_APPEND` file under an exclusive `flock`; a line cut short by a failed write is closed with a
 newline before the next one, so it costs only itself. Files whose month ended more than `-audit-retention`
 (default 365 days) ago are deleted at start and daily. The audit is never served on the public
-listener and never written to the process log (admin actions log only counts). The client address
-(`ip`) needs roomkit to hand it to the game (`room.Who` has no address in v0.3.0); until then the
-field is empty.
+listener and never written to the process log (admin actions log only counts). `ip` is the client
+address the server keys its per-address limits on (`X-Real-IP` only from `-trust-proxy` peers).
 
 **Admin** — only on the loopback `-metrics-addr` listener (`POST /admin/<command>`, loopback peers
 only), driven by the binary itself (the image has no shell):

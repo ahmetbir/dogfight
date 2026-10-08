@@ -109,7 +109,7 @@ func run(cfg config) error {
 	}
 	o := cfg.server(sub, st, hide)
 	o.Metrics = reg
-	h := front.NewServer(lb, o)
+	h := front.NewServer(lb, o, mod)
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGUSR1, syscall.SIGUSR2)
 	defer signal.Stop(sig)

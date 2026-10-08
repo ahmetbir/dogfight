@@ -51,7 +51,6 @@ type Info struct {
 	Mode, Map, Weather, Phase string // phase: playing|ended|lobby
 	LeftS                     int    // seconds left in the round
 	NATO, Soviet              int    // humans per team (team and base modes)
-	Seats                     int    // every seat of the room (the room list shows it)
 }
 
 type roundKey struct {
@@ -134,7 +133,7 @@ func Factory(sink StatsSink, d *Drain, mod Moderation) func(game.Settings) (room
 // renamed on this join.
 func (m *Match) Join(who room.Who) (room.PlayerID, error) {
 	if n := m.mod.Names; n != nil && (n.Blocked(who.Name) || n.Blocked(game.CleanName(who.Name))) {
-		m.audit(audit.Event{Event: audit.NameRefused, Pilot: who.Pilot, Name: who.Name, IP: addrOf(who), Room: m.code})
+		m.audit(audit.Event{Event: audit.NameRefused, Pilot: who.Pilot, Name: who.Name, IP: AddrOf(who), Room: m.code})
 		return 0, room.Refuse(protocol.CodeNameBlocked)
 	}
 	id, err := m.g.AddHuman(who.Name)
@@ -144,7 +143,7 @@ func (m *Match) Join(who room.Who) (room.PlayerID, error) {
 	if err != nil {
 		return 0, err
 	}
-	h := &human{pilot: who.Pilot, entered: who.Name, ip: addrOf(who)}
+	h := &human{pilot: who.Pilot, entered: who.Name, ip: AddrOf(who)}
 	for _, p := range m.g.Players() {
 		if p.ID == id {
 			h.name = p.Name // the roster's cleaned name
@@ -295,23 +294,16 @@ func (m *Match) teams() map[sim.ID]sim.Team {
 	return out
 }
 
-// Info: a created (lobby) room offers quick play no seat: the core's
-// Summary.Seats is its human count, so lobby.Quick, the only reader of
-// Summary.Seats, passes it by and nobody lands in a friend's lobby (or in a
-// round that ends in one). Its link and room-list joins are unaffected; the
-// room list reads the real seats from Info.Seats.
+// Info: a created (lobby) room is NoQuick, so quick play never lands
+// anyone in a friend's lobby (or in a round that ends in one); its link and
+// room-list joins are unaffected.
 func (m *Match) Info() room.Info[Info] {
 	st := m.g.Settings()
 	rd := m.g.Round()
 	nato, soviet := m.g.HumanTeams()
-	humans := m.g.Humans()
-	quickSeats := m.seats
-	if st.Lobby {
-		quickSeats = humans
-	}
-	return room.Info[Info]{Humans: humans, Seats: quickSeats, Bots: m.g.Bots(), Listed: st.Listed, Game: Info{
+	return room.Info[Info]{Humans: m.g.Humans(), Seats: m.seats, Bots: m.g.Bots(), Listed: st.Listed, NoQuick: st.Lobby, Game: Info{
 		Mode: st.Mode.String(), Map: st.Map.String(), Weather: st.Weather.String(), Phase: protocol.PhaseName(rd.Phase),
-		LeftS: rd.TicksLeft / tickRate, NATO: nato, Soviet: soviet, Seats: m.seats}}
+		LeftS: rd.TicksLeft / tickRate, NATO: nato, Soviet: soviet}}
 }
 
 func (m *Match) Label() string { return m.g.Settings().Mode.String() }
@@ -322,8 +314,11 @@ func (m *Match) audit(e audit.Event) {
 	}
 }
 
-// addrOf is the client address of who, for the audit. roomkit v0.3.0 does
-// not hand the game the address (room.Who has no field for it; the server
-// derives it from X-Real-IP behind -trust-proxy but keeps it to itself), so
-// it is "" until room.Who carries it; then this returns who.Addr.
-func addrOf(room.Who) string { return "" }
+// AddrOf is who's client address for the audit (X-Real-IP behind
+// -trust-proxy, as roomkit's per-address limits key it); "" when unknown.
+func AddrOf(who room.Who) string {
+	if !who.Addr.IsValid() {
+		return ""
+	}
+	return who.Addr.String()
+}

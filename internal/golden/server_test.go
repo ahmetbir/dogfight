@@ -49,7 +49,7 @@ func newServer(t *testing.T, so srvOpts) (*httptest.Server, *front.Server, conte
 	if so.stats != nil {
 		o.Stats = front.NewStats(so.stats, nil)
 	}
-	s := front.NewServer(match.NewLobby(ctx, so.maxRooms, nil, nil, nil, match.Moderation{}), o)
+	s := front.NewServer(match.NewLobby(ctx, so.maxRooms, nil, nil, nil, match.Moderation{}), o, match.Moderation{})
 	srv := httptest.NewServer(s)
 	t.Cleanup(func() { cancel(); srv.Close() })
 	return srv, s, cancel

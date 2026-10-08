@@ -6,11 +6,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/ahmetbir/roomkit/pilot"
 	"github.com/ahmetbir/roomkit/server"
+	"playground/internal/audit"
 	"playground/internal/match"
 	"playground/internal/moderation"
 	"playground/internal/protocol"
@@ -33,13 +35,15 @@ func blockedNames(t *testing.T) *moderation.Names {
 }
 
 // A hello with a blocked name gets an error frame with code name_blocked
-// for every entry (quick, create, join) and is never seated: the room it
-// tried has no human.
+// for every entry (quick, create, join), at admission: no room is made or
+// joined, and the refusal is in the audit with the client address.
 func TestBlockedNameRefusedAtHandshake(t *testing.T) {
 	names := blockedNames(t)
+	rec := &auditRec{}
+	mod := match.Moderation{Names: names, Audit: rec}
 	ctx, cancel := context.WithCancel(context.Background())
-	lb := match.NewLobby(ctx, 0, nil, nil, nil, match.Moderation{Names: names})
-	srv := httptest.NewServer(NewServer(lb, server.Options{Limits: server.Limits{MaxConnsIP: 1000, CreatePerMinIP: 1000, JoinFailPerMinIP: 1000, JoinPerMinIP: 1000}}))
+	lb := match.NewLobby(ctx, 0, nil, nil, nil, mod)
+	srv := httptest.NewServer(NewServer(lb, server.Options{Limits: server.Limits{MaxConnsIP: 1000, CreatePerMinIP: 1000, JoinFailPerMinIP: 1000, JoinPerMinIP: 1000}}, mod))
 	t.Cleanup(func() { cancel(); srv.Close() })
 
 	host := dial(t, srv)
@@ -62,11 +66,38 @@ func TestBlockedNameRefusedAtHandshake(t *testing.T) {
 			t.Fatalf("%s: not closed", entry.T)
 		}
 	}
-	for _, r := range lb.List() {
-		if r.Code == w.Code && r.Humans != 1 {
-			t.Fatalf("host's room has %d humans", r.Humans)
+	if rooms := lb.List(); len(rooms) != 1 || rooms[0].Code != w.Code || rooms[0].Humans != 1 {
+		t.Fatalf("a refused player made or joined a room: %+v", rooms)
+	}
+	evs := rec.all()
+	if len(evs) != 4 || evs[0].Event != audit.Join || evs[0].IP != "127.0.0.1" {
+		t.Fatalf("audit %+v", evs)
+	}
+	for i, e := range evs[1:] {
+		if e.Event != audit.NameRefused || e.Name != "Z0rlu  K4rtal" || e.IP != "127.0.0.1" || e.Pilot == "" {
+			t.Fatalf("refusal %d: %+v", i, e)
 		}
 	}
+	if evs[1].Room != w.Code {
+		t.Fatalf("join refusal names the room asked for: %+v", evs[1])
+	}
+}
+
+type auditRec struct {
+	mu  sync.Mutex
+	evs []audit.Event
+}
+
+func (a *auditRec) Record(e audit.Event) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.evs = append(a.evs, e)
+}
+
+func (a *auditRec) all() []audit.Event {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return append([]audit.Event(nil), a.evs...)
 }
 
 // Rows of blocked names are hidden from both boards, the next ones move up.

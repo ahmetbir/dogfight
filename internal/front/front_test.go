@@ -56,11 +56,11 @@ func TestPickOfEveryKindPassesUnknownIsRefused(t *testing.T) {
 	}
 }
 
-// The row's seats are the room's (match.Info.Seats), not the core's
-// Summary.Seats, which a created room sets to its humans to keep quick play out.
+// The row's seats are the room's: a created room is kept out of quick play
+// by NoQuick, not by its seat count.
 func TestRowBytes(t *testing.T) {
-	team := room.Summary[match.Info]{Code: "ABCD", Info: room.Info[match.Info]{Humans: 1, Seats: 1,
-		Game: match.Info{Mode: "team", Map: "ada", Weather: "acik", Phase: "playing", LeftS: 42, NATO: 1, Seats: 4}}}
+	team := room.Summary[match.Info]{Code: "ABCD", Info: room.Info[match.Info]{Humans: 1, Seats: 4, NoQuick: true,
+		Game: match.Info{Mode: "team", Map: "ada", Weather: "acik", Phase: "playing", LeftS: 42, NATO: 1}}}
 	b, _ := json.Marshal(Kit{}.Row(team))
 	if string(b) != `{"code":"ABCD","mode":"team","map":"ada","wx":"acik","humans":1,"seats":4,"phase":"playing","left":42,"teams":[1,0]}` {
 		t.Fatal(string(b))

@@ -243,9 +243,8 @@ dependencies to this repo.
   Rooms that play keep playing as before.
 - The lobby message goes out in the Lobby on every roster or host change, otherwise only when
   the phase changes; a joiner gets it with its welcome.
-- Quick Play never seats anyone in a created room: `match.Info` reports such a room's human
-  count as the core's `Summary.Seats` (only `lobby.Quick` reads it), and the room list takes
-  the real seats from `match.Info.Seats`. Link and room-list joins are unaffected.
+- Quick Play never seats anyone in a created room: `match.Info` marks it `NoQuick` (roomkit
+  v0.4.0), so `lobby.Quick` passes it by. Link and room-list joins are unaffected.
 - The room goldens (`room_*.golden`) are built from quick-play settings and do not cover the
   Lobby; `internal/match/prematch_test.go` and `internal/game/lobby_test.go` do.
 
@@ -378,18 +377,18 @@ See README [Moderation](README.md#moderation) for what is stored and the admin c
   letter. Default patterns match whole words; `*x*` substring, `=x` whole name.
 - `purge-name` is a dry run unless `--yes` follows one for the same name and mode; it deletes
   only the listed rows that still match (`stats.Store.Purge(keys, match)`).
-- The name check runs in `match.Join` (room goroutine): `moderation.Names.Blocked` is a lock-free
-  read of an atomic pointer; the refusal is `room.Refuse(protocol.CodeNameBlocked)`, sent by the
-  core before any seat. Pinned with the client by `TestNameBlockedMatchesClient`.
-- Quick play treats a refusal like a full room and creates a room, which is then refused too and
-  closes after the core's empty timeout (60 s); creates stay rate-limited per address.
+- The name check runs in `front.Kit.Admit` (roomkit `server.Admitter`, connection goroutine)
+  before quick play, create or join touches a room: no room is made for a refused player, and the
+  core counts it as reject reason `admit`. `match.Join` checks again (defence in depth: a block may
+  land in between) with `room.Refuse(protocol.CodeNameBlocked)`. `moderation.Names.Blocked` is a
+  lock-free read of an atomic pointer. Pinned with the client by `TestNameBlockedMatchesClient`.
 - The audit and the admin are never on the public listener. `/admin/*` lives on the
   `-metrics-addr` mux and answers loopback peers only; `TestPublicServerHasNoAdmin` guards the
   public side. Admin actions log counts only, never names, IPs or tokens; the audit never goes to
   the process log.
 - `match.Audit.Record` and `StatsSink.Rename` run on the room goroutine: both only queue.
-- The audit's `ip` is empty until roomkit hands the game the client address (`room.Who` has no
-  address in v0.3.0); `match.addrOf` is the one place to fill it.
+- The audit's `ip` is `room.Who.Addr` (roomkit v0.4.0: X-Real-IP behind `-trust-proxy`, as the
+  per-address limits key it), via `match.AddrOf`; a zero address is recorded as empty.
 
 ### Build, release, deploy
 
