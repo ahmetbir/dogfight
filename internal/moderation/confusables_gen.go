@@ -3,7 +3,8 @@
 // confusables_gen writes latin_confusables.txt, the fold table Normalize
 // embeds: every entry of Unicode's confusables.txt whose target is plain
 // Latin letters or digits (combining marks on the target dropped), plus a
-// short supplement of look-alikes the file lacks (small capitals).
+// short supplement of look-alikes the file lacks (small capitals), plus the
+// lower case of every capital source without a row of its own.
 //
 // Regenerate (only when Unicode publishes a new file):
 //
@@ -16,10 +17,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"maps"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // supplement: Latin small capitals and other letter-like runes that
@@ -69,6 +72,17 @@ func main() {
 	}
 	for r, t := range supplement {
 		table[r] = t
+	}
+	// Normalize looks a rune up after lower-casing it, so a capital's
+	// confusable must also be reachable from its lower-case form (Cyrillic
+	// М → м): add the lower case of every capital source that has no row of
+	// its own, mapped to the lower case of the capital's target.
+	for r, t := range maps.Clone(table) {
+		if lo := unicode.ToLower(r); lo != r {
+			if _, ok := table[lo]; !ok {
+				table[lo] = strings.ToLower(t)
+			}
+		}
 	}
 	keys := make([]rune, 0, len(table))
 	for r := range table {

@@ -59,7 +59,7 @@ func (t text) boundary(i int) bool { return i == 0 || i == len(t.r) || t.b[i] }
 
 // separates: runes that drop out but split words (spaces, punctuation,
 // symbols). Invisible format characters and combining marks drop out
-// without splitting, so "Ala​attin" stays one word.
+// without splitting, so "Zor\u200blu" (a zero-width space inside) stays one word.
 func separates(r rune) bool {
 	return unicode.IsSpace(r) || unicode.IsPunct(r) || unicode.IsSymbol(r)
 }
@@ -72,6 +72,11 @@ func foldRune(r rune) string {
 	}
 	if r >= 0xFF01 && r <= 0xFF5E { // fullwidth ASCII
 		r -= 0xFEE0
+	}
+	if lo := unicode.ToLower(r); lo != r { // case first: M, м and m reach one skeleton
+		if _, ok := confusables[lo]; ok || lo < 0x80 {
+			r = lo
+		}
 	}
 	if t, ok := confusables[r]; ok {
 		var b strings.Builder
@@ -104,6 +109,8 @@ func foldASCII(r rune) string {
 	switch {
 	case r == 'l':
 		return "i"
+	case r == 'm': // the table's m → rn, wherever an m comes from
+		return "rn"
 	case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
 		return string(r)
 	}

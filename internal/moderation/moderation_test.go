@@ -93,7 +93,7 @@ func TestBlocked(t *testing.T) {
 // Short word patterns do not block ordinary Turkish names that contain them.
 func TestShortPatternsSpareOrdinaryNames(t *testing.T) {
 	l, _ := NewList([]string{"sik", "ali", "anna"})
-	for _, n := range []string{"Işık", "Isik", "Aşık Veysel", "Kasık", "Sıkı", "Halil", "Salih", "Vitali", "Kaliteli", "banana", "Hasan"} {
+	for _, n := range []string{"Işık", "Isik", "Aşık Kartal", "Kasık", "Sıkı", "Halil", "Salih", "Vitali", "Kaliteli", "banana", "Hasan"} {
 		if l.Blocked(n) {
 			t.Errorf("%q blocked", n)
 		}
@@ -294,5 +294,30 @@ func TestConcurrentEditsAcrossInstances(t *testing.T) {
 	a.Reload()
 	if got := len(a.Patterns()); got != 20 {
 		t.Fatalf("%d of 20 edits kept: %v", got, a.Patterns())
+	}
+}
+
+// Case folds before the confusable table: every form of a letter with a
+// table row (m → rn) reaches the same skeleton. Made-up words.
+func TestCaseBeforeConfusables(t *testing.T) {
+	for _, group := range [][]string{
+		{"kamoz", "KAMOZ", "kAMoz", "kaмoz", "KAМOZ", "kaᴍoz", "ｋａｍｏｚ", "kamoz"},
+		{"memtek", "MEMTEK", "Memtek", "мемтек", "МЕМТЕК"},
+		{"mal", "Mal", "MAL", "MaL"},
+	} {
+		for _, v := range group[1:] {
+			if Normalize(v) != Normalize(group[0]) {
+				t.Errorf("%q → %q, %q → %q", v, Normalize(v), group[0], Normalize(group[0]))
+			}
+		}
+	}
+	l, _ := NewList([]string{"kamoz", "=memtek"})
+	for _, n := range []string{"KAMOZ", "kAMoz", "kaмoz", "MEMTEK", "мемтек"} {
+		if !l.Blocked(n) {
+			t.Errorf("%q not blocked", n)
+		}
+	}
+	if !same("mal", "Mal") || !same("MAL", "mAl") {
+		t.Fatal("case variants are one pattern")
 	}
 }
