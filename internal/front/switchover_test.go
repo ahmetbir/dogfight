@@ -64,7 +64,7 @@ func TestPeriodsAreTheStatsPeriods(t *testing.T) {
 		t.Fatal(err)
 	}
 	sl.Set(st)
-	api := NewStats(sl)
+	api := NewStats(sl, nil)
 	var want []server.BoardID
 	for _, p := range stats.Periods() {
 		if q, ok := stats.ParsePeriod(p.Name()); !ok || q != p {

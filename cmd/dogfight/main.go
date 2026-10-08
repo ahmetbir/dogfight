@@ -20,8 +20,10 @@ import (
 	"github.com/ahmetbir/roomkit/drain"
 	"github.com/ahmetbir/roomkit/metrics"
 	"github.com/ahmetbir/roomkit/pilot"
+	"playground/internal/audit"
 	"playground/internal/front"
 	"playground/internal/match"
+	"playground/internal/moderation"
 	"playground/internal/stats"
 )
 
@@ -56,6 +58,8 @@ func main() {
 		os.Exit(healthcheck(cfg.healthcheck))
 	case cfg.get != "":
 		os.Exit(fetch(cfg.get, os.Stdout))
+	case cfg.admin != "":
+		os.Exit(adminCLI(cfg.adminAddr, cfg.admin, cfg.adminLimit, os.Stdout, os.Stderr))
 	}
 	slog.SetDefault(newLogger(cfg.logFormat, os.Stderr))
 	if err := run(cfg); err != nil {
@@ -90,22 +94,28 @@ func run(cfg config) error {
 		st = stats.NewSlot() // opened by the drain actor: it may wait for the old server's lock
 		sink, dropped = st, st.Dropped
 	}
+	mod, adm, sopts, alog := openModeration(ctx, cfg)
+	adm.ledger = ledgerOf(st)
 	reg := metrics.New("dogfight", dropped)
-	msrv, err := serveMetrics(cfg.metricsAddr, reg)
+	msrv, err := serveMetrics(cfg.metricsAddr, metricsMux(metrics.Handler(reg), adm))
 	if err != nil {
 		return err
 	}
 	rooms := &match.Drain{} // what the rooms see of a drain (lobbies close)
-	lb := match.NewLobby(ctx, cfg.maxRooms, reg, sink, rooms)
-	o := cfg.server(sub, st)
+	lb := match.NewLobby(ctx, cfg.maxRooms, reg, sink, rooms, mod)
+	var hide func(string) bool
+	if adm.names != nil {
+		hide = adm.names.Blocked
+	}
+	o := cfg.server(sub, st, hide)
 	o.Metrics = reg
-	h := front.NewServer(lb, o)
+	h := front.NewServer(lb, o, mod)
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGUSR1, syscall.SIGUSR2)
 	defer signal.Stop(sig)
 	var ho drain.Handoff // only a non-nil slot: no typed-nil interface
 	if st != nil {
-		ho = statsHandoff{slot: st, dir: cfg.dataDir, retry: statsRetry, wait: cfg.statsWait}
+		ho = statsHandoff{slot: st, dir: cfg.dataDir, retry: statsRetry, wait: cfg.statsWait, opts: sopts}
 	}
 	d := drain.New(drainSignal{Server: h, rooms: rooms}, ho, quit, drain.Options{Every: drainEvery, Max: cfg.drainMax})
 	drainDone := make(chan struct{})
@@ -143,6 +153,9 @@ func run(cfg config) error {
 				slog.Error("stats close", "err", err)
 			}
 		}
+		if alog != nil {
+			alog.Close() // after the rooms: their leave events are queued
+		}
 		if msrv != nil {
 			mctx, mcancel := context.WithTimeout(context.Background(), metricsGrace)
 			defer mcancel()
@@ -162,6 +175,9 @@ func run(cfg config) error {
 		if st != nil {
 			_ = st.Close()
 		}
+		if alog != nil {
+			alog.Close()
+		}
 		if msrv != nil {
 			_ = msrv.Close()
 		}
@@ -174,7 +190,7 @@ func run(cfg config) error {
 
 // serveMetrics starts the metrics listener on addr ("" = none). It binds
 // before returning, so a bad address fails the start instead of vanishing.
-func serveMetrics(addr string, reg *metrics.Registry) (*http.Server, error) {
+func serveMetrics(addr string, h http.Handler) (*http.Server, error) {
 	if addr == "" {
 		return nil, nil
 	}
@@ -183,7 +199,7 @@ func serveMetrics(addr string, reg *metrics.Registry) (*http.Server, error) {
 		return nil, fmt.Errorf("-metrics-addr: %w", err)
 	}
 	srv := &http.Server{
-		Handler:           metrics.Handler(reg),
+		Handler:           h,
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 		MaxHeaderBytes:    8 << 10,
@@ -248,4 +264,42 @@ type drainSignal struct {
 func (d drainSignal) Drain(on bool) {
 	d.rooms.Set(on)
 	d.Server.Drain(on)
+}
+
+// openModeration opens the blocked-name list and the session audit under
+// -data (nothing without -data) and starts their reload and retention
+// loops on ctx. A broken moderation.json starts an empty list (logged); an
+// audit dir that cannot be made leaves the audit off (logged): the game runs.
+func openModeration(ctx context.Context, cfg config) (match.Moderation, admin, stats.Options, *audit.Log) {
+	adm := admin{log: slog.Default(), dataDir: cfg.dataDir, dry: newDryRuns()}
+	if cfg.dataDir == "" {
+		return match.Moderation{}, adm, stats.Options{}, nil
+	}
+	names, err := moderation.Open(cfg.dataDir, slog.Default())
+	if err != nil {
+		slog.Error("moderation: starting with an empty list", "err", err)
+	}
+	go names.Watch(ctx, moderation.ReloadEvery)
+	adm.names = names
+	mod := match.Moderation{Names: names}
+	var sopts stats.Options
+	alog, err := audit.Open(cfg.dataDir, slog.Default(), nil)
+	if err != nil {
+		slog.Error("audit off", "err", err)
+		return mod, adm, sopts, nil
+	}
+	go alog.Retain(ctx, cfg.dataDir, cfg.auditKeep)
+	mod.Audit, adm.audit = alog, true
+	sopts.OnRename = func(pilot, prev, name string) {
+		alog.Record(audit.Event{Event: audit.Rename, Pilot: pilot, Prev: prev, Accepted: name})
+	}
+	return mod, adm, sopts, alog
+}
+
+// ledgerOf is the admin's view of the stats slot; nil (no typed nil) when stats are off.
+func ledgerOf(st *stats.Slot) ledger {
+	if st == nil {
+		return nil
+	}
+	return st
 }

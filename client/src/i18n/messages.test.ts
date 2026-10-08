@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ERROR_CODES, NOTICE_CODES, RECOVERABLE, ROOM_GONE, type ErrorCode } from "../net/codes.ts";
+import { ERROR_CODES, NAME_BLOCKED, NOTICE_CODES, RECOVERABLE, ROOM_GONE, type ErrorCode } from "../net/codes.ts";
 import { setLang, tIn } from "./index.ts";
 import { ERROR_KEY, errorText, NOTICE_KEY, noticeText } from "./messages.ts";
 
@@ -32,4 +32,14 @@ test("errors render by code in the viewer's language; unknown codes fall back to
     setLang("tr", null);
   }
   assert.equal(noticeText("team_hurt", "x", { n: 10 }), "Hasar aldıktan sonra 10 sn bekle");
+});
+
+test("a blocked name reads as a request for another name, in both languages", () => {
+  assert.equal(errorText(NAME_BLOCKED, NAME_BLOCKED), "Bu isim kullanılamaz — başka bir isim seç");
+  setLang("en", null);
+  try {
+    assert.equal(errorText(NAME_BLOCKED, NAME_BLOCKED), "This name can't be used — pick another");
+  } finally {
+    setLang("tr", null);
+  }
 });

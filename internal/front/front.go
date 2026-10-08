@@ -8,15 +8,35 @@ import (
 
 	"github.com/ahmetbir/roomkit/room"
 	"github.com/ahmetbir/roomkit/server"
+	"playground/internal/audit"
 	"playground/internal/game"
 	"playground/internal/match"
 	"playground/internal/protocol"
 	"playground/internal/sim"
 )
 
-type Kit struct{}
+// Kit holds only the moderation hooks, which are safe for concurrent use.
+type Kit struct{ mod match.Moderation }
 
-var _ server.Kit[game.Settings, protocol.ClientMsg, match.Info] = Kit{}
+var (
+	_ server.Kit[game.Settings, protocol.ClientMsg, match.Info] = Kit{}
+	_ server.Admitter                                           = Kit{}
+)
+
+// Admit refuses a blocked name (as sent or as the roster would clean it)
+// with name_blocked before quick play, create or join touches a room: no
+// room is made for a refused player. match.Join checks again (a block may
+// land between the two). The refusal goes to the session audit.
+func (k Kit) Admit(req server.AdmitRequest) (string, bool) {
+	n, who := k.mod.Names, req.Who
+	if n == nil || !n.Blocked(who.Name) && !n.Blocked(game.CleanName(who.Name)) {
+		return "", true
+	}
+	if k.mod.Audit != nil {
+		k.mod.Audit.Record(audit.Event{Event: audit.NameRefused, Pilot: who.Pilot, Name: who.Name, IP: match.AddrOf(who), Room: req.Code})
+	}
+	return protocol.CodeNameBlocked, false
+}
 
 func (Kit) Version() int                                { return protocol.Version }
 func (Kit) Decode(b []byte) (protocol.ClientMsg, error) { return protocol.DecodeClient(b) }
@@ -64,7 +84,7 @@ type roomJSON struct {
 
 func (Kit) Row(x room.Summary[match.Info]) any {
 	g := x.Game
-	row := roomJSON{x.Code, g.Mode, g.Map, g.Weather, x.Humans, g.Seats, g.Phase, g.LeftS, nil} // g.Seats: Summary.Seats hides a lobby room from quick play
+	row := roomJSON{x.Code, g.Mode, g.Map, g.Weather, x.Humans, x.Seats, g.Phase, g.LeftS, nil}
 	if g.Mode != "ffa" {
 		row.Teams = &[2]int{g.NATO, g.Soviet}
 	}

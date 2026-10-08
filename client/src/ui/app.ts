@@ -8,6 +8,7 @@ import { startGame, type Game } from "../game/loop.ts";
 import { GameState } from "../game/state.ts";
 import { lt, t } from "../i18n/index.ts";
 import { errorText } from "../i18n/messages.ts";
+import { NAME_BLOCKED } from "../net/codes.ts";
 import { loadSettings, type Settings } from "../input/schemes.ts";
 import { requestTilt, Tilt } from "../input/tilt.ts";
 import { newTouchState } from "../input/touch.ts";
@@ -19,7 +20,7 @@ import { Renderer } from "../render/renderer.ts";
 import { STANDARD as STANDARD_SKIN, type SkinId } from "../render/skins.ts";
 import { noWebGL, type Banner } from "./banner.ts";
 import { errorCard, unreachableCard } from "./errorcard.ts";
-import { fill, h } from "./dom.ts";
+import { fill, h, refuseName } from "./dom.ts";
 import { ChatMenu, ChatThrottle } from "./chat.ts";
 import { Hud } from "./hud.ts";
 import { escapeAction, keyRouter } from "./keys.ts";
@@ -423,6 +424,13 @@ export function play(o: PlayOpts): void {
       closeMenus(false);
       board.hide();
       releasePointer();
+      if (code === NAME_BLOCKED) { // the server's blocked-name list: never offer this name again
+        refuseName();
+        if (!started) {
+          location.reload(); // home or /r/CODE asks for a name again, with the reason
+          return;
+        }
+      }
       if (!started) { // nothing behind it yet: a centered card instead of the top banner
         banner.hide();
         errorCard(ui, t("card.joinFail"), msg);

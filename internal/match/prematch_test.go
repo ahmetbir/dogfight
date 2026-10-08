@@ -58,7 +58,7 @@ func TestLobbyRoomFlow(t *testing.T) {
 		sa, _ := r.Join(ctx, room.Who{Name: "host"}, a)
 		sb, _ := r.Join(ctx, room.Who{Name: "friend"}, b)
 		settle()
-		if s := r.Summary(); s.Game.Phase != "lobby" || s.Humans != 2 || s.Game.Seats != 4 || s.Seats != 2 || s.Bots != 0 {
+		if s := r.Summary(); s.Game.Phase != "lobby" || s.Humans != 2 || s.Seats != 4 || !s.NoQuick || s.Bots != 0 {
 			t.Fatalf("lobby summary %+v", s)
 		}
 		l, ok := b.lastLobby()
@@ -184,7 +184,7 @@ func TestQuickPlaySkipsCreatedRooms(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
-		l := NewLobby(ctx, 0, nil, nil, nil)
+		l := NewLobby(ctx, 0, nil, nil, nil, Moderation{})
 		created := lobby2
 		created.Listed = true
 		r, err := l.Create(created)
@@ -197,7 +197,7 @@ func TestQuickPlaySkipsCreatedRooms(t *testing.T) {
 		if got, ok := l.Quick(); ok {
 			t.Fatalf("quick play picked the lobby room %s", got.Summary().Code)
 		}
-		if s := r.Summary(); s.Game.Seats != 4 || s.Humans != 1 {
+		if s := r.Summary(); s.Seats != 4 || !s.NoQuick || s.Humans != 1 {
 			t.Fatalf("summary %+v", s)
 		}
 		seat.Input(protocol.ClientMsg{T: protocol.TStart})
@@ -323,9 +323,9 @@ func playerOf(t *testing.T, m *Match, id room.PlayerID) game.Player {
 func TestDrainClosesLobby(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		d := &Drain{}
-		mk, _ := Factory(nil, d)(lobby2)
+		mk, _ := Factory(nil, d, Moderation{})(lobby2)
 		r := room.New("ABCD", mk, room.Options{})
-		quick, _ := Factory(nil, d)(game.Settings{Mode: mode.Team, Size: 1, Difficulty: bot.Easy, Seed: 1})
+		quick, _ := Factory(nil, d, Moderation{})(game.Settings{Mode: mode.Team, Size: 1, Difficulty: bot.Easy, Seed: 1})
 		q := room.New("QQQQ", quick, room.Options{})
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()

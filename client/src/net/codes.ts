@@ -3,6 +3,9 @@
 
 export { ERROR_CODES, ROOM_GONE, RECOVERABLE, isErrorCode, type ErrorCode } from "roomkit/net/codes";
 
+/** A join refused because the name is on the server's blocked list (internal/protocol CodeNameBlocked). */
+export const NAME_BLOCKED = "name_blocked";
+
 export const NOTICE_CODES = [
   "team_uneven", "team_full", "team_cooldown", "team_late", "team_locked", "team_hurt", "team_none",
   "not_host", "not_lobby", "side_full", "lobby_closed",

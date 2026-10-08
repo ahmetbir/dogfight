@@ -17,6 +17,7 @@ export const errors: Area<typeof tr> = {
   "err.conns": "Too many connections",
   "err.timeout": "Timed out",
   "err.updating": "The server is updating — reconnect",
+  "err.name_blocked": "This name can't be used — pick another",
   "err.room_gone": "The server was updated and your room closed. Join a new game from the home page.",
   "notice.team_uneven": "The teams would be uneven",
   "notice.team_full": "That team is full",
