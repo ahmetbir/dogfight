@@ -23,6 +23,8 @@ package `roomkit` from GitHub); its own `AGENTS.md` holds the core invariants.
 | `internal/protocol` | Dogfight's JSON messages and conversions |
 | `internal/game`, `mode`, `bot`, `sim`, `maps`, `terrain`, `weather`, `rng`, `geom` | The game itself: rules, bots, deterministic simulation, world generation |
 | `internal/stats` | Pilot stats store (single-writer actor, JSONL journal + snapshot) |
+| `internal/moderation` | Blocked-name list (`<data>/moderation.json`, reloaded on change) and the name normaliser |
+| `internal/audit` | Session audit (`<data>/audit/sessions-YYYY-MM.jsonl`, append-only, shared by both colours) |
 | `internal/golden` | Frozen wire-format goldens (they pin roomkit's behaviour as Dogfight sees it) |
 | `cmd/dogfight` | Main: flags, HTTP server, embedded `web/`, signals, stats handoff |
 | `cmd/loadtest` | WebSocket load generator and CPU bench (Dogfight's `loadtest.Script`) |
@@ -362,6 +364,26 @@ bucket; otherwise players get kicked with `flood`. Core types (`hello`, `create`
   URLs or disk (`roomkit/pilot`).
 - Never commit `deploy/deploy.env`, `.env*`, keys or certificates (`.gitignore` covers
   `*.pem`, `*.key`). Use `deploy/deploy.env.example` placeholders in docs and examples.
+
+### Moderation and the session audit
+
+See README [Moderation](README.md#moderation) for what is stored and the admin commands.
+
+- **No real entries in the repo.** Blocked names, audit lines and IPs exist only in the server's
+  data dir. Tests and docs use made-up names and documentation addresses (192.0.2.0/24,
+  2001:db8::/32).
+- The name check runs in `match.Join` (room goroutine): `moderation.Names.Blocked` is a lock-free
+  read of an atomic pointer; the refusal is `room.Refuse(protocol.CodeNameBlocked)`, sent by the
+  core before any seat. Pinned with the client by `TestNameBlockedMatchesClient`.
+- Quick play treats a refusal like a full room and creates a room, which is then refused too and
+  closes after the core's empty timeout (60 s); creates stay rate-limited per address.
+- The audit and the admin are never on the public listener. `/admin/*` lives on the
+  `-metrics-addr` mux and answers loopback peers only; `TestPublicServerHasNoAdmin` guards the
+  public side. Admin actions log counts only, never names, IPs or tokens; the audit never goes to
+  the process log.
+- `match.Audit.Record` and `StatsSink.Rename` run on the room goroutine: both only queue.
+- The audit's `ip` is empty until roomkit hands the game the client address (`room.Who` has no
+  address in v0.3.0); `match.addrOf` is the one place to fill it.
 
 ### Build, release, deploy
 

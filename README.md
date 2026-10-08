@@ -146,6 +146,10 @@ from the host the page was loaded from, which is all a LAN needs.
 | `-data` | empty | Directory for pilot stats (`pilots.jsonl` journal, `pilots.snap.json` snapshot; directory 0700, files 0600). Empty = stats off. If the directory cannot be opened or written, the server logs `stats disabled` and the game runs without stats |
 | `-metrics-addr` | empty | Listener for `GET /metrics` in Prometheus text format (e.g. `127.0.0.1:9090`). Empty = off. Never expose it publicly |
 | `-drain-max` | `30m` | After `SIGUSR1` (drain), exit at the latest after this long; earlier once the last game socket closes |
+| `-audit-retention` | `8760h` | Delete session audit files (`<data>/audit`) whose month ended longer ago than this (checked at start and daily) |
+| `-admin "<command> [arg]"` | | Moderation admin: send the command to the server's loopback listener and exit; see [Moderation](#moderation) |
+| `-admin-addr` | `127.0.0.1:9090` | The listener `-admin` talks to (the server's `-metrics-addr`) |
+| `-limit` | `50` | `-admin sessions`: newest rows to print (1–1000) |
 | `-stats-wait` | `40m` | Wait at most this long for another server to release the `-data` lock (`stats.lock`), then `stats disabled` |
 
 For the limit flags other than `-max-rooms`, `0` selects the default.
@@ -160,6 +164,61 @@ address):
   is missing, invalid or unknown. With stats off, `leaderboard` and `me` answer 503.
 
 Other routes: `/` (the client), `/r/{code}` (room link), `/healthz`, `/ws` (game socket).
+
+### Moderation
+
+With `-data`, the server checks every name it seats against a blocked-name list and keeps a
+session audit. Both live only in the data directory on the server (the `dogfight-data` volume,
+shared by blue and green); the repository holds the mechanism, never entries.
+
+**Blocked names** — `<data>/moderation.json`, `{"blockedNames": [patterns]}`, written atomically
+(temp file + rename, 0600). Each server rereads it within 10 s of a change, so a block made on one
+colour reaches the other. Names and patterns are compared after normalising: lower case; Turkish
+and other accented letters to their base (`İ I ı`→`i`, `ç`→`c`, `ş`→`s`, `ğ`→`g`, `ö`→`o`,
+`ü`→`u`, …); Cyrillic/Greek look-alikes to Latin; leetspeak (`0`→`o` `1`→`i` `3`→`e` `4`→`a`
+`5`→`s` `7`→`t` `@`→`a` `$`→`s`); everything but letters and digits dropped. A name is refused
+when a normalised pattern is a substring of it (patterns of 5+ letters also match with doubled
+letters collapsed, so `aabbcc` does not slip past `abc…`). A pattern must normalise to at least 3
+characters.
+
+- A refused join gets the error code `name_blocked` before it is seated; the client returns to the
+  name field with "This name can't be used — pick another".
+- The name checked is both the name sent and the cleaned roster name, which is the one shown,
+  tallied and stored on the leaderboard.
+- A known pilot's stored name becomes the name it is seated with at once, so a pilot whose old
+  name became blocked is renamed on its next join.
+- Leaderboard rows whose stored name matches a pattern are hidden from `/api/leaderboard` (both
+  periods; within the board's 10 s cache). `purge-name` deletes them from the stats ledger for good
+  (through the store: rows removed, then a compaction writes the snapshot without them).
+
+**Session audit** — `<data>/audit/sessions-YYYY-MM.jsonl` (dir 0700, files 0600), append-only JSON
+lines `{t, event, pilot, name, accepted, prev, ip, room}`: `event` is `join`, `leave`,
+`name_refused` or `rename` (a known pilot's stored name changed; `prev` is the old one); `pilot` is
+the pilot token's SHA-256 (the stats key, never the token); `name` as entered, `accepted` as seated;
+`room` the room code. Both colours append to the same month file: each line is one `write(2)` on an
+`O_APPEND` file under an exclusive `flock`. Files whose month ended more than `-audit-retention`
+(default 365 days) ago are deleted at start and daily. The audit is never served on the public
+listener and never written to the process log (admin actions log only counts). The client address
+(`ip`) needs roomkit to hand it to the game (`room.Who` has no address in v0.3.0); until then the
+field is empty.
+
+**Admin** — only on the loopback `-metrics-addr` listener (`POST /admin/<command>`, loopback peers
+only), driven by the binary itself (the image has no shell):
+
+```sh
+docker exec dogfight-<color> /dogfight -admin list
+docker exec dogfight-<color> /dogfight -admin "block <pattern>"
+docker exec dogfight-<color> /dogfight -admin "unblock <pattern>"
+docker exec dogfight-<color> /dogfight -admin "lookup <name>"       # ledger rows: hash prefix, name, kills, last seen
+docker exec dogfight-<color> /dogfight -admin "purge-name <name>"   # deletes those rows from the ledger
+docker exec dogfight-<color> /dogfight -admin "sessions name <text>"
+docker exec dogfight-<color> /dogfight -admin "sessions ip <addr or prefix>"
+docker exec dogfight-<color> /dogfight -limit 200 -admin "sessions pilot <hash prefix>"
+```
+
+`lookup` and `purge-name` use the block's matching rule; run `lookup` first. They need the stats
+ledger, which only the live colour holds (409 on a draining one); `block`, `unblock`, `list` and
+`sessions` work on either colour.
 
 ### Signals
 
