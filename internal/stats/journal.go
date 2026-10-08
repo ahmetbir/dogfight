@@ -39,7 +39,14 @@ func (s *Store) record(d Delta, at time.Time) {
 		s.dropped.Add(1)
 		return
 	}
+	var prev string
+	if p, ok := s.pilots[d.Pilot]; ok {
+		prev = p.Name
+	}
 	s.apply(d, at)
+	if s.o.OnRename != nil && prev != "" && d.Name != "" && d.Name != prev {
+		s.o.OnRename(d.Pilot, prev, d.Name)
+	}
 }
 
 // accepts: known pilots take any non-empty delta; a new one needs a real session.

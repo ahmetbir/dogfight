@@ -98,6 +98,16 @@ func (s *Slot) Record(d Delta) bool {
 	return false
 }
 
+// Rename is Store.Rename while a store is open; otherwise it is dropped
+// (the pilot's next tally carries the name anyway).
+func (s *Slot) Rename(pilot, name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.state == slotOpen {
+		s.st.Rename(pilot, name)
+	}
+}
+
 // Dropped counts deltas lost by the slot and by its open store.
 func (s *Slot) Dropped() uint64 {
 	n := s.dropped.Load()
@@ -113,6 +123,31 @@ func (s *Slot) Top(p Period, n int) ([]Entry, string) {
 		return st.Top(p, n)
 	}
 	return nil, ""
+}
+
+// TopVisible is Store.TopVisible; week "" with no open store.
+func (s *Slot) TopVisible(p Period, n int, hide func(name string) bool) ([]Entry, string) {
+	if st := s.store(); st != nil {
+		return st.TopVisible(p, n, hide)
+	}
+	return nil, ""
+}
+
+// Find is Store.Find; ok false with no open store (this server does not
+// hold the ledger: the other colour does, or stats are off).
+func (s *Slot) Find(match func(name string) bool) ([]Found, bool) {
+	if st := s.store(); st != nil {
+		return st.Find(match)
+	}
+	return nil, false
+}
+
+// Purge is Store.Purge; ok false with no open store.
+func (s *Slot) Purge(match func(name string) bool) (int, bool, error) {
+	if st := s.store(); st != nil {
+		return st.Purge(match)
+	}
+	return 0, false, nil
 }
 
 // Me is Store.Me; not found with no open store.

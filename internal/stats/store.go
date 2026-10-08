@@ -21,6 +21,10 @@ type Options struct {
 	MaxJournal   int64            // default 8 << 20
 	Buffer       int              // default 1024
 	Log          *slog.Logger     // default slog.Default()
+	// OnRename (nil = none) hears a known pilot's stored name change, after
+	// it is journaled (not on replay). It runs on the store's goroutine: it
+	// must not block (the session audit queues it).
+	OnRename func(pilot, prev, name string)
 }
 
 func (o Options) withDefaults() Options {
@@ -72,6 +76,12 @@ type Store struct {
 	attempts    int       // compaction attempts (tests)
 	failing     bool      // journal writes are failing; logged once per episode
 	torn        bool      // the journal may end inside a partial line
+}
+
+// rename is a Rename stamped with the caller's clock.
+type rename struct {
+	pilot, name string
+	at          time.Time
 }
 
 // rec is a Delta stamped with the caller's clock at Record time.
@@ -151,15 +161,35 @@ func (s *Store) Record(d Delta) bool {
 	}
 }
 
+// Rename queues a known pilot's new stored name; it never blocks. Unknown
+// pilots and unchanged names cost nothing (no journal line); a full queue
+// drops it uncounted (it is no tally).
+func (s *Store) Rename(pilot, name string) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed || pilot == "" || name == "" {
+		return
+	}
+	select {
+	case s.in <- rename{pilot, name, s.o.Now()}:
+	default:
+	}
+}
+
 func (s *Store) Dropped() uint64 { return s.dropped.Load() }
 
 // Top returns the best n pilots of the period and the current week key;
 // week "" when the store closed before answering (no board).
-func (s *Store) Top(p Period, n int) ([]Entry, string) {
+func (s *Store) Top(p Period, n int) ([]Entry, string) { return s.TopVisible(p, n, nil) }
+
+// TopVisible is Top without the pilots whose stored name hide reports
+// (nil = none); the board still fills up to n from the pilots below them.
+// hide runs on the store's goroutine: it must be quick and not block.
+func (s *Store) TopVisible(p Period, n int, hide func(name string) bool) ([]Entry, string) {
 	var e []Entry
 	var wk string
 	ran := false // read after call returns: the reply is received after the actor set it
-	s.call(func(s *Store) (bool, error) { e, wk = s.top(p, n); ran = true; return false, nil })
+	s.call(func(s *Store) (bool, error) { e, wk = s.top(p, n, hide); ran = true; return false, nil })
 	if !ran {
 		return nil, ""
 	}
@@ -177,6 +207,33 @@ func (s *Store) Me(pilot string) (Pilot, bool) {
 		return Pilot{}, false
 	}
 	return *p, true
+}
+
+// Find lists the pilots whose stored name match accepts (match runs on the
+// store's goroutine: quick, non-blocking); ok false when the store closed.
+func (s *Store) Find(match func(name string) bool) (found []Found, ok bool) {
+	s.call(func(s *Store) (bool, error) { found, ok = s.find(match), true; return false, nil })
+	return found, ok
+}
+
+// Purge removes the pilots whose stored name match accepts, for good: after
+// removing them it compacts (snapshot without them, journal emptied), so a
+// restart does not replay them back. ok false when the store closed. On a
+// failed compaction the rows are gone from memory but err says the disk may
+// still hold them until the next compaction succeeds.
+func (s *Store) Purge(match func(name string) bool) (n int, ok bool, err error) {
+	err = s.call(func(s *Store) (bool, error) {
+		ok = true
+		for _, f := range s.find(match) {
+			delete(s.pilots, f.Pilot)
+			n++
+		}
+		if n == 0 {
+			return false, nil
+		}
+		return false, s.compact(s.o.Now())
+	})
+	return n, ok, err
 }
 
 // Close applies every record accepted before it, writes a final snapshot and
@@ -241,6 +298,10 @@ func (s *Store) run() {
 			switch m := m.(type) {
 			case rec:
 				s.record(m.d, m.at)
+			case rename:
+				if p, ok := s.pilots[m.pilot]; ok && p.Name != m.name {
+					s.record(Delta{Pilot: m.pilot, Name: m.name}, m.at)
+				}
 			case call:
 				stop, err := m.f(s)
 				m.reply <- err

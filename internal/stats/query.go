@@ -139,7 +139,8 @@ func (a ranked) before(b ranked) bool {
 // top returns the n best pilots of the period: Week ranks this week's
 // WeekKills, All ranks lifetime Kills. Pilots without a kill in the period
 // are left out. It keeps a sorted window of n, so it never sorts the store.
-func (s *Store) top(p Period, n int) ([]Entry, string) {
+// hide (nil = none) leaves out pilots by their stored name (moderation).
+func (s *Store) top(p Period, n int, hide func(name string) bool) ([]Entry, string) {
 	week := WeekKey(s.o.Now())
 	if n <= 0 {
 		return []Entry{}, week
@@ -153,7 +154,7 @@ func (s *Store) top(p Period, n int) ([]Entry, string) {
 			}
 			kills = pl.WeekKills
 		}
-		if kills <= 0 {
+		if kills <= 0 || hide != nil && hide(pl.Name) {
 			continue
 		}
 		r := ranked{key: k, name: pl.Name, kills: kills, p: pl}
@@ -194,4 +195,24 @@ func (s *Store) me(key string) *Pilot {
 		cp.Week, cp.WeekKills = wk, 0
 	}
 	return &cp
+}
+
+// Found is one ledger row matched by name (admin lookup and purge).
+type Found struct {
+	Pilot string // token hash
+	Name  string
+	Kills int
+	Seen  int64 // unix seconds
+}
+
+// find lists the pilots whose stored name match accepts, by key.
+func (s *Store) find(match func(name string) bool) []Found {
+	var out []Found
+	for k, p := range s.pilots {
+		if match(p.Name) {
+			out = append(out, Found{Pilot: k, Name: p.Name, Kills: p.Kills, Seen: p.Seen})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Pilot < out[j].Pilot })
+	return out
 }
