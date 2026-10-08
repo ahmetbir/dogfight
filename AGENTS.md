@@ -372,6 +372,12 @@ See README [Moderation](README.md#moderation) for what is stored and the admin c
 - **No real entries in the repo.** Blocked names, audit lines and IPs exist only in the server's
   data dir. Tests and docs use made-up names and documentation addresses (192.0.2.0/24,
   2001:db8::/32).
+- The fold table `internal/moderation/latin_confusables.txt` is generated data (Unicode
+  confusables.txt, Latin targets, plus small capitals): regenerate with `confusables_gen.go`, never
+  edit by hand. Matching is on skeletons (`moderation.Normalize`); `i`/`l`/`1`/`|`/`!` are one
+  letter. Default patterns match whole words; `*x*` substring, `=x` whole name.
+- `purge-name` is a dry run unless `--yes` follows one for the same name and mode; it deletes
+  only the listed rows that still match (`stats.Store.Purge(keys, match)`).
 - The name check runs in `match.Join` (room goroutine): `moderation.Names.Blocked` is a lock-free
   read of an atomic pointer; the refusal is `room.Refuse(protocol.CodeNameBlocked)`, sent by the
   core before any seat. Pinned with the client by `TestNameBlockedMatchesClient`.
