@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"playground/internal/audit"
@@ -33,7 +34,7 @@ var adminVerbs = []string{"list", "block", "unblock", "lookup", "purge-name", "s
 // ledger is the stats store as the admin sees it (*stats.Slot).
 type ledger interface {
 	Find(match func(name string) bool) ([]stats.Found, bool)
-	Purge(match func(name string) bool) (int, bool, error)
+	Purge(keys []string, match func(name string) bool) (int, bool, error)
 }
 
 type admin struct {
@@ -42,6 +43,39 @@ type admin struct {
 	dataDir string            // the session audit lives under it
 	audit   bool              // the session audit is on
 	log     *slog.Logger
+	dry     *dryRuns // purge-name dry runs waiting for their --yes
+}
+
+// purgeWindow is how long a purge-name dry run stays confirmable.
+const purgeWindow = 10 * time.Minute
+
+// dryRuns remembers the rows each purge-name dry run listed, so the --yes
+// call deletes exactly those (and only while they still match).
+type dryRuns struct {
+	mu   sync.Mutex
+	runs map[string]dryRun // by the normalised pattern with its mode
+}
+
+type dryRun struct {
+	keys []string
+	at   time.Time
+}
+
+func newDryRuns() *dryRuns { return &dryRuns{runs: map[string]dryRun{}} }
+
+func (d *dryRuns) put(key string, keys []string, now time.Time) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.runs[key] = dryRun{keys, now}
+}
+
+// take returns and forgets the dry run for key if it is recent enough.
+func (d *dryRuns) take(key string, now time.Time) ([]string, bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	r, ok := d.runs[key]
+	delete(d.runs, key)
+	return r.keys, ok && now.Sub(r.at) < purgeWindow
 }
 
 // metricsMux is the loopback listener's handler: /admin/ and the metrics.
@@ -116,7 +150,8 @@ func (a admin) do(verb, arg string, limit int) (int, string) {
 			msg = fmt.Sprintf("already blocked: %q\n", arg)
 		}
 		if rows, ok := a.find(arg); ok {
-			msg += fmt.Sprintf("%d ledger rows match: hidden from the leaderboard now; purge-name removes them\n", len(rows))
+			msg += fmt.Sprintf("%d ledger rows match, hidden from the leaderboard now (purge-name deletes rows):\n", len(rows))
+			msg += rowList(rows, 20)
 		}
 		return http.StatusOK, msg
 	case "unblock":
@@ -141,33 +176,98 @@ func (a admin) do(verb, arg string, limit int) (int, string) {
 		if len(rows) == 0 {
 			return http.StatusOK, "no ledger rows match\n"
 		}
-		var b strings.Builder
-		for _, f := range rows {
-			fmt.Fprintf(&b, "%s  %q  kills=%d  seen=%s\n", f.Pilot[:min(hashShown, len(f.Pilot))], f.Name, f.Kills,
-				time.Unix(f.Seen, 0).UTC().Format("2006-01-02 15:04Z"))
-		}
-		return http.StatusOK, b.String()
+		return http.StatusOK, rowList(rows, len(rows))
 	case "purge-name":
-		m, err := moderation.Matcher(arg)
-		if err != nil {
-			return a.fail(verb, err)
-		}
-		if a.ledger == nil {
-			return noLedger()
-		}
-		n, ok, err := a.ledger.Purge(m)
-		if !ok {
-			return noLedger()
-		}
-		a.log.Info("admin", "action", verb, "rows", n, "ok", err == nil)
-		if err != nil {
-			return http.StatusInternalServerError, fmt.Sprintf("purged %d rows from memory, but the compaction failed (%v): they may come back on a restart; run it again\n", n, err)
-		}
-		return http.StatusOK, fmt.Sprintf("purged %d ledger rows\n", n)
+		return a.purge(arg)
 	case "sessions":
 		return a.sessions(arg, limit)
 	}
 	return http.StatusNotFound, "unknown command\n"
+}
+
+// purge is "purge-name [--contains] [--yes] <name>". Without --yes it is a
+// dry run: it lists the rows it would delete and remembers them. With --yes
+// (within purgeWindow of that dry run, same name and mode) it deletes
+// exactly the listed rows whose name still matches; nothing else. The
+// default match is the whole name (=exact); --contains matches it anywhere.
+func (a admin) purge(arg string) (int, string) {
+	yes, contains := false, false
+	for {
+		head, rest, _ := strings.Cut(arg, " ")
+		if head == "--yes" {
+			yes = true
+		} else if head == "--contains" {
+			contains = true
+		} else {
+			break
+		}
+		arg = strings.TrimSpace(rest)
+	}
+	pattern := "=" + arg
+	if contains {
+		pattern = "*" + arg + "*"
+	}
+	m, err := moderation.Matcher(pattern)
+	if err != nil {
+		return a.fail("purge-name", err)
+	}
+	if a.ledger == nil {
+		return noLedger()
+	}
+	key := pattern[:1] + moderation.Normalize(arg)
+	now := time.Now()
+	if !yes {
+		rows, ok := a.ledger.Find(m)
+		if !ok {
+			return noLedger()
+		}
+		keys := make([]string, len(rows))
+		for i, f := range rows {
+			keys[i] = f.Pilot
+		}
+		a.dry.put(key, keys, now)
+		a.log.Info("admin", "action", "purge-name dry run", "rows", len(rows))
+		if len(rows) == 0 {
+			return http.StatusOK, "dry run: no ledger rows match; nothing to purge\n"
+		}
+		again := "purge-name --yes " + arg
+		if contains {
+			again = "purge-name --contains --yes " + arg
+		}
+		return http.StatusOK, fmt.Sprintf("dry run: %d ledger rows would be deleted for good:\n%sto delete exactly these, within %s: -admin %q\n",
+			len(rows), rowList(rows, len(rows)), purgeWindow, again)
+	}
+	keys, ok := a.dry.take(key, now)
+	if !ok {
+		return http.StatusConflict, "no recent dry run for this name and mode: run purge-name without --yes first, check the rows, then confirm\n"
+	}
+	n, ok, err := a.ledger.Purge(keys, m)
+	if !ok {
+		return noLedger()
+	}
+	a.log.Info("admin", "action", "purge-name", "rows", n, "listed", len(keys), "ok", err == nil)
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Sprintf("purged %d rows from memory, but the compaction failed (%v): they may come back on a restart; run it again\n", n, err)
+	}
+	msg := fmt.Sprintf("purged %d ledger rows\n", n)
+	if n < len(keys) {
+		msg += fmt.Sprintf("%d listed rows were left alone: gone or renamed since the dry run\n", len(keys)-n)
+	}
+	return http.StatusOK, msg
+}
+
+// rowList prints at most max rows: hash prefix, name, kills, last seen.
+func rowList(rows []stats.Found, max int) string {
+	var b strings.Builder
+	for i, f := range rows {
+		if i == max {
+			fmt.Fprintf(&b, "… and %d more (lookup lists all)\n", len(rows)-max)
+			break
+		}
+		fmt.Fprintf(&b, "%s  %q  kills=%d  seen=%s\n", f.Pilot[:min(hashShown, len(f.Pilot))], f.Name, f.Kills,
+			time.Unix(f.Seen, 0).UTC().Format("2006-01-02 15:04Z"))
+	}
+	return b.String()
 }
 
 // sessions is "sessions name <text> | ip <addr or prefix> | pilot <hash

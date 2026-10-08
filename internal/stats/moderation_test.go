@@ -3,6 +3,7 @@ package stats
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 // hideX hides the made-up name "Xbad" (moderation's matcher in production).
@@ -41,14 +42,14 @@ func TestPurgeIsDurable(t *testing.T) {
 	if f, ok := s.Find(hideX); !ok || len(f) != 1 || f[0].Pilot != "p1" || f[0].Name != "Xbad" || f[0].Kills != 9 || f[0].Seen != t0.Unix() {
 		t.Fatalf("find %+v", f)
 	}
-	n, ok, err := s.Purge(hideX)
+	n, ok, err := s.Purge([]string{"p1", "p2", "nobody"}, hideX) // p2 listed by mistake: its name does not match
 	if n != 1 || !ok || err != nil {
 		t.Fatal(n, ok, err)
 	}
 	if _, ok := s.Me("p1"); ok {
 		t.Fatal("purged pilot still known")
 	}
-	if n, _, _ := s.Purge(hideX); n != 0 {
+	if n, _, _ := s.Purge([]string{"p1"}, hideX); n != 0 {
 		t.Fatal("second purge")
 	}
 	s.crash() // no final snapshot: only the purge's compaction stands between p1 and a replay
@@ -72,7 +73,7 @@ func TestSlotWithoutStore(t *testing.T) {
 	if _, ok := sl.Find(hideX); ok {
 		t.Fatal("find without store")
 	}
-	if _, ok, _ := sl.Purge(hideX); ok {
+	if _, ok, _ := sl.Purge([]string{"p1"}, hideX); ok {
 		t.Fatal("purge without store")
 	}
 	if top, wk := sl.TopVisible(All, 5, hideX); top != nil || wk != "" {
@@ -136,5 +137,31 @@ func TestOnRename(t *testing.T) {
 	s.Me("x") // barrier
 	if strings.Join(got, ",") != "p1:Old>New,p1:New>Third" {
 		t.Fatal(got)
+	}
+}
+
+// A pilot still flying when purged: its end-of-match tally under the purged
+// name is dropped (for a day); under a new name it starts a fresh row.
+func TestPurgeIsFinalForPilotsMidMatch(t *testing.T) {
+	c := &clock{t0}
+	s := open(t, t.TempDir(), c, Options{})
+	defer s.Close()
+	s.Record(Delta{Pilot: "p1", Name: "Xbad", Kills: 9, Flight: minFlight})
+	s.Purge([]string{"p1"}, hideX)
+	s.Record(Delta{Pilot: "p1", Name: "Xbad", Kills: 3, Flight: minFlight}) // the match it was flying ends
+	if _, ok := s.Me("p1"); ok {
+		t.Fatal("late tally recreated the purged row")
+	}
+	s.Record(Delta{Pilot: "p1", Name: "Ali", Kills: 1, Flight: minFlight})
+	if p, ok := s.Me("p1"); !ok || p.Name != "Ali" || p.Kills != 1 {
+		t.Fatalf("new name: %+v", p)
+	}
+	c.now = c.now.Add(tombstoneFor + time.Minute)
+	s.Record(Delta{Pilot: "p2", Name: "Xbad", Kills: 1, Flight: minFlight})
+	s.Purge([]string{"p2"}, hideX)
+	c.now = c.now.Add(tombstoneFor + time.Minute)
+	s.Record(Delta{Pilot: "p2", Name: "Xbad", Kills: 1, Flight: minFlight})
+	if _, ok := s.Me("p2"); !ok {
+		t.Fatal("the tombstone expires")
 	}
 }

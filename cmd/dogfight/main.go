@@ -271,7 +271,7 @@ func (d drainSignal) Drain(on bool) {
 // loops on ctx. A broken moderation.json starts an empty list (logged); an
 // audit dir that cannot be made leaves the audit off (logged): the game runs.
 func openModeration(ctx context.Context, cfg config) (match.Moderation, admin, stats.Options, *audit.Log) {
-	adm := admin{log: slog.Default(), dataDir: cfg.dataDir}
+	adm := admin{log: slog.Default(), dataDir: cfg.dataDir, dry: newDryRuns()}
 	if cfg.dataDir == "" {
 		return match.Moderation{}, adm, stats.Options{}, nil
 	}

@@ -143,9 +143,9 @@ func (s *Slot) Find(match func(name string) bool) ([]Found, bool) {
 }
 
 // Purge is Store.Purge; ok false with no open store.
-func (s *Slot) Purge(match func(name string) bool) (int, bool, error) {
+func (s *Slot) Purge(keys []string, match func(name string) bool) (int, bool, error) {
 	if st := s.store(); st != nil {
-		return st.Purge(match)
+		return st.Purge(keys, match)
 	}
 	return 0, false, nil
 }

@@ -38,7 +38,7 @@ func newAdminRig(t *testing.T) adminRig {
 	sl := stats.NewSlot()
 	sl.Set(st)
 	t.Cleanup(func() { sl.Close() })
-	a := admin{names: names, ledger: sl, dataDir: dir, audit: true, log: slog.New(slog.DiscardHandler)}
+	a := admin{names: names, ledger: sl, dataDir: dir, audit: true, log: slog.New(slog.DiscardHandler), dry: newDryRuns()}
 	srv := httptest.NewServer(metricsMux(metrics.Handler(metrics.New("dogfight", nil)), a))
 	t.Cleanup(srv.Close)
 	return adminRig{srv.URL, strings.TrimPrefix(srv.URL, "http://"), st, dir}
@@ -70,8 +70,20 @@ func TestAdminCLIRoundTrip(t *testing.T) {
 	if code, out, _ := r.run(t, "lookup Z0RLU KARTAL"); code != 0 || !strings.HasPrefix(out, "abababababab  \"Zorlu Kartal\"  kills=5  seen=") {
 		t.Fatalf("lookup: %d %q", code, out)
 	}
-	if code, out, _ := r.run(t, "purge-name zorlu kartal"); code != 0 || out != "purged 1 ledger rows\n" {
+	if code, _, errw := r.run(t, "purge-name --yes zorlu kartal"); code != 1 || !strings.Contains(errw, "no recent dry run") {
+		t.Fatalf("confirm without a dry run: %d %q", code, errw)
+	}
+	if code, out, _ := r.run(t, "purge-name zorlu kartal"); code != 0 || !strings.HasPrefix(out, "dry run: 1 ledger rows") || !strings.Contains(out, "abababababab") {
+		t.Fatalf("dry run: %d %q", code, out)
+	}
+	if _, ok := r.store.Me(strings.Repeat("ab", 32)); !ok {
+		t.Fatal("a dry run deleted")
+	}
+	if code, out, _ := r.run(t, "purge-name --yes ZORLU KARTAL"); code != 0 || out != "purged 1 ledger rows\n" {
 		t.Fatalf("purge: %d %q", code, out)
+	}
+	if code, _, _ := r.run(t, "purge-name --yes zorlu kartal"); code != 1 {
+		t.Fatal("a dry run confirms once")
 	}
 	if _, ok := r.store.Me(strings.Repeat("ab", 32)); ok {
 		t.Fatal("purged row still in the ledger")
@@ -169,7 +181,7 @@ func TestAdminOffAndNoLedger(t *testing.T) {
 		t.Fatalf("off: %d", w.Code)
 	}
 	names, _ := moderation.Open(t.TempDir(), nil)
-	a := admin{names: names, ledger: stats.NewSlot(), log: slog.New(slog.DiscardHandler)}
+	a := admin{names: names, ledger: stats.NewSlot(), log: slog.New(slog.DiscardHandler), dry: newDryRuns()}
 	for _, verb := range []string{"lookup", "purge-name"} {
 		if code, _ := a.do(verb, "zorlu kartal", 50); code != http.StatusConflict {
 			t.Fatalf("%s: %d", verb, code)
@@ -177,5 +189,40 @@ func TestAdminOffAndNoLedger(t *testing.T) {
 	}
 	if code, _ := a.do("sessions", "name x", 50); code != http.StatusServiceUnavailable {
 		t.Fatal("audit off")
+	}
+}
+
+// purge-name matches the whole name by default; --contains is explicit;
+// rows renamed between the dry run and --yes are left alone.
+func TestPurgeNameExactAndContains(t *testing.T) {
+	r := newAdminRig(t)
+	rec := func(p, name string) {
+		r.store.Record(stats.Delta{Pilot: strings.Repeat(p, 32), Name: name, Kills: 1, Flight: stats.MinFlightTicks})
+	}
+	rec("a1", "Ali")
+	rec("b2", "Halil")
+	rec("c3", "Ali Veli")
+	rec("d4", "ALİ")
+	r.store.Me("x")
+	_, out, _ := r.run(t, "purge-name ali")
+	if !strings.HasPrefix(out, "dry run: 2 ledger rows") || strings.Contains(out, "Halil") || strings.Contains(out, "Veli") {
+		t.Fatalf("exact: %q", out)
+	}
+	r.store.Rename(strings.Repeat("d4", 32), "Deniz") // renamed after the dry run
+	r.store.Me("x")
+	if _, out, _ := r.run(t, "purge-name --yes ali"); out != "purged 1 ledger rows\n1 listed rows were left alone: gone or renamed since the dry run\n" {
+		t.Fatalf("confirm: %q", out)
+	}
+	for _, p := range []string{"b2", "c3", "d4"} {
+		if _, ok := r.store.Me(strings.Repeat(p, 32)); !ok {
+			t.Fatalf("%s purged", p)
+		}
+	}
+	_, out, _ = r.run(t, "purge-name --contains veli")
+	if !strings.HasPrefix(out, "dry run: 1 ledger rows") || !strings.Contains(out, `"Ali Veli"`) {
+		t.Fatalf("contains: %q", out)
+	}
+	if _, _, errw := r.run(t, "purge-name --yes veli"); !strings.Contains(errw, "no recent dry run") {
+		t.Fatalf("mode is part of the confirmation: %q", errw)
 	}
 }

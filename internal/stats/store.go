@@ -72,10 +72,20 @@ type Store struct {
 	w           *bufio.Writer
 	size        int64
 	compactedAt time.Time
-	failedAt    time.Time // last failed compaction; zero when healthy
-	attempts    int       // compaction attempts (tests)
-	failing     bool      // journal writes are failing; logged once per episode
-	torn        bool      // the journal may end inside a partial line
+	failedAt    time.Time       // last failed compaction; zero when healthy
+	attempts    int             // compaction attempts (tests)
+	failing     bool            // journal writes are failing; logged once per episode
+	torn        bool            // the journal may end inside a partial line
+	tombs       map[string]tomb // purged pilots (memory only): their late tallies are dropped
+}
+
+// tombstoneFor is how long a purged pilot's tallies under its purged name
+// are dropped: longer than any match it may still be flying.
+const tombstoneFor = 24 * time.Hour
+
+type tomb struct {
+	name string
+	at   time.Time
 }
 
 // rename is a Rename stamped with the caller's clock.
@@ -108,7 +118,7 @@ func Open(dir string, o Options) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Store{dir: dir, o: o, in: make(chan any, o.Buffer), done: make(chan struct{}), pilots: map[string]*Pilot{}, lock: lock}
+	s := &Store{dir: dir, o: o, in: make(chan any, o.Buffer), done: make(chan struct{}), pilots: map[string]*Pilot{}, tombs: map[string]tomb{}, lock: lock}
 	if err := s.open(); err != nil {
 		lock.Close()
 		return nil, err
@@ -216,22 +226,32 @@ func (s *Store) Find(match func(name string) bool) (found []Found, ok bool) {
 	return found, ok
 }
 
-// Purge removes the pilots whose stored name match accepts, for good: after
-// removing them it compacts (snapshot without them, journal emptied), so a
-// restart does not replay them back. ok false when the store closed. On a
-// failed compaction the rows are gone from memory but err says the disk may
-// still hold them until the next compaction succeeds.
-func (s *Store) Purge(match func(name string) bool) (n int, ok bool, err error) {
+// Purge removes exactly the pilots keys names whose stored name match still
+// accepts (a row renamed since the caller listed it is kept), for good:
+// after removing them it compacts (snapshot without them, journal emptied),
+// so a restart does not replay them back. A purged pilot's later tallies
+// under the purged name (a match it was still flying) are dropped for
+// tombstoneFor; under another name they count as a new pilot. ok false
+// when the store closed. On a failed compaction the rows are gone from
+// memory but err says the disk may still hold them until the next
+// compaction succeeds.
+func (s *Store) Purge(keys []string, match func(name string) bool) (n int, ok bool, err error) {
 	err = s.call(func(s *Store) (bool, error) {
 		ok = true
-		for _, f := range s.find(match) {
-			delete(s.pilots, f.Pilot)
+		now := s.o.Now()
+		for _, k := range keys {
+			p, found := s.pilots[k]
+			if !found || !match(p.Name) {
+				continue
+			}
+			delete(s.pilots, k)
+			s.tombs[k] = tomb{name: p.Name, at: now}
 			n++
 		}
 		if n == 0 {
 			return false, nil
 		}
-		return false, s.compact(s.o.Now())
+		return false, s.compact(now)
 	})
 	return n, ok, err
 }

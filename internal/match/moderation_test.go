@@ -9,6 +9,7 @@ import (
 	"playground/internal/audit"
 	"playground/internal/game"
 	"playground/internal/protocol"
+	"playground/internal/sim"
 )
 
 // blockX blocks the made-up name "xbad" (moderation.Names in production).
@@ -104,5 +105,29 @@ func TestAuditEvents(t *testing.T) {
 		if rec.evs[i] != want[i] {
 			t.Fatalf("event %d: %+v, want %+v", i, rec.evs[i], want[i])
 		}
+	}
+}
+
+// toggle blocks "xbad" once on is set (a block added mid-match).
+type toggle struct{ on bool }
+
+func (b *toggle) Blocked(n string) bool { return b.on && blockX{}.Blocked(n) }
+
+// A name blocked while its pilot flies is not stored with the match's tally.
+func TestBlockedMidMatchTallyDropsName(t *testing.T) {
+	sk := &sink{}
+	tg := &toggle{}
+	mk, _ := Factory(sk, nil, Moderation{Names: tg})(ffa4)
+	m := mk.(*Match)
+	id, err := m.Join(room.Who{Name: "Xbad", Pilot: "pa"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.humans[sim.ID(id)].tally.Kills = 1
+	tg.on = true
+	m.Leave(id)
+	got := sk.all()
+	if len(got) != 1 || got[0].Pilot != "pa" || got[0].Name != "" || got[0].Kills != 1 {
+		t.Fatalf("%+v", got)
 	}
 }

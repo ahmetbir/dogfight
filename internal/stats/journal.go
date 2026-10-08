@@ -29,6 +29,13 @@ type line struct {
 // record journals d and then applies it. A delta the journal cannot take is
 // dropped and counted, so memory never holds what a restart would lose.
 func (s *Store) record(d Delta, at time.Time) {
+	if t, ok := s.tombs[d.Pilot]; ok {
+		if at.Sub(t.at) >= tombstoneFor {
+			delete(s.tombs, d.Pilot)
+		} else if d.Name == t.name || d.Name == "" {
+			return // a purged pilot's late tally under the purged name
+		}
+	}
 	if !s.accepts(d) {
 		return
 	}
