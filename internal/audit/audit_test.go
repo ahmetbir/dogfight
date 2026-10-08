@@ -175,3 +175,49 @@ func TestTornLineDoesNotEatTheNext(t *testing.T) {
 		t.Fatalf("%v %+v", err, got)
 	}
 }
+
+// The dir's size cap deletes the oldest months first, never the current
+// one; with only the current month left, events are dropped and counted.
+func TestSizeCap(t *testing.T) {
+	dir := t.TempDir()
+	ad := filepath.Join(dir, Dir)
+	os.MkdirAll(ad, 0o700)
+	old := strings.Repeat("x", 600) + "\n"
+	for _, m := range []string{"2026-07", "2026-08", "2026-09"} {
+		os.WriteFile(filepath.Join(ad, "sessions-"+m+".jsonl"), []byte(old), 0o600)
+	}
+	l, err := OpenCapped(dir, 1500, nil, func() time.Time { return t0 })
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 10 { // ~100 B each: room for them once the oldest month goes
+		l.Record(Event{Event: NameRefused, Name: "zorlu kartal", Pilot: "ab12"})
+	}
+	l.Close()
+	left, _ := os.ReadDir(ad)
+	var names []string
+	for _, e := range left {
+		names = append(names, e.Name())
+	}
+	// ~110 B a line: the 2026-07 and 2026-08 files went, oldest first; nothing dropped.
+	if strings.Join(names, ",") != "sessions-2026-09.jsonl,sessions-2026-10.jsonl" || l.Dropped() != 0 {
+		t.Fatalf("%v dropped=%d", names, l.Dropped())
+	}
+	var total int64
+	for _, e := range left {
+		fi, _ := e.Info()
+		total += fi.Size()
+	}
+	if total > 1500 {
+		t.Fatalf("dir %d B over the cap", total)
+	}
+
+	small, _ := OpenCapped(t.TempDir(), 300, nil, func() time.Time { return t0 })
+	for range 10 {
+		small.Record(Event{Event: NameRefused, Name: "zorlu kartal", Pilot: "ab12"})
+	}
+	small.Close()
+	if small.Dropped() == 0 || small.Dropped() == 10 {
+		t.Fatalf("current month over the cap: dropped %d of 10", small.Dropped())
+	}
+}

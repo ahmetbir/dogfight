@@ -14,5 +14,5 @@ type Server = server.Server[game.Settings, protocol.ClientMsg, sim.Input, match.
 // NewServer is Dogfight's HTTP handler; mod's names are refused at the
 // handshake (Kit.Admit) before any room is touched.
 func NewServer(l *match.Lobby, o server.Options, mod match.Moderation) *Server {
-	return server.New(l, Kit{mod: mod}, o)
+	return server.New(l, Kit{mod: mod, refusals: newRefusals(o.Now)}, o)
 }

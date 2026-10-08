@@ -283,7 +283,7 @@ func openModeration(ctx context.Context, cfg config) (match.Moderation, admin, s
 	adm.names = names
 	mod := match.Moderation{Names: names}
 	var sopts stats.Options
-	alog, err := audit.Open(cfg.dataDir, slog.Default(), nil)
+	alog, err := audit.OpenCapped(cfg.dataDir, cfg.auditMax, slog.Default(), nil)
 	if err != nil {
 		slog.Error("audit off", "err", err)
 		return mod, adm, sopts, nil

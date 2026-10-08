@@ -52,6 +52,7 @@ type Event struct {
 	Prev     string    `json:"prev,omitempty"`     // rename: the stored name before
 	IP       string    `json:"ip,omitempty"`       // the client address behind the trusted proxy
 	Room     string    `json:"room,omitempty"`     // room code; "" when not known yet
+	Repeats  int       `json:"repeats,omitempty"`  // name_refused: rows not written for this pilot and address since the last one
 }
 
 // Log appends events from any goroutine without blocking: an actor owns the files.
@@ -66,13 +67,30 @@ type Log struct {
 	mu     sync.RWMutex // fences Record against Close
 	closed bool
 
+	max int64 // size cap of the audit dir; 0 = none
+
 	// actor-owned
-	f     *os.File
-	month string
+	f         *os.File
+	month     string
+	used      int64     // the dir's size as last measured plus what this writer added since; -1 = unknown
+	full      bool      // the cap is reached with only the current month left
+	checkedAt time.Time // when a full dir was last measured
 }
 
-// Open makes <dataDir>/audit (0700) and starts the writer.
+// DefaultMaxBytes caps the audit dir (-audit-max-bytes).
+const DefaultMaxBytes = 256 << 20
+
+var errFull = errors.New("audit: size cap reached with only the current month left; dropping events")
+
+// Open makes <dataDir>/audit (0700) and starts the writer, capped at DefaultMaxBytes.
 func Open(dataDir string, log *slog.Logger, now func() time.Time) (*Log, error) {
+	return OpenCapped(dataDir, DefaultMaxBytes, log, now)
+}
+
+// OpenCapped is Open with the dir's size cap (0 = none): when an event
+// would pass it, the oldest month files are deleted first; when only the
+// current month is left, events are dropped (counted, logged once).
+func OpenCapped(dataDir string, maxBytes int64, log *slog.Logger, now func() time.Time) (*Log, error) {
 	if log == nil {
 		log = slog.Default()
 	}
@@ -83,7 +101,7 @@ func Open(dataDir string, log *slog.Logger, now func() time.Time) (*Log, error) 
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
-	l := &Log{dir: dir, log: log, now: now, in: make(chan Event, buffer), done: make(chan struct{})}
+	l := &Log{dir: dir, log: log, now: now, in: make(chan Event, buffer), done: make(chan struct{}), max: maxBytes, used: -1}
 	go l.run()
 	return l, nil
 }
@@ -162,6 +180,11 @@ func (l *Log) write(e Event) error {
 	}
 	b = append(b, '\n')
 	month := e.T.Format("2006-01")
+	if l.max > 0 {
+		if err := l.room(int64(len(b))+1, month); err != nil {
+			return err
+		}
+	}
 	if l.f == nil || month != l.month {
 		if l.f != nil {
 			l.f.Close()
@@ -191,8 +214,76 @@ func (l *Log) write(e Event) error {
 	if err != nil { // reopen next time (the file may have been removed)
 		l.f.Close()
 		l.f = nil
+		l.used = -1
+		return err
 	}
-	return err
+	l.used += int64(len(b))
+	return nil
+}
+
+// room makes n bytes of room under the cap: it measures the dir (the
+// other colour writes too) and deletes the oldest month files, never the
+// current one. A full dir is measured again at most once a minute.
+func (l *Log) room(n int64, month string) error {
+	if l.used >= 0 && l.used+n <= l.max {
+		return nil
+	}
+	now := l.now()
+	if l.full && now.Sub(l.checkedAt) < time.Minute {
+		return errFull
+	}
+	l.checkedAt = now
+	files, used, err := monthFiles(l.dir)
+	if err != nil {
+		return err
+	}
+	removed := 0
+	for _, f := range files {
+		if used+n <= l.max || f.name == fileName(month) {
+			break
+		}
+		if err := os.Remove(filepath.Join(l.dir, f.name)); err != nil {
+			return err
+		}
+		used -= f.size
+		removed++
+	}
+	if removed > 0 {
+		l.log.Info("audit: size cap, removed the oldest months", "files", removed)
+	}
+	l.used = used
+	l.full = used+n > l.max
+	if l.full {
+		return errFull
+	}
+	return nil
+}
+
+type monthFileInfo struct {
+	name string
+	size int64
+}
+
+// monthFiles lists the month files oldest first and their total size.
+func monthFiles(dir string) ([]monthFileInfo, int64, error) {
+	ents, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, 0, err
+	}
+	var out []monthFileInfo
+	var total int64
+	for _, e := range ents { // ReadDir sorts by name: sessions-YYYY-MM is oldest first
+		if !monthFile.MatchString(e.Name()) || e.IsDir() {
+			continue
+		}
+		fi, err := e.Info()
+		if err != nil {
+			continue
+		}
+		out = append(out, monthFileInfo{e.Name(), fi.Size()})
+		total += fi.Size()
+	}
+	return out, total, nil
 }
 
 func fileName(month string) string { return "sessions-" + month + ".jsonl" }

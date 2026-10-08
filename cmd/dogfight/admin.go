@@ -305,22 +305,34 @@ func (a admin) sessions(arg string, limit int) (int, string) {
 	}
 	var b strings.Builder
 	for _, e := range evs {
-		fmt.Fprintf(&b, "%s  %-12s  pilot=%s  ip=%s  room=%s  name=%q", e.T.UTC().Format("2006-01-02 15:04:05Z"), e.Event,
-			orDash(e.Pilot[:min(hashShown, len(e.Pilot))]), orDash(e.IP), orDash(e.Room), e.Name)
+		fmt.Fprintf(&b, "%s  %-12s  pilot=%s  ip=%s  room=%s  name=%q", e.T.UTC().Format("2006-01-02 15:04:05Z"), safe(e.Event),
+			safe(e.Pilot[:min(hashShown, len(e.Pilot))]), safe(e.IP), safe(e.Room), e.Name)
 		if e.Accepted != "" {
 			fmt.Fprintf(&b, "  accepted=%q", e.Accepted)
 		}
 		if e.Prev != "" {
 			fmt.Fprintf(&b, "  prev=%q", e.Prev)
 		}
+		if e.Repeats > 0 {
+			fmt.Fprintf(&b, "  repeats=%d", e.Repeats)
+		}
 		b.WriteByte('\n')
 	}
 	return http.StatusOK, b.String()
 }
 
-func orDash(s string) string {
+// safe prints a field the server wrote (hash, address, room code, event)
+// as is when it holds only the characters such a field has, quoted with
+// escapes otherwise: no audit line can forge a row or reach the terminal
+// raw. Names are always quoted.
+func safe(s string) string {
 	if s == "" {
 		return "-"
+	}
+	for _, r := range s {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == ':' || r == '.' || r == '_' || r == '/') {
+			return strconv.QuoteToASCII(s)
+		}
 	}
 	return s
 }

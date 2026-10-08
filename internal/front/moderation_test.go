@@ -3,14 +3,17 @@ package front
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/ahmetbir/roomkit/pilot"
+	"github.com/ahmetbir/roomkit/room"
 	"github.com/ahmetbir/roomkit/server"
 	"playground/internal/audit"
 	"playground/internal/match"
@@ -138,5 +141,42 @@ func TestPublicServerHasNoAdmin(t *testing.T) {
 		if res.StatusCode < 400 {
 			t.Errorf("POST %s = %d", path, res.StatusCode)
 		}
+	}
+}
+
+// Refused-name rows: one per 10 s per (pilot, address) with the held-back
+// count, at most 10 a minute per address (IPv6 /64) across pilots, and a
+// join code only when it is a well-formed code (no forged audit rows).
+func TestRefusalRowsLimited(t *testing.T) {
+	names := blockedNames(t)
+	rec := &auditRec{}
+	now := time.Date(2026, 10, 8, 15, 0, 0, 0, time.UTC)
+	k := Kit{mod: match.Moderation{Names: names, Audit: rec}, refusals: newRefusals(func() time.Time { return now })}
+	ip := netip.MustParseAddr("192.0.2.7")
+	req := func(pilot, code string, addr netip.Addr) server.AdmitRequest {
+		return server.AdmitRequest{Who: room.Who{Name: "zorlu kartal", Pilot: pilot, Addr: addr}, Kind: "join", Code: code}
+	}
+	for range 5 {
+		if code, ok := k.Admit(req("p1", "abcd", ip)); ok || code != protocol.CodeNameBlocked {
+			t.Fatal("every attempt is refused, written or not")
+		}
+	}
+	now = now.Add(11 * time.Second)
+	k.Admit(req("p1", "ABCD", ip))
+	evs := rec.all()
+	if len(evs) != 2 || evs[0].Repeats != 0 || evs[1].Repeats != 4 || evs[0].Room != "ABCD" || evs[0].IP != "192.0.2.7" {
+		t.Fatalf("%+v", evs)
+	}
+	for i := range 30 { // token rotation from one /64: 10 rows a minute
+		k.Admit(req(fmt.Sprintf("q%d", i), "", netip.MustParseAddr(fmt.Sprintf("2001:db8:1:2::%x", i+1))))
+	}
+	if got := len(rec.all()) - 2; got != refusalsPerMin {
+		t.Fatalf("one /64: %d rows", got)
+	}
+	forged := "ABCD\n2026-10-08 15:00:00Z  join  pilot=deadbeef0000\x1b[2K"
+	now = now.Add(time.Hour)
+	k.Admit(req("p9", forged, netip.MustParseAddr("198.51.100.7")))
+	if last := rec.all()[len(rec.all())-1]; last.Room != "" || last.Pilot != "p9" {
+		t.Fatalf("forged code recorded: %+v", last)
 	}
 }

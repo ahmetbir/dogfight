@@ -6,6 +6,7 @@ package front
 import (
 	"time"
 
+	"github.com/ahmetbir/roomkit/lobby"
 	"github.com/ahmetbir/roomkit/room"
 	"github.com/ahmetbir/roomkit/server"
 	"playground/internal/audit"
@@ -15,8 +16,12 @@ import (
 	"playground/internal/sim"
 )
 
-// Kit holds only the moderation hooks, which are safe for concurrent use.
-type Kit struct{ mod match.Moderation }
+// Kit holds only the moderation hooks and the refusal-row limiter, all
+// safe for concurrent use.
+type Kit struct {
+	mod      match.Moderation
+	refusals *refusals // nil: every refusal row is written (tests)
+}
 
 var (
 	_ server.Kit[game.Settings, protocol.ClientMsg, match.Info] = Kit{}
@@ -26,14 +31,19 @@ var (
 // Admit refuses a blocked name (as sent or as the roster would clean it)
 // with name_blocked before quick play, create or join touches a room: no
 // room is made for a refused player. match.Join checks again (a block may
-// land between the two). The refusal goes to the session audit.
+// land between the two). The refusal goes to the session audit, limited
+// (refusals.go); a join's room code only when it is a well-formed code.
 func (k Kit) Admit(req server.AdmitRequest) (string, bool) {
 	n, who := k.mod.Names, req.Who
 	if n == nil || !n.Blocked(who.Name) && !n.Blocked(game.CleanName(who.Name)) {
 		return "", true
 	}
 	if k.mod.Audit != nil {
-		k.mod.Audit.Record(audit.Event{Event: audit.NameRefused, Pilot: who.Pilot, Name: who.Name, IP: match.AddrOf(who), Room: req.Code})
+		code, _ := lobby.NormalizeCode(req.Code)
+		e := audit.Event{Event: audit.NameRefused, Pilot: who.Pilot, Name: who.Name, IP: match.AddrOf(who), Room: code}
+		if k.refusals.admit(&e, who.Addr) {
+			k.mod.Audit.Record(e)
+		}
 	}
 	return protocol.CodeNameBlocked, false
 }

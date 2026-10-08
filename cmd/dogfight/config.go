@@ -24,6 +24,7 @@ type config struct {
 	admin, adminAddr                                               string // -admin "<verb> [arg]": send it to the loopback listener and exit
 	adminLimit                                                     int    // -limit: rows a sessions query prints
 	auditKeep                                                      time.Duration
+	auditMax                                                       int64 // bytes of <data>/audit
 
 	showVersion bool
 	lag         time.Duration
@@ -53,6 +54,7 @@ func parseFlags(args []string) (config, error) {
 	fl.StringVar(&c.adminAddr, "admin-addr", "127.0.0.1:9090", "the loopback listener -admin talks to (the server's -metrics-addr)")
 	fl.IntVar(&c.adminLimit, "limit", 50, "-admin sessions: newest rows to print (at most 1000)")
 	fl.DurationVar(&c.auditKeep, "audit-retention", audit.DefaultRetention, "delete session audit files (under -data) older than this")
+	fl.Int64Var(&c.auditMax, "audit-max-bytes", audit.DefaultMaxBytes, "size cap of the session audit (under -data): the oldest months go first")
 	fl.StringVar(&c.dataDir, "data", "", "directory for pilot stats (empty = stats off)")
 	fl.DurationVar(&c.drainMax, "drain-max", defaultDrain, "after SIGUSR1 (drain), exit when no game socket is left or after this")
 	fl.DurationVar(&c.statsWait, "stats-wait", defaultStatsWt, "wait this long for another server to release the -data lock (blue/green handoff)")
@@ -75,8 +77,8 @@ func parseFlags(args []string) (config, error) {
 	if c.logFormat != "text" && c.logFormat != "json" {
 		return c, fmt.Errorf("-log must be text or json, got %q", c.logFormat)
 	}
-	if c.drainMax <= 0 || c.statsWait <= 0 || c.auditKeep <= 0 {
-		return c, fmt.Errorf("-drain-max, -stats-wait and -audit-retention must be > 0")
+	if c.drainMax <= 0 || c.statsWait <= 0 || c.auditKeep <= 0 || c.auditMax <= 0 {
+		return c, fmt.Errorf("-drain-max, -stats-wait, -audit-retention and -audit-max-bytes must be > 0")
 	}
 	if c.adminLimit < 1 || c.adminLimit > maxSessionRows {
 		return c, fmt.Errorf("-limit must be 1..%d, got %d", maxSessionRows, c.adminLimit)

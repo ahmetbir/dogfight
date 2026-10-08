@@ -226,3 +226,18 @@ func TestPurgeNameExactAndContains(t *testing.T) {
 		t.Fatalf("mode is part of the confirmation: %q", errw)
 	}
 }
+
+// An audit line with control characters in a server-written field (a
+// hand-edited or older file) cannot forge a row or reach the terminal raw.
+func TestSessionsEscapes(t *testing.T) {
+	r := newAdminRig(t)
+	l, _ := audit.Open(r.dir, nil, nil)
+	t0 := time.Date(2026, 10, 8, 15, 0, 0, 0, time.UTC)
+	l.Record(audit.Event{T: t0, Event: audit.NameRefused, Pilot: strings.Repeat("ab", 32), Name: "zorlu\x1b[2K\nkartal", IP: "192.0.2.7",
+		Room: "ABCD\n2026-10-08 15:00:00Z  join  pilot=deadbeef0000  ip=198.51.100.7\x1b[2K", Repeats: 3})
+	l.Close()
+	_, out, _ := r.run(t, "sessions ip 192.0.2.7")
+	if strings.Count(out, "\n") != 1 || strings.ContainsAny(out, "\x1b\r") || !strings.Contains(out, `room="ABCD\n2026`) || !strings.Contains(out, "repeats=3") {
+		t.Fatalf("%q", out)
+	}
+}
