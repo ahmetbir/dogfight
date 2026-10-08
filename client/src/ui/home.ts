@@ -6,7 +6,7 @@ import { normalizeCode } from "../net/code.ts";
 import { loadToken } from "../net/pilot.ts";
 import type { Create, Join, Quick } from "../net/protocol.ts";
 import { createForm } from "./create.ts";
-import { fill, h, storedName, storeName } from "./dom.ts";
+import { fill, h, storedName, storeName, takeNameRefused } from "./dom.ts";
 import { Leaderboard, PilotCard } from "./leaderboard.ts";
 import { langToggle } from "./lang.ts";
 import { RoomList } from "./rooms.ts";
@@ -22,6 +22,11 @@ function nameField(value = storedName()): HTMLInputElement {
   });
 }
 
+/** The reason under the name field after the server refused the last name; empty otherwise. */
+function nameNote(refused: boolean): HTMLElement {
+  return h("div", { class: "form-error", role: "alert" }, refused ? t("err.name_blocked") : "");
+}
+
 function takeName(input: HTMLInputElement): string {
   const n = input.value.trim().slice(0, NAME_MAX) || `Pilot${Math.floor(100 + Math.random() * 900)}`;
   storeName(n);
@@ -30,6 +35,7 @@ function takeName(input: HTMLInputElement): string {
 
 /** draft: the name field's text, kept across a language switch (which re-renders the page). */
 export function showHome(root: HTMLElement, start: Start, draft?: string): void {
+  const refused = takeNameRefused();
   const name = nameField(draft);
   let list: RoomList | null = null;
   const go = (entry: Create | Join | Quick) => {
@@ -47,7 +53,7 @@ export function showHome(root: HTMLElement, start: Start, draft?: string): void 
   const quick = h("button", { type: "button", class: "btn primary quick" }, t("home.quick"));
   quick.addEventListener("click", () => go({ t: "quick" }));
   const pilot = h("div", { class: "panel card name-card" },
-    h("label", { class: "field" }, h("span", {}, t("home.name")), name), quick,
+    h("label", { class: "field" }, h("span", {}, t("home.name")), name), nameNote(refused), quick,
     h("p", { class: "muted hint" }, t("home.quickHint")));
 
   const code = h("input", { type: "text", class: "input code", maxlength: 4, placeholder: t("home.codePh"), autocomplete: "off", spellcheck: false, "aria-label": t("home.codeAria") });
@@ -90,6 +96,7 @@ export function showHome(root: HTMLElement, start: Start, draft?: string): void 
 
 /** /r/CODE: joins at once with a stored name, otherwise asks for one. */
 export function showJoin(root: HTMLElement, code: string, start: Start, draft?: string): void {
+  const refused = takeNameRefused();
   if (draft === undefined && storedName()) {
     start(storedName(), { t: "join", code });
     return;
@@ -98,7 +105,7 @@ export function showJoin(root: HTMLElement, code: string, start: Start, draft?: 
   const form = h("form", { class: "panel card narrow" },
     h("h2", {}, t("home.joinPrompt")),
     h("p", { class: "muted" }, t("common.room"), " ", h("span", { class: "code-tag" }, code)),
-    h("label", { class: "field" }, h("span", {}, t("home.name")), name),
+    h("label", { class: "field" }, h("span", {}, t("home.name")), name), nameNote(refused),
     h("button", { type: "submit", class: "btn primary" }, t("common.join")));
   form.addEventListener("submit", (e) => {
     e.preventDefault();

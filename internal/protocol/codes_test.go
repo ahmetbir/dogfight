@@ -71,3 +71,22 @@ func TestNoticeCodesDistinct(t *testing.T) {
 		seen[c] = true
 	}
 }
+
+// The client asks for another name on the same refusal code
+// (client/src/net/codes.ts NAME_BLOCKED); it is no core code and no notice.
+func TestNameBlockedMatchesClient(t *testing.T) {
+	const file = "../../client/src/net/codes.ts"
+	b, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`export const NAME_BLOCKED = "([a-z_]+)";`).FindSubmatch(b)
+	if m == nil || string(m[1]) != CodeNameBlocked {
+		t.Fatalf("%s NAME_BLOCKED %q, server %q", file, m, CodeNameBlocked)
+	}
+	for _, c := range append(append(netproto.ErrorCodes(), netproto.APICodes()...), NoticeCodes()...) {
+		if c == CodeNameBlocked {
+			t.Fatalf("%q is taken", c)
+		}
+	}
+}

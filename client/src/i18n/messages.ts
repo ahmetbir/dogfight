@@ -1,6 +1,6 @@
 // Server error / notice codes → dictionary keys. A message without a known
 // code (an older server) falls back to its own text.
-import { ROOM_GONE, isErrorCode, isNoticeCode, type ErrorCode, type NoticeCode } from "../net/codes.ts";
+import { NAME_BLOCKED, ROOM_GONE, isErrorCode, isNoticeCode, type ErrorCode, type NoticeCode } from "../net/codes.ts";
 import { t, type Key, type Params } from "./index.ts";
 
 export const ERROR_KEY: Record<ErrorCode | typeof ROOM_GONE, Key> = {
@@ -19,6 +19,7 @@ export const NOTICE_KEY: Record<NoticeCode, Key> = {
 /** A fatal server error in the current language. */
 export function errorText(code: string | undefined, msg: string): string {
   if (code === ROOM_GONE || isErrorCode(code)) return t(ERROR_KEY[code]);
+  if (code === NAME_BLOCKED) return t("err.name_blocked");
   return msg || t("err.conn");
 }
 
