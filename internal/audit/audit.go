@@ -9,7 +9,9 @@
 // Files are one per month, sessions-YYYY-MM.jsonl, shared by both
 // blue/green colours: each line is one write(2) on an O_APPEND file under
 // an exclusive flock, so two processes appending at once never interleave
-// or tear each other's lines.
+// or tear each other's lines; a line cut short by a failed write (by either
+// process) is closed with a newline before the next one, so it costs only
+// itself.
 package audit
 
 import (
@@ -165,7 +167,7 @@ func (l *Log) write(e Event) error {
 			l.f.Close()
 			l.f = nil
 		}
-		f, err := os.OpenFile(filepath.Join(l.dir, fileName(month)), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+		f, err := os.OpenFile(filepath.Join(l.dir, fileName(month)), os.O_CREATE|os.O_RDWR|os.O_APPEND, 0o600)
 		if err != nil {
 			return err
 		}
@@ -175,7 +177,14 @@ func (l *Log) write(e Event) error {
 	if err := syscall.Flock(fd, syscall.LOCK_EX); err != nil {
 		return err
 	}
-	_, err = l.f.Write(b) // one write: O_APPEND puts the whole line at the end
+	if torn, terr := tornEnd(l.f); terr != nil {
+		err = terr
+	} else {
+		if torn { // a write cut short (disk full, a crash), by either colour: start a new line
+			b = append([]byte{'\n'}, b...)
+		}
+		_, err = l.f.Write(b) // one write: O_APPEND puts the whole line at the end
+	}
 	if uerr := syscall.Flock(fd, syscall.LOCK_UN); err == nil {
 		err = uerr
 	}
@@ -187,3 +196,17 @@ func (l *Log) write(e Event) error {
 }
 
 func fileName(month string) string { return "sessions-" + month + ".jsonl" }
+
+// tornEnd reports whether the file ends inside a line (no final newline).
+// Called under the flock, so no other writer is mid-line.
+func tornEnd(f *os.File) (bool, error) {
+	fi, err := f.Stat()
+	if err != nil || fi.Size() == 0 {
+		return false, err
+	}
+	last := make([]byte, 1)
+	if _, err := f.ReadAt(last, fi.Size()-1); err != nil {
+		return false, err
+	}
+	return last[0] != '\n', nil
+}

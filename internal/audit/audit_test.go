@@ -159,3 +159,19 @@ func TestPrune(t *testing.T) {
 		t.Fatal("no dir")
 	}
 }
+
+// A line cut short by a failed write (disk full) costs only itself: the
+// next event, from either colour, starts on a new line.
+func TestTornLineDoesNotEatTheNext(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, Dir), 0o700)
+	path := filepath.Join(dir, Dir, "sessions-2026-10.jsonl")
+	os.WriteFile(path, []byte(`{"t":"2026-10-08T14:00:00Z","event":"join","name":"a"}`+"\n"+`{"t":"2026-10-08T14:00:01Z","eve`), 0o600)
+	l, _ := Open(dir, nil, func() time.Time { return t0 })
+	l.Record(Event{Event: Leave, Name: "b"})
+	l.Close()
+	got, err := Query(dir, func(Event) bool { return true }, 10)
+	if err != nil || len(got) != 2 || got[0].Name != "b" || got[1].Name != "a" {
+		t.Fatalf("%v %+v", err, got)
+	}
+}
