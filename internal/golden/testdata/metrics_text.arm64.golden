@@ -51,6 +51,7 @@
 {"t":"row","n":44,"m":"dogfight_rejects_total{reason=\"max-rooms\"} 0"}
 {"t":"row","n":40,"m":"dogfight_rejects_total{reason=\"flood\"} 1"}
 {"t":"row","n":43,"m":"dogfight_rejects_total{reason=\"api-rate\"} 0"}
+{"t":"row","n":40,"m":"dogfight_rejects_total{reason=\"admit\"} 0"}
 {"t":"row","n":40,"m":"dogfight_rejects_total{reason=\"other\"} 1"}
 {"t":"row","n":56,"m":"# HELP dogfight_api_requests_total API requests by path."}
 {"t":"row","n":42,"m":"# TYPE dogfight_api_requests_total counter"}

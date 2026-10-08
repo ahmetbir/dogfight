@@ -135,12 +135,17 @@ func (m *Match) leaveCount(id sim.ID, h *human) {
 }
 
 // flush hands a human's tally to the sink and starts a new one. A name
-// change alone is not recorded.
+// change alone is not recorded. A name blocked since the pilot was seated
+// is not stored (the tally counts, the row keeps its name or gets the
+// default, and a purged pilot's tally is dropped by the store).
 func (m *Match) flush(h *human) {
 	if m.stats == nil || h.pilot == "" || h.tally.Empty() {
 		return
 	}
 	h.tally.Pilot, h.tally.Name = h.pilot, h.name
+	if n := m.mod.Names; n != nil && n.Blocked(h.name) {
+		h.tally.Name = ""
+	}
 	m.stats.Record(h.tally)
 	h.tally = stats.Delta{}
 }

@@ -34,6 +34,9 @@ type sink struct {
 	sum map[string]stats.Delta
 }
 
+// Rename is not part of the transcript: it only touches the stored name.
+func (s *sink) Rename(string, string) {}
+
 func (s *sink) Record(d stats.Delta) bool {
 	b, err := json.Marshal(d)
 	if err != nil {

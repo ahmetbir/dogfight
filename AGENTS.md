@@ -23,6 +23,8 @@ package `roomkit` from GitHub); its own `AGENTS.md` holds the core invariants.
 | `internal/protocol` | Dogfight's JSON messages and conversions |
 | `internal/game`, `mode`, `bot`, `sim`, `maps`, `terrain`, `weather`, `rng`, `geom` | The game itself: rules, bots, deterministic simulation, world generation |
 | `internal/stats` | Pilot stats store (single-writer actor, JSONL journal + snapshot) |
+| `internal/moderation` | Blocked-name list (`<data>/moderation.json`, reloaded on change) and the name normaliser |
+| `internal/audit` | Session audit (`<data>/audit/sessions-YYYY-MM.jsonl`, append-only, shared by both colours) |
 | `internal/golden` | Frozen wire-format goldens (they pin roomkit's behaviour as Dogfight sees it) |
 | `cmd/dogfight` | Main: flags, HTTP server, embedded `web/`, signals, stats handoff |
 | `cmd/loadtest` | WebSocket load generator and CPU bench (Dogfight's `loadtest.Script`) |
@@ -241,9 +243,8 @@ dependencies to this repo.
   Rooms that play keep playing as before.
 - The lobby message goes out in the Lobby on every roster or host change, otherwise only when
   the phase changes; a joiner gets it with its welcome.
-- Quick Play never seats anyone in a created room: `match.Info` reports such a room's human
-  count as the core's `Summary.Seats` (only `lobby.Quick` reads it), and the room list takes
-  the real seats from `match.Info.Seats`. Link and room-list joins are unaffected.
+- Quick Play never seats anyone in a created room: `match.Info` marks it `NoQuick` (roomkit
+  v0.4.0), so `lobby.Quick` passes it by. Link and room-list joins are unaffected.
 - The room goldens (`room_*.golden`) are built from quick-play settings and do not cover the
   Lobby; `internal/match/prematch_test.go` and `internal/game/lobby_test.go` do.
 
@@ -362,6 +363,37 @@ bucket; otherwise players get kicked with `flood`. Core types (`hello`, `create`
   URLs or disk (`roomkit/pilot`).
 - Never commit `deploy/deploy.env`, `.env*`, keys or certificates (`.gitignore` covers
   `*.pem`, `*.key`). Use `deploy/deploy.env.example` placeholders in docs and examples.
+
+### Moderation and the session audit
+
+See README [Moderation](README.md#moderation) for what is stored and the admin commands.
+
+- **No real entries in the repo.** Blocked names, audit lines and IPs exist only in the server's
+  data dir. Tests and docs use made-up names and documentation addresses (192.0.2.0/24,
+  2001:db8::/32).
+- The fold table `internal/moderation/latin_confusables.txt` is generated data (Unicode
+  confusables.txt, Latin targets, plus small capitals): regenerate with `confusables_gen.go`, never
+  edit by hand. Matching is on skeletons (`moderation.Normalize`); `i`/`l`/`1`/`|`/`!` are one
+  letter. Default patterns match whole words; `*x*` substring, `=x` whole name.
+- `purge-name` is a dry run unless `--yes` follows one for the same name and mode; it deletes
+  only the listed rows that still match (`stats.Store.Purge(keys, match)`).
+- The name check runs in `front.Kit.Admit` (roomkit `server.Admitter`, connection goroutine)
+  before quick play, create or join touches a room: no room is made for a refused player, and the
+  core counts it as reject reason `admit`. `match.Join` checks again (defence in depth: a block may
+  land in between) with `room.Refuse(protocol.CodeNameBlocked)`. `moderation.Names.Blocked` is a
+  lock-free read of an atomic pointer. Pinned with the client by `TestNameBlockedMatchesClient`.
+- The audit and the admin are never on the public listener. `/admin/*` lives on the
+  `-metrics-addr` mux and answers loopback peers only; `TestPublicServerHasNoAdmin` guards the
+  public side. Admin actions log counts only, never names, IPs or tokens; Dogfight never writes the
+  audit to the process log. roomkit's own reject log does print `reason=admit ip=<addr>` for a
+  refused admission (README, Moderation).
+- `front.refusals` limits `name_refused` rows (a refusal at admission spends no roomkit token):
+  1 per 10 s per (pilot, address), 10/min per address or /64; `audit.OpenCapped` caps the dir.
+- Skeletons fold case before the confusable table, and `foldASCII` is the one canonical ASCII form
+  (`m` → `rn`, the table's own skeleton for `m`), so every spelling of a letter meets the same one.
+- `match.Audit.Record` and `StatsSink.Rename` run on the room goroutine: both only queue.
+- The audit's `ip` is `room.Who.Addr` (roomkit v0.4.0: X-Real-IP behind `-trust-proxy`, as the
+  per-address limits key it), via `match.AddrOf`; a zero address is recorded as empty.
 
 ### Build, release, deploy
 

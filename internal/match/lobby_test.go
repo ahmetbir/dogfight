@@ -20,7 +20,7 @@ func TestStatsSinkReachesRooms(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		sk := &countSink{}
-		l := NewLobby(ctx, 0, nil, sk, nil)
+		l := NewLobby(ctx, 0, nil, sk, nil, Moderation{})
 		r, err := l.Create(ffa4)
 		if err != nil {
 			t.Fatal(err)
@@ -44,6 +44,7 @@ func TestStatsSinkReachesRooms(t *testing.T) {
 type countSink struct{ n atomic.Int64 }
 
 func (s *countSink) Record(stats.Delta) bool { s.n.Add(1); return true }
+func (s *countSink) Rename(string, string)   {}
 
 // The options NewLobby hands every room set ChatMax explicitly. Behaviour
 // alone cannot show it while protocol.ChatMax == room.DefaultChatMax (a room
@@ -59,7 +60,7 @@ func TestLobbyRoomsCarryProtocolChatMax(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
-		r, err := NewLobby(ctx, 0, nil, nil, nil).Create(ffa4)
+		r, err := NewLobby(ctx, 0, nil, nil, nil, Moderation{}).Create(ffa4)
 		if err != nil {
 			t.Fatal(err)
 		}

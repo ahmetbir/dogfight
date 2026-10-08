@@ -14,6 +14,7 @@ export const errors = {
   "err.conns": "Çok fazla bağlantı",
   "err.timeout": "Zaman aşımı",
   "err.updating": "Sunucu güncelleniyor, yeniden bağlan",
+  "err.name_blocked": "Bu isim kullanılamaz — başka bir isim seç",
   "err.room_gone": "Sunucu güncellendi, odan kapandı. Ana sayfadan yeni bir oyuna katıl.",
   "notice.team_uneven": "Takımlar dengesiz olur",
   "notice.team_full": "Takım dolu",

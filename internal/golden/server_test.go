@@ -47,9 +47,9 @@ func newServer(t *testing.T, so srvOpts) (*httptest.Server, *front.Server, conte
 	ctx, cancel := context.WithCancel(context.Background())
 	o := server.Options{Web: web, Limits: so.lim, HandshakeTimeout: 300 * time.Millisecond, Now: so.now}
 	if so.stats != nil {
-		o.Stats = front.NewStats(so.stats)
+		o.Stats = front.NewStats(so.stats, nil)
 	}
-	s := front.NewServer(match.NewLobby(ctx, so.maxRooms, nil, nil, nil), o)
+	s := front.NewServer(match.NewLobby(ctx, so.maxRooms, nil, nil, nil, match.Moderation{}), o, match.Moderation{})
 	srv := httptest.NewServer(s)
 	t.Cleanup(func() { cancel(); srv.Close() })
 	return srv, s, cancel
@@ -178,7 +178,7 @@ func TestGoldenServerFrames(t *testing.T) {
 	w.send(hello, `{"t":"create","mode":"ffa","size":4,"diff":"easy","seed":1}`)
 	code, _ := welcomeOf(t, w.read("welcome"))
 	w.ws.CloseNow()
-	join := `{"t":"join","code":"` + code + `"}` // a created room offers quick play no seat
+	join := `{"t":"join","code":"` + code + `"}` // a created room is NoQuick; joined by its code
 	exchange(t, srv, tr, "busy", "", hello, `{"t":"create","mode":"ffa","size":4,"diff":"easy","seed":2}`)
 	exchange(t, srv, tr, "bad_msg_in_room", "", hello, join, `{"t":"nope"}`)
 	// A binary or an oversized frame before the handshake ends (in a room:

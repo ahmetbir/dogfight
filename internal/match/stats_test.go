@@ -14,8 +14,9 @@ import (
 )
 
 type sink struct {
-	mu sync.Mutex
-	d  []stats.Delta
+	mu      sync.Mutex
+	d       []stats.Delta
+	renames []string // pilot=name
 }
 
 func (s *sink) Record(d stats.Delta) bool {
@@ -23,6 +24,12 @@ func (s *sink) Record(d stats.Delta) bool {
 	defer s.mu.Unlock()
 	s.d = append(s.d, d)
 	return true
+}
+
+func (s *sink) Rename(pilot, name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.renames = append(s.renames, pilot+"="+name)
 }
 
 func (s *sink) all() []stats.Delta {
