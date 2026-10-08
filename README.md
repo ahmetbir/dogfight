@@ -211,9 +211,23 @@ the pilot token's SHA-256 (the stats key, never the token); `name` as entered, `
 `room` the room code. Both colours append to the same month file: each line is one `write(2)` on an
 `O_APPEND` file under an exclusive `flock`; a line cut short by a failed write is closed with a
 newline before the next one, so it costs only itself. Files whose month ended more than `-audit-retention`
-(default 365 days) ago are deleted at start and daily. The audit is never served on the public
-listener and never written to the process log (admin actions log only counts). `ip` is the client
-address the server keys its per-address limits on (`X-Real-IP` only from `-trust-proxy` peers).
+(default 365 days) ago are deleted at start and daily, and the directory is capped at
+`-audit-max-bytes` (default 256 MiB): the oldest months go first; with only the current month left,
+new events are dropped (counted, logged once). `name_refused` rows are limited because a refusal
+costs the client nothing else: at most one per 10 s per (pilot, address), with `repeats` counting
+the ones held back, and at most 10 a minute per address (IPv6: per /64). A join's room code is
+recorded only when it is a well-formed code; `sessions` prints every field escaped, so no line can
+forge a row or send control characters to the terminal. The audit is never served on the public
+listener and Dogfight never writes it to the process log (admin actions log only counts). `ip` is
+the client address the server keys its per-address limits on (`X-Real-IP` only from
+`-trust-proxy` peers).
+
+**The process log does record refused admissions with the address.** roomkit logs every reject
+reason, `admit` included, as `rejected reason=admit ip=<addr> code=name_blocked` (throttled: one
+line per reason per interval, with a count). That is roomkit's reject log, not the audit, but it
+ties an address to a blocked-name attempt in the container log (rotated, 10 MB × 3). Dropping it is
+a one-line roomkit change: in `server/handshake.go`, the `s.rejects.noteKey("admit", …, p.ip, …)`
+call passes `""` instead of `p.ip`.
 
 **Admin** — only on the loopback `-metrics-addr` listener (`POST /admin/<command>`, loopback peers
 only), driven by the binary itself (the image has no shell):
@@ -221,6 +235,7 @@ only), driven by the binary itself (the image has no shell):
 ```sh
 docker exec dogfight-<color> /dogfight -admin list
 docker exec dogfight-<color> /dogfight -admin "block <pattern>"       # prints the ledger rows it hides
+docker exec dogfight-<color> /dogfight -admin "block *<first last>*"  # a person's full name: see below
 docker exec dogfight-<color> /dogfight -admin "unblock <pattern>"
 docker exec dogfight-<color> /dogfight -admin "lookup <pattern>"      # ledger rows: hash prefix, name, kills, last seen
 docker exec dogfight-<color> /dogfight -admin "purge-name <name>"     # dry run: lists the rows (whole-name match)
@@ -231,6 +246,11 @@ docker exec dogfight-<color> /dogfight -admin "sessions name <text>"
 docker exec dogfight-<color> /dogfight -admin "sessions ip <addr or prefix>"
 docker exec dogfight-<color> /dogfight -limit 200 -admin "sessions pilot <hash prefix>"
 ```
+
+A person's full name is best blocked in part mode, `*first last*`: in the default words mode a
+single added letter (`Zorlu Kartals`, `XZorlu Kartal`, a Cyrillic letter glued on) is a different
+word and passes. A long two-word skeleton matches no ordinary name by accident; short part
+patterns do (`*sik*` blocks `Işık`).
 
 `purge-name` never deletes on the first call: it lists the rows and remembers them; the `--yes`
 call (same name and mode, within 10 minutes, same server) deletes exactly those rows whose name still

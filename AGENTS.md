@@ -384,8 +384,13 @@ See README [Moderation](README.md#moderation) for what is stored and the admin c
   lock-free read of an atomic pointer. Pinned with the client by `TestNameBlockedMatchesClient`.
 - The audit and the admin are never on the public listener. `/admin/*` lives on the
   `-metrics-addr` mux and answers loopback peers only; `TestPublicServerHasNoAdmin` guards the
-  public side. Admin actions log counts only, never names, IPs or tokens; the audit never goes to
-  the process log.
+  public side. Admin actions log counts only, never names, IPs or tokens; Dogfight never writes the
+  audit to the process log. roomkit's own reject log does print `reason=admit ip=<addr>` for a
+  refused admission (README, Moderation).
+- `front.refusals` limits `name_refused` rows (a refusal at admission spends no roomkit token):
+  1 per 10 s per (pilot, address), 10/min per address or /64; `audit.OpenCapped` caps the dir.
+- Skeletons fold case before the confusable table, and `foldASCII` is the one canonical ASCII form
+  (`m` → `rn`, the table's own skeleton for `m`), so every spelling of a letter meets the same one.
 - `match.Audit.Record` and `StatsSink.Rename` run on the room goroutine: both only queue.
 - The audit's `ip` is `room.Who.Addr` (roomkit v0.4.0: X-Real-IP behind `-trust-proxy`, as the
   per-address limits key it), via `match.AddrOf`; a zero address is recorded as empty.
