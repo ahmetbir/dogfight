@@ -19,6 +19,13 @@ import (
 // blue/green colours (the dogfight-data volume).
 const FileName = "moderation.json"
 
+// LastGood is the copy of the last file that loaded; a server that starts
+// with a corrupt FileName falls back to it.
+const LastGood = FileName + ".last-good"
+
+// lockName serialises edits across processes (blue and green).
+const lockName = "moderation.lock"
+
 // ReloadEvery is how often a server looks at the file's mtime.
 const ReloadEvery = 10 * time.Second
 
@@ -31,6 +38,7 @@ type doc struct {
 type stamp struct {
 	mod  time.Time
 	size int64
+	ino  uint64 // every write is a rename: a new inode even within one mtime tick
 }
 
 // Names is the live blocked-name list of one server: read lock-free by the
@@ -46,8 +54,9 @@ type Names struct {
 }
 
 // Open loads <dir>/moderation.json; a missing file is an empty list. A file
-// that cannot be read or parsed is an error (the caller decides; the server
-// logs it and starts with an empty list; Watch loads the file once it changes).
+// that cannot be read or parsed is an error, and the list is then the last
+// good copy (LastGood, empty if none): blocks never silently vanish on a
+// restart. Watch loads the main file once it changes.
 func Open(dir string, log *slog.Logger) (*Names, error) {
 	if log == nil {
 		log = slog.Default()
@@ -57,7 +66,29 @@ func Open(dir string, log *slog.Logger) (*Names, error) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	_, err := n.reloadLocked()
+	if err != nil {
+		if l, lerr := loadList(filepath.Join(filepath.Dir(n.path), LastGood)); lerr == nil {
+			n.list.Store(l)
+			n.log.Error("MODERATION FILE CORRUPT: using the last good copy until it is fixed",
+				"file", FileName, "fallback", LastGood, "patterns", len(l.patterns), "err", err)
+		} else {
+			n.log.Error("MODERATION FILE CORRUPT and no last good copy: NO NAMES ARE BLOCKED",
+				"file", FileName, "err", err, "fallback_err", lerr)
+		}
+	}
 	return n, err
+}
+
+// loadList reads and compiles one moderation file.
+func loadList(path string) (*List, error) {
+	if _, err := os.Stat(path); err != nil {
+		return nil, err
+	}
+	d, err := readDoc(path)
+	if err != nil {
+		return nil, err
+	}
+	return NewList(d.BlockedNames)
 }
 
 // Blocked reports whether name matches a blocked pattern. Safe from any
@@ -120,7 +151,18 @@ func (n *Names) reloadLocked() (bool, error) {
 		return false, fmt.Errorf("%s: %w", FileName, err)
 	}
 	n.list.Store(l)
+	n.saveLastGood(d)
 	return true, nil
+}
+
+// saveLastGood keeps a copy of a document that loaded (best effort).
+func (n *Names) saveLastGood(d doc) {
+	if old, err := readDoc(filepath.Join(filepath.Dir(n.path), LastGood)); err == nil && slices.Equal(old.BlockedNames, d.BlockedNames) {
+		return
+	}
+	if err := writeDoc(filepath.Join(filepath.Dir(n.path), LastGood), d); err != nil {
+		n.log.Error("moderation: cannot save the last good copy", "err", err)
+	}
 }
 
 // Block adds pattern (false: an equivalent one is already listed). It
@@ -145,13 +187,26 @@ func (n *Names) Unblock(pattern string) (bool, error) {
 	})
 }
 
-// edit applies f to the file's current patterns and writes the result.
+// edit applies f to the file's current patterns and writes the result,
+// under the data dir's moderation.lock so blue and green never lose each
+// other's edits. A corrupt file is set aside (moderation.json.corrupt-<unix>)
+// and the edit starts from the list this server holds (its last good one).
 func (n *Names) edit(f func([]string) ([]string, bool)) (bool, error) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	d, err := readDoc(n.path)
+	unlock, err := lockFile(filepath.Join(filepath.Dir(n.path), lockName))
 	if err != nil {
 		return false, err
+	}
+	defer unlock()
+	d, err := readDoc(n.path)
+	if err != nil {
+		aside := fmt.Sprintf("%s.corrupt-%d", n.path, time.Now().Unix())
+		if rerr := os.Rename(n.path, aside); rerr != nil {
+			return false, errors.Join(err, rerr)
+		}
+		n.log.Error("moderation: corrupt file set aside; editing the last good list", "aside", filepath.Base(aside), "err", err)
+		d = doc{BlockedNames: n.list.Load().Patterns()}
 	}
 	ps, changed := f(d.BlockedNames)
 	if !changed {
@@ -166,7 +221,8 @@ func (n *Names) edit(f func([]string) ([]string, bool)) (bool, error) {
 		return false, err
 	}
 	n.list.Store(l)
-	if st, err := statFile(n.path); err == nil {
+	n.saveLastGood(d)
+	if st, err := statFile(n.path); err == nil { // under the lock: no other write since ours
 		n.seen = st
 	}
 	return true, nil
@@ -180,7 +236,7 @@ func statFile(path string) (stamp, error) {
 	if err != nil {
 		return stamp{}, err
 	}
-	return stamp{fi.ModTime(), fi.Size()}, nil
+	return stamp{fi.ModTime(), fi.Size(), inode(fi)}, nil
 }
 
 // readDoc reads the file; missing = empty.

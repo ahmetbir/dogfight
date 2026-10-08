@@ -2,41 +2,92 @@ package moderation
 
 import (
 	"errors"
+	"slices"
 	"strings"
-	"unicode/utf8"
 )
 
 const (
-	minPattern = 3  // normalised runes: a shorter pattern would block half the names
+	minPattern = 3  // skeleton runes: a shorter pattern would block half the names
 	maxPattern = 64 // bytes of the pattern as typed
 	minSquash  = 5  // squashed runes a pattern needs before its squashed form is matched too
 )
 
 // ErrPattern is a pattern that normalises to fewer than minPattern runes or is too long.
-var ErrPattern = errors.New("moderation: pattern must normalise to at least 3 letters or digits and be at most 64 bytes")
+var ErrPattern = errors.New("moderation: a pattern needs at least 3 letters or digits and at most 64 bytes (modes: words, *part*, =exact)")
+
+// Mode is how a pattern matches a name, both as skeletons (Normalize).
+type Mode uint8
+
+const (
+	// Words (the default, "alaattin cakici"): the pattern occurs in the name
+	// starting and ending on word boundaries of the name as typed (spaces,
+	// punctuation). "ali" blocks "Ali" and "Ali Veli", not "Halil" or "Salih".
+	// Spacing inside it does not matter: "a l a a t t i n" is still caught.
+	Words Mode = iota
+	// Part ("*cakici*"): anywhere in the name, also inside words.
+	Part
+	// Exact ("=alaattin cakici"): the whole name, nothing more.
+	Exact
+)
 
 // rule is one compiled pattern.
 type rule struct {
-	norm, squashed string // squashed "" = not matched squashed
+	mode     Mode
+	pat      []rune // skeleton
+	squashed []rune // nil = not matched squashed
+}
+
+// parse splits a typed pattern into its mode and text.
+func parse(pattern string) (Mode, string) {
+	p := strings.TrimSpace(pattern)
+	switch {
+	case strings.HasPrefix(p, "="):
+		return Exact, p[1:]
+	case len(p) > 2 && strings.HasPrefix(p, "*") && strings.HasSuffix(p, "*"):
+		return Part, p[1 : len(p)-1]
+	}
+	return Words, p
 }
 
 func compile(pattern string) (rule, error) {
-	n := Normalize(pattern)
-	if len(pattern) > maxPattern || utf8.RuneCountInString(n) < minPattern {
+	if len(pattern) > maxPattern {
 		return rule{}, ErrPattern
 	}
-	r := rule{norm: n}
-	if q := squash(n); utf8.RuneCountInString(q) >= minSquash {
-		r.squashed = q
+	mode, body := parse(pattern)
+	t := skeleton(body)
+	if len(t.r) < minPattern {
+		return rule{}, ErrPattern
+	}
+	r := rule{mode: mode, pat: t.r}
+	if q := t.squash(); len(q.r) >= minSquash {
+		r.squashed = q.r
 	}
 	return r, nil
 }
 
-// match: the normalised pattern is a substring of the normalised name, or
-// (for long enough patterns) the squashed one of the squashed name, so
-// doubled letters do not slip past ("aallaattiinn").
-func (r rule) match(norm, squashed string) bool {
-	return strings.Contains(norm, r.norm) || r.squashed != "" && strings.Contains(squashed, r.squashed)
+// match: the rule against a name's skeleton, and (for long enough patterns)
+// the squashed pattern against the squashed name, so doubled letters do
+// not slip past ("aallaattiinn").
+func (r rule) match(name text) bool {
+	if r.matchText(r.pat, name) {
+		return true
+	}
+	return r.squashed != nil && r.matchText(r.squashed, name.squash())
+}
+
+func (r rule) matchText(pat []rune, t text) bool {
+	switch r.mode {
+	case Exact:
+		return slices.Equal(pat, t.r)
+	case Part:
+		return strings.Contains(string(t.r), string(pat))
+	}
+	for i := 0; i+len(pat) <= len(t.r); i++ {
+		if t.boundary(i) && t.boundary(i+len(pat)) && slices.Equal(t.r[i:i+len(pat)], pat) {
+			return true
+		}
+	}
+	return false
 }
 
 // List is an immutable set of blocked-name patterns.
@@ -64,10 +115,9 @@ func (l *List) Blocked(name string) bool {
 	if l == nil || len(l.rules) == 0 {
 		return false
 	}
-	n := Normalize(name)
-	q := squash(n)
+	t := skeleton(name)
 	for _, r := range l.rules {
-		if r.match(n, q) {
+		if r.match(t) {
 			return true
 		}
 	}
@@ -82,18 +132,22 @@ func (l *List) Patterns() []string {
 	return append([]string(nil), l.patterns...)
 }
 
-// Matcher is the single-pattern match of Blocked, for finding ledger rows
-// by a name (lookup, purge-name) with the same rule the block uses.
+// Matcher is the single-pattern match of Blocked (same modes), for finding
+// ledger rows by a pattern (lookup, purge-name).
 func Matcher(pattern string) (func(name string) bool, error) {
 	r, err := compile(pattern)
 	if err != nil {
 		return nil, err
 	}
-	return func(name string) bool {
-		n := Normalize(name)
-		return r.match(n, squash(n))
-	}, nil
+	return func(name string) bool { return r.match(skeleton(name)) }, nil
 }
 
 // same reports whether two patterns block the same names.
-func same(a, b string) bool { return a == b || Normalize(a) == Normalize(b) }
+func same(a, b string) bool {
+	if a == b {
+		return true
+	}
+	ma, ta := parse(a)
+	mb, tb := parse(b)
+	return ma == mb && Normalize(ta) == Normalize(tb)
+}
