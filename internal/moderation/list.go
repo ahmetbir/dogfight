@@ -19,14 +19,14 @@ var ErrPattern = errors.New("moderation: a pattern needs at least 3 letters or d
 type Mode uint8
 
 const (
-	// Words (the default, "alaattin cakici"): the pattern occurs in the name
+	// Words (the default, "zorlu kartal"): the pattern occurs in the name
 	// starting and ending on word boundaries of the name as typed (spaces,
 	// punctuation). "ali" blocks "Ali" and "Ali Veli", not "Halil" or "Salih".
-	// Spacing inside it does not matter: "a l a a t t i n" is still caught.
+	// Spacing inside it does not matter: "z o r l u" is still caught.
 	Words Mode = iota
-	// Part ("*cakici*"): anywhere in the name, also inside words.
+	// Part ("*kartal*"): anywhere in the name, also inside words.
 	Part
-	// Exact ("=alaattin cakici"): the whole name, nothing more.
+	// Exact ("=zorlu kartal"): the whole name, nothing more.
 	Exact
 )
 

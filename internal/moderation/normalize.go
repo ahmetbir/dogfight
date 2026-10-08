@@ -16,8 +16,8 @@ import (
 // fullwidth forms; small capitals; Turkish and other accented letters to
 // their base; leetspeak), lower case, then the look-alike classes merged
 // (i, l, I, 1, |, ! are one letter), and everything that is not a letter or
-// a digit dropped. Both a name and a pattern go through it, so "AIaattin",
-// "A1aattin" and "Alaattin" share one skeleton. The skeleton is for
+// a digit dropped. Both a name and a pattern go through it, so "ZorIu",
+// "Zor1u" and "Zorlu" share one skeleton. The skeleton is for
 // matching only, never shown.
 func Normalize(s string) string { return string(skeleton(s).r) }
 

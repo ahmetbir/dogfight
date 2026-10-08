@@ -39,8 +39,8 @@ func TestNormalizeSameSkeleton(t *testing.T) {
 	}
 	// Turkish letters, the C look-alikes and the I/l class.
 	for _, c := range [][2]string{
-		{"ÇAKICI", "cakici"}, {"Çakıcı", "CAKİCİ"}, {"ℂakici", "cakici"}, {"Ϲakici", "cakici"},
-		{"Ҫakici", "cakici"}, {"Ꮯakici", "cakici"}, {"Ⅽakici", "cakici"}, {"Cak!ci", "cakici"},
+		{"ÇOBANCI", "cobanci"}, {"Çobancı", "COBANCİ"}, {"ℂobanci", "cobanci"}, {"Ϲobanci", "cobanci"},
+		{"Ҫobanci", "cobanci"}, {"Ꮯobanci", "cobanci"}, {"Ⅽobanci", "cobanci"}, {"Coban!", "cobani"},
 		{"İĞNE ışık", "igne isik"}, {"Halil", "HaIiI"}, {"ŞĞÖÜ", "sgou"},
 	} {
 		if Normalize(c[0]) != Normalize(c[1]) {
