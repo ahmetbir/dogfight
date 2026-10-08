@@ -424,10 +424,12 @@ export function play(o: PlayOpts): void {
       closeMenus(false);
       board.hide();
       releasePointer();
-      if (!started && code === NAME_BLOCKED) { // the server's blocked-name list: back to the name field
+      if (code === NAME_BLOCKED) { // the server's blocked-name list: never offer this name again
         refuseName();
-        location.reload(); // home or /r/CODE asks for a name again, with the reason
-        return;
+        if (!started) {
+          location.reload(); // home or /r/CODE asks for a name again, with the reason
+          return;
+        }
       }
       if (!started) { // nothing behind it yet: a centered card instead of the top banner
         banner.hide();
