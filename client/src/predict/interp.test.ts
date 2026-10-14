@@ -57,3 +57,16 @@ test("extrapolate: interpolates inside, carries the newest velocity past the end
   assert.ok(Math.abs(extrapolate(b, 5000)!.pos.x - 106.6) < 1e-9, "at most 500 ms ahead");
   assert.equal(extrapolate(new InterpBuffer(), 0), null);
 });
+
+test("extrapolate carries the attitude and velocity on at the body rate w", () => {
+  const b = new InterpBuffer();
+  b.push(0, { pos: v3(0, 0, 0), rot: qIdentity(), vel: v3(0, 0, -200), th: 1, w: v3(0, 0, 4) }); // rolling 4 rad/s
+  const s = extrapolate(b, 100)!;
+  const want = qAxisAngle(v3(0, 0, 1), 0.4);
+  for (const k of ["w", "x", "y", "z"] as const) assert.ok(Math.abs(s.rot[k] - want[k]) < 1e-9, k);
+  assert.ok(Math.abs(s.vel.z + 200) < 1e-9, "a pure roll keeps the path");
+  const p = new InterpBuffer();
+  p.push(0, { pos: v3(0, 0, 0), rot: qIdentity(), vel: v3(0, 0, -200), th: 1, w: v3(1, 0, 0) }); // pulling 1 rad/s
+  const q = extrapolate(p, 100)!;
+  assert.ok(Math.abs(q.vel.y - 200 * Math.sin(0.1)) < 1e-9 && Math.abs(q.vel.z + 200 * Math.cos(0.1)) < 1e-9, "velocity turns with the nose");
+});
