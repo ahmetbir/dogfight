@@ -12,9 +12,11 @@ import (
 // v1CheckpointsSHA256 pins the checkpoints of the first ten (v1) scenarios
 // in flight.json. They were frozen at v1 (41d562d, f1378842…); the
 // controller ruling for feedback #1 (FB-A flight model: control inertia,
-// pitch asymmetry, induced drag, afterburner heat) lifted that freeze once
-// and this is the re-frozen value: a change means the air path drifted.
-const v1CheckpointsSHA256 = "d1f9a054f6c534ef6fe4510f84e1a838a326f6ffae3b8177ed5bb90f9fdfab30"
+// pitch asymmetry, induced drag, afterburner heat) lifted that freeze once,
+// and the ceiling cushion (bot maneuvers, 2026-10-14: the hard clamp stopped
+// climbs in one tick) a second time, for mig29-climb-to-ceiling only. This is
+// the re-frozen value: a change means the air path drifted.
+const v1CheckpointsSHA256 = "456a4c2fdd5fe4175cda8f0ae87cbe73bc5cfd977802a83de120140dd172d208"
 
 // v1CheckpointsHash hashes name + compacted checkpoints JSON of the first
 // ten scenarios, so formatting of the rest of the file does not matter.
