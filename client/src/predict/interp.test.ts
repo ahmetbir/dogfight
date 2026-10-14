@@ -70,3 +70,10 @@ test("extrapolate carries the attitude and velocity on at the body rate w", () =
   const q = extrapolate(p, 100)!;
   assert.ok(Math.abs(q.vel.y - 200 * Math.sin(0.1)) < 1e-9 && Math.abs(q.vel.z + 200 * Math.cos(0.1)) < 1e-9, "velocity turns with the nose");
 });
+
+test("extrapolate: a non-finite body rate flies straight on", () => {
+  const b = new InterpBuffer();
+  b.push(0, { pos: v3(0, 0, 0), rot: qIdentity(), vel: v3(200, 0, 0), th: 1, w: v3(NaN, Infinity, 0) });
+  const s = extrapolate(b, 100)!;
+  assert.ok(Math.abs(s.pos.x - 20) < 1e-9 && Number.isFinite(s.rot.w), JSON.stringify(s));
+});
