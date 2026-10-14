@@ -62,17 +62,26 @@ const InducedDrag = 0.2
 
 // CeilingBend is the ceiling cushion's pull-over rate (rad/s): a climb is
 // bent level in time to arrive at the ceiling flying level, instead of
-// stopping against it in one tick.
+// stopping against it in one tick. The bend charges no induced drag (a
+// design choice: the cushion is the thin air's push, not the pilot's pull).
 const CeilingBend = 1.0
+
+// verticalPath is the horizontal share of the speed below which a climb
+// counts as straight up and bends over the nose's right wing: a relative
+// threshold, so Go and TS decide alike, not on rounding at 1e-13.
+const verticalPath = 1e-6
 
 // ceilingCushion holds a climb's path angle γ to the steepest one that a
 // CeilingBend pull-over, started after this tick's move, still levels off
 // under the ceiling: at speed s and room d,
-// (s/CeilingBend)·(1 − cos γ) + s·sin γ·Dt ≤ d. Path and nose turn down
-// together about the horizontal axis across the path; speed, heading and
-// angle of attack are kept. Flown along the limit, a climb levels off at
-// CeilingBend and touches the ceiling flying level.
-func ceilingCushion(fs FlightState) FlightState {
+// (s/CeilingBend)·(1 − cos γ) + s·sin γ·Dt ≤ d. The path turns down about
+// the horizontal axis across it, keeping speed and heading. The nose turns
+// with it (angle of attack kept) unless that would move the nose this tick
+// (from nose0, its direction at the start of the tick) faster than the
+// pitch cap pitchCap rad/s or the pilot's own nose turn, whichever is more:
+// then it turns by the largest share that stays within. Flown along the
+// limit, a climb levels off at CeilingBend and meets the ceiling level.
+func ceilingCushion(fs FlightState, nose0 geom.Vec3, pitchCap float64) FlightState {
 	if fs.Vel.Y <= 0 {
 		return fs
 	}
@@ -88,13 +97,28 @@ func ceilingCushion(fs FlightState) FlightState {
 	if bend <= 0 {
 		return fs
 	}
-	axis := geom.V(fs.Vel.X, 0, fs.Vel.Z).Cross(geom.V(0, 1, 0))
-	if axis.Len() < 1e-9 { // straight up: over the nose's right wing
+	h := geom.V(fs.Vel.X, 0, fs.Vel.Z)
+	axis := h.Cross(geom.V(0, 1, 0))
+	if h.Len() < verticalPath*speed { // straight up: over the nose's right wing
 		axis = fs.Rot.Right()
 	}
-	q := geom.AxisAngle(axis, -bend)
-	fs.Vel = q.Rotate(fs.Vel)
-	fs.Rot = q.Mul(fs.Rot).Norm()
+	fs.Vel = geom.AxisAngle(axis, -bend).Rotate(fs.Vel)
+	nose := fs.Rot.Forward()
+	floor := math.Min(math.Cos(pitchCap*Dt), nose0.Dot(nose)) // cos of the nose turn allowed this tick
+	turn := bend
+	if nose0.Dot(geom.AxisAngle(axis, -turn).Rotate(nose)) < floor {
+		lo, hi := 0.0, bend
+		for range 24 {
+			mid := (lo + hi) / 2
+			if nose0.Dot(geom.AxisAngle(axis, -mid).Rotate(nose)) >= floor {
+				lo = mid
+			} else {
+				hi = mid
+			}
+		}
+		turn = lo
+	}
+	fs.Rot = geom.AxisAngle(axis, -turn).Mul(fs.Rot).Norm()
 	return fs
 }
 
@@ -149,6 +173,7 @@ func StepFlight(fs FlightState, in Input, s Spec, m FlightMods) FlightState {
 		return stepGround(fs, in, s, m, speed)
 	}
 	fwd := fs.Rot.Forward()
+	nose0 := fwd
 
 	k, thrust := thrustOf(s, fs.Throttle, in.AB, m.Turbo)
 	lf := speed * math.Sqrt(fs.W.X*fs.W.X+fs.W.Y*fs.W.Y) / Gravity // load factor n − 1
@@ -189,7 +214,7 @@ func StepFlight(fs FlightState, in Input, s Spec, m FlightMods) FlightState {
 	}
 	dir = dir.Lerp(fs.Rot.Forward(), math.Min(1, Slip*Dt)).Norm()
 	fs.Vel = dir.Scale(speed)
-	fs = ceilingCushion(fs)
+	fs = ceilingCushion(fs, nose0, s.PitchRate)
 	if m.Wind == (geom.Vec3{}) { // keep the v1 expression bit-for-bit without wind
 		fs.Pos = fs.Pos.Add(fs.Vel.Scale(Dt))
 	} else {

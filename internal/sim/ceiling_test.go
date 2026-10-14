@@ -36,7 +36,7 @@ func TestCeilingCushionLevelsClimbSmoothly(t *testing.T) {
 		s := SpecOf(c.kind)
 		rot := geom.AxisAngle(geom.V(1, 0, 0), c.pitch)
 		fs := FlightState{Pos: geom.V(0, c.alt, 0), Rot: rot, Vel: rot.Forward().Scale(c.speed), Throttle: 1}
-		worstTurn, worstDrop, worstAoA, top := 0.0, 0.0, 0.0, 0.0
+		worstTurn, worstDrop, worstAoA, top, worstNose := 0.0, 0.0, 0.0, 0.0, 0.0
 		for range 60 * 20 {
 			prev := fs
 			fs = StepFlight(fs, c.in, s, FlightMods{})
@@ -45,9 +45,17 @@ func TestCeilingCushionLevelsClimbSmoothly(t *testing.T) {
 			worstDrop = math.Max(worstDrop, v0-v1)
 			worstAoA = math.Max(worstAoA, angleOf(fs.Rot.Forward(), fs.Vel))
 			top = math.Max(top, fs.Pos.Y)
+			worstNose = math.Max(worstNose, angleOf(prev.Rot.Forward(), fs.Rot.Forward())/Dt)
 		}
-		// The fastest pitch cap is 1.75 rad/s, the cushion's pull-over
-		// CeilingBend. The clamp alone turned the path up to 88° in a tick.
+		// The nose never turns faster than the pilot's own pitch and yaw
+		// rates allow (roll does not move it).
+		if own := math.Hypot(s.PitchRate, s.YawRate); worstNose > own+1e-6 {
+			t.Errorf("%s: nose turned %.0f°/s, own cap %.0f°/s", c.name, worstNose*180/math.Pi, own*180/math.Pi)
+		}
+		// The pilot's own path turn stays under ~1.75 rad/s and the cushion
+		// adds at most CeilingBend; 2 rad/s is the bound, deliberately
+		// tighter than their sum so retuning CeilingBend shows up here. The
+		// clamp alone turned the path up to 88° in a tick.
 		if worstTurn > 2.0 {
 			t.Errorf("%s: path turned %.0f°/s in one tick", c.name, worstTurn*180/math.Pi)
 		}
@@ -72,12 +80,12 @@ func TestCeilingCushionHoldsPathAngle(t *testing.T) {
 	rot := geom.AxisAngle(geom.V(1, 0, 0), 0.7).Mul(geom.AxisAngle(geom.V(0, 0, 1), 0.3))
 	vel := geom.AxisAngle(geom.V(0, 1, 0), 0.4).Rotate(geom.V(0, 0.45, -1).Norm().Scale(220))
 	far := FlightState{Pos: geom.V(0, Ceiling-300, 0), Rot: rot, Vel: vel}
-	if got := ceilingCushion(far); got != far {
+	if got := ceilingCushion(far, rot.Forward(), 10); got != far {
 		t.Fatalf("cushion acted 300 m under the ceiling: %+v", got)
 	}
 	near := far
 	near.Pos.Y = Ceiling - 10
-	got := ceilingCushion(near)
+	got := ceilingCushion(near, rot.Forward(), 10)
 	r, b := 10*CeilingBend/220, CeilingBend*Dt
 	if want := math.Acos((1-r)/math.Sqrt(1+b*b)) - math.Atan(b); math.Abs(math.Asin(got.Vel.Y/got.Vel.Len())-want) > 1e-9 {
 		t.Errorf("path angle %.6f, want %.6f", math.Asin(got.Vel.Y/got.Vel.Len()), want)
@@ -90,5 +98,50 @@ func TestCeilingCushionHoldsPathAngle(t *testing.T) {
 	}
 	if h0, h1 := math.Atan2(vel.X, vel.Z), math.Atan2(got.Vel.X, got.Vel.Z); math.Abs(h0-h1) > 1e-9 {
 		t.Errorf("heading %.6f, was %.6f", h1, h0)
+	}
+}
+
+// The cushion never moves the nose faster than the pitch cap, or than the
+// pilot already moved it this tick: the path still bends in full.
+func TestCeilingCushionCapsNoseTurn(t *testing.T) {
+	rot := geom.AxisAngle(geom.V(1, 0, 0), 0.9)
+	vel := rot.Forward().Scale(200)
+	fs := FlightState{Pos: geom.V(0, Ceiling-2, 0), Rot: rot, Vel: vel}
+	const capRate = 0.5
+	got := ceilingCushion(fs, rot.Forward(), capRate)
+	if a := angleOf(rot.Forward(), got.Rot.Forward()); a > capRate*Dt+1e-9 {
+		t.Errorf("nose turned %.5f rad in a tick, cap %.5f", a, capRate*Dt)
+	}
+	b := CeilingBend * Dt
+	r := 2 * CeilingBend / 200
+	if want := math.Acos((1-r)/math.Sqrt(1+b*b)) - math.Atan(b); math.Abs(math.Asin(got.Vel.Y/got.Vel.Len())-want) > 1e-9 {
+		t.Errorf("path angle %.6f, want %.6f", math.Asin(got.Vel.Y/got.Vel.Len()), want)
+	}
+	// A pilot already turning the nose faster keeps that much room.
+	pulled := rot.Mul(geom.AxisAngle(geom.V(1, 0, 0), 0.04))
+	fs.Rot = pulled
+	got = ceilingCushion(fs, rot.Forward(), capRate)
+	if a := angleOf(rot.Forward(), got.Rot.Forward()); a > angleOf(rot.Forward(), pulled.Forward())+1e-9 {
+		t.Errorf("nose turned %.5f rad, pilot's own %.5f", a, angleOf(rot.Forward(), pulled.Forward()))
+	}
+}
+
+// A straight-up climb, and one within verticalPath of it, bends over the
+// nose's right wing; just outside it the path's own heading decides.
+func TestCeilingCushionVerticalAxis(t *testing.T) {
+	rot := geom.AxisAngle(geom.V(0, 1, 0), 0.6).Mul(geom.AxisAngle(geom.V(1, 0, 0), math.Pi/2))
+	right := rot.Right()
+	for _, hx := range []float64{0, 0.5e-6 * 250} {
+		fs := FlightState{Pos: geom.V(0, Ceiling-10, 0), Rot: rot, Vel: geom.V(hx, 250, 0)}
+		got := ceilingCushion(fs, rot.Forward(), 10)
+		h := geom.V(got.Vel.X, 0, got.Vel.Z)
+		if math.Abs(h.Dot(right)) > 1e-6*h.Len() {
+			t.Errorf("hx %g: bent toward %v, not across the right wing %v", hx, h, right)
+		}
+	}
+	fs := FlightState{Pos: geom.V(0, Ceiling-10, 0), Rot: rot, Vel: geom.V(2e-6*250, 250, 0)}
+	got := ceilingCushion(fs, rot.Forward(), 10)
+	if got.Vel.X <= 0 || math.Abs(got.Vel.Z) > 1e-9 {
+		t.Errorf("outside the threshold the path should keep its +X heading: %v", got.Vel)
 	}
 }
