@@ -65,6 +65,7 @@ func vecScenarios() []vecScenario {
 	for _, k := range Kinds()[4:] { // Phase 4 kinds: each flies the mixed inputs
 		sc = append(sc, vecScenario{Name: k.String() + "-mixed", Kind: k.String(), Start: start(1500, 0, 200, 1), Inputs: mixed})
 	}
+	sc = append(sc, cushionScenarios()...)
 	for i := range sc {
 		k, _ := ParseKind(sc[i].Kind)
 		sc[i].Spec = toVecSpec(SpecOf(k))
@@ -134,6 +135,32 @@ func fbScenarios() []vecScenario {
 		// Touchdown on unpaved ground settles too (the server judges it).
 		{Name: "f15-grass-touchdown", Kind: "f15", Ground: &vecGround{H: 30, Surf: int(maps.SurfNone)}, Start: grassApproach(),
 			Ticks: 240, Inputs: []vecInput{{From: 0, Th: 0.2, G: true}, {From: 60, G: true, BR: true}}},
+	}
+}
+
+// oriented is a state facing heading (rad, + left of -Z), pitched and
+// rolled, with the velocity vel (nil: along the nose at speed).
+func oriented(alt, heading, pitch, roll, speed float64, vel *[3]float64) vecState {
+	rot := geom.AxisAngle(geom.V(0, 1, 0), heading).Mul(geom.AxisAngle(geom.V(1, 0, 0), pitch)).Mul(geom.AxisAngle(geom.V(0, 0, 1), roll))
+	v := v3(rot.Forward().Scale(speed))
+	if vel != nil {
+		v = *vel
+	}
+	return vecState{Pos: [3]float64{0, alt, 0}, Rot: q4(rot), Vel: v, Th: 1}
+}
+
+// Ceiling cushion scenarios (bot maneuvers): the branches the v1 climb
+// does not reach. They come after the frozen v1 ten.
+func cushionScenarios() []vecScenario {
+	up := [3]float64{0, 230, 0} // exactly vertical: the right-wing axis
+	wind := [3]float64{7, 0, -5}
+	return []vecScenario{
+		{Name: "f16-vertical-into-ceiling", Kind: "f16", Start: oriented(2850, 0.4, math.Pi/2, 0.7, 230, &up), Inputs: steady(0, 0, 0, 1, false)},
+		{Name: "su27-diagonal-wind-ceiling", Kind: "su27", Wind: &wind, Start: oriented(2500, 0.8, 0.7, -0.3, 260, nil), Ticks: 600,
+			Inputs: steady(0.6, 0.2, 0, 1, true)},
+		{Name: "f22-above-ceiling-pull", Kind: "f22", Start: oriented(3050, -1.1, 0.4, 0, 250, nil), Inputs: steady(1, 0, 0, 1, false)},
+		{Name: "mig29-full-pull-at-ceiling", Kind: "mig29", Start: oriented(2700, 2.0, 0.5, 0.2, 230, nil), Ticks: 600,
+			Inputs: []vecInput{{From: 0, P: 1, Th: 1}, {From: 200, P: 1, R: 0.5, Th: 1}, {From: 400, P: -0.5, Y: 0.5, Th: 1}}},
 	}
 }
 
