@@ -1,8 +1,10 @@
-// Render states for every plane: mine from prediction, others interpolated.
+// Render states for every plane: mine from prediction, others interpolated
+// (and carried along their velocity past a late snapshot).
 import type { PlayerJSON } from "../net/protocol.ts";
 import type { Controls } from "../render/glb.ts";
 import type { PlaneRender } from "../render/planes.ts";
 import type { FlightState, Spec } from "../sim/flight.ts";
+import { extrapolate } from "../predict/interp.ts";
 import { add, len, scale, sub, v3, type V3 } from "../sim/vec.ts";
 import { toFlight, type GameState } from "./state.ts";
 
@@ -11,7 +13,8 @@ const G_WINDOW_MS = 50;
 
 /** |Δv/dt − g| / 9.81 from the interpolated velocity of a remote plane. */
 function remoteG(s: GameState, id: number, rt: number, now: FlightState): number {
-  const before = s.interp.get(id)?.sample(rt - G_WINDOW_MS);
+  const buf = s.interp.get(id);
+  const before = buf ? extrapolate(buf, rt - G_WINDOW_MS) : null;
   if (!before) return 1;
   const a = scale(sub(now.vel, before.vel), 1000 / G_WINDOW_MS);
   return len(add(a, v3(0, G, 0))) / G;
@@ -54,7 +57,10 @@ export function planeRenders(
       fs = mine.fs ?? toFlight(p);
       g = mine.gForce;
     } else {
-      fs = (p.a ? s.interp.get(p.id)?.sample(rt) : null) ?? toFlight(p);
+      // Past the newest snapshot (one came late) the plane keeps flying along
+      // its velocity instead of standing still in the air until it arrives.
+      const buf = p.a ? s.interp.get(p.id) : undefined;
+      fs = (buf ? extrapolate(buf, rt) : null) ?? toFlight(p);
       if (p.a) g = remoteG(s, p.id, rt, fs);
     }
     out.set(p.id, {

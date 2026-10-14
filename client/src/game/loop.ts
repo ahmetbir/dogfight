@@ -226,7 +226,8 @@ export function startGame(ctx: GameCtx): Game {
         backdrop,
         planeAt: (id) => {
           const p = state.planes.get(id);
-          const s = p?.a ? state.interp.get(id)?.sample(rt) : null;
+          const buf = p?.a ? state.interp.get(id) : undefined;
+          const s = buf ? extrapolate(buf, rt) : null; // where it is drawn (view.ts)
           return s ? { pos: s.pos, vel: s.vel } : null;
         },
         planeNow: (id) => {
