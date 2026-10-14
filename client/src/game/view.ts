@@ -1,24 +1,12 @@
-// Render states for every plane: mine from prediction, others interpolated
-// (and carried along their velocity past a late snapshot).
+// Render states for every plane: mine from prediction, others from this
+// frame's remote poses (game/remote.ts).
 import type { PlayerJSON } from "../net/protocol.ts";
 import type { Controls } from "../render/glb.ts";
 import type { PlaneRender } from "../render/planes.ts";
 import type { FlightState, Spec } from "../sim/flight.ts";
-import { extrapolate } from "../predict/interp.ts";
-import { add, len, scale, sub, v3, type V3 } from "../sim/vec.ts";
+import type { V3 } from "../sim/vec.ts";
+import type { RemotePose } from "./remote.ts";
 import { toFlight, type GameState } from "./state.ts";
-
-const G = 9.81;
-const G_WINDOW_MS = 50;
-
-/** |Δv/dt − g| / 9.81 from the interpolated velocity of a remote plane. */
-function remoteG(s: GameState, id: number, rt: number, now: FlightState): number {
-  const buf = s.interp.get(id);
-  const before = buf ? extrapolate(buf, rt - G_WINDOW_MS) : null;
-  if (!before) return 1;
-  const a = scale(sub(now.vel, before.vel), 1000 / G_WINDOW_MS);
-  return len(add(a, v3(0, G, 0))) / G;
-}
 
 /**
  * Stick deflections that would produce body rates w (x pitch, y yaw, z roll,
@@ -41,12 +29,12 @@ export function paintOf(pl: PlayerJSON | undefined, kind: string): string | unde
 }
 
 /**
- * mine is my drawn state (null while dead or unknown); ab is my current AB
+ * others is this frame's drawn pose of every other live plane; mine is my drawn state (null while dead or unknown); ab is my current AB
  * input so the flame reacts without waiting for the server; stick moves my
  * control surfaces.
  */
 export function planeRenders(
-  s: GameState, rt: number, mine: { fs: FlightState | null; gForce: number; ab: boolean; stick?: Controls },
+  s: GameState, others: ReadonlyMap<number, RemotePose>, mine: { fs: FlightState | null; gForce: number; ab: boolean; stick?: Controls },
 ): Map<number, PlaneRender> {
   const out = new Map<number, PlaneRender>();
   for (const p of s.planes.values()) {
@@ -57,11 +45,9 @@ export function planeRenders(
       fs = mine.fs ?? toFlight(p);
       g = mine.gForce;
     } else {
-      // Past the newest snapshot (one came late) the plane keeps flying along
-      // its velocity instead of standing still in the air until it arrives.
-      const buf = p.a ? s.interp.get(p.id) : undefined;
-      fs = (buf ? extrapolate(buf, rt) : null) ?? toFlight(p);
-      if (p.a) g = remoteG(s, p.id, rt, fs);
+      const at = p.a ? others.get(p.id) : undefined;
+      fs = at?.fs ?? toFlight(p);
+      if (at) g = at.g;
     }
     out.set(p.id, {
       id: p.id, kind: p.k, team: p.tm, pos: fs.pos, rot: fs.rot,

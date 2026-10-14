@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import type { PlaneJSON } from "../net/protocol.ts";
 import { qIdentity, v3 } from "../sim/vec.ts";
 import { InterpBuffer } from "../predict/interp.ts";
+import { RemotePoses } from "./remote.ts";
 import { GameState } from "./state.ts";
 import { planeRenders } from "./view.ts";
 
@@ -18,7 +19,9 @@ function stateWithRemote(): GameState {
   return s;
 }
 
-const drawnX = (s: GameState, rt: number) => planeRenders(s, rt, { fs: null, gForce: 1, ab: false }).get(2)!.pos.x;
+const poses = new RemotePoses(() => 0);
+const drawnX = (s: GameState, rt: number, now = rt) =>
+  planeRenders(s, poses.frame(s.interp, (id) => id !== s.you, rt, now), { fs: null, gForce: 1, ab: false }).get(2)!.pos.x;
 
 test("a remote plane is drawn interpolated inside its snapshots", () => {
   assert.ok(Math.abs(drawnX(stateWithRemote(), 16.5) - 3.3) < 1e-9);

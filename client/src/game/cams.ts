@@ -13,6 +13,7 @@ import { airframe } from "./airframe.ts";
 import type { CamView, Heard } from "./events.ts";
 import { camMode, othersAlive, watchingLabel, type CamMode } from "./spectate.ts";
 import { ReplayView, type ReplayScene } from "./replayview.ts";
+import type { RemotePose } from "./remote.ts";
 import type { GameState, ServerEvent } from "./state.ts";
 
 const ORBIT_RATE = 0.3; // rad/s around the place I fell
@@ -111,7 +112,7 @@ export class Cams {
   }
 
   /** Places the main camera for this frame (rs: the replay frame drawn, if any) and returns where it is and what the HUD says. */
-  place(dtS: number, nowMs: number, rt: number, own: OwnView, rs: ReplayScene | null): CamView {
+  place(dtS: number, nowMs: number, others: ReadonlyMap<number, RemotePose>, own: OwnView, rs: ReplayScene | null): CamView {
     const cam = this.c.renderer.camera;
     if (rs) {
       this.switchTo({ kind: "replay" });
@@ -133,7 +134,7 @@ export class Cams {
       this.chase.update(dtS, fs.pos, fs.rot, live ? len(fs.vel) : 0, own.lookBack && live, live ? own.aimDir : null, airframe(me?.k ?? "").length);
       if (live) vel = fs.vel;
     } else if (mode.kind === "follow") {
-      const t = s.interp.get(mode.id)?.sample(rt);
+      const t = others.get(mode.id)?.fs; // the pose the plane is drawn at
       if (t) {
         this.chase.update(dtS, t.pos, t.rot, len(t.vel), false, null, airframe(s.planes.get(mode.id)?.k ?? "").length); // keyboard style: rolls with the plane
         vel = t.vel;
@@ -151,7 +152,7 @@ export class Cams {
       overview(cam, s.terrain?.size ?? 8000);
       setFov(cam, FOV);
     }
-    return this.view(vel, label, this.heard(rt), false);
+    return this.view(vel, label, this.heard(others), false);
   }
 
   /** After the main render: the missile cam inset while it runs (and the setting is on). */
@@ -180,12 +181,12 @@ export class Cams {
   }
 
   /** Other live planes as drawn this frame (positional engine sound). */
-  private heard(rt: number): Heard[] {
+  private heard(others: ReadonlyMap<number, RemotePose>): Heard[] {
     const s = this.c.state;
     const out: Heard[] = [];
     for (const p of s.planes.values()) {
       if (p.id === s.you || !p.a) continue;
-      const at = s.interp.get(p.id)?.sample(rt);
+      const at = others.get(p.id)?.fs;
       if (at) out.push({ id: p.id, pos: at.pos, vel: at.vel, th: p.th, ab: !!p.ab });
     }
     return out;

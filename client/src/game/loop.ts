@@ -25,6 +25,7 @@ import { OwnPlane } from "./own.ts";
 import { drawAhead } from "./ahead.ts";
 import { toFlight, type GameState } from "./state.ts";
 import { planeRenders } from "./view.ts";
+import { RemotePoses } from "./remote.ts";
 import { buildWorld } from "./world.ts";
 import { effectiveRange } from "../ui/lockinfo.ts";
 import { kindOf, loadoutOf, noLockNotice, otherKind, PICK_WIRE, pickedKind, type MissileKind } from "../ui/loadout.ts";
@@ -70,6 +71,7 @@ export function startGame(ctx: GameCtx): Game {
     renderer: r, state, settings: ctx.settings, solids: world.solids, spectate: ctx.spectate,
     ground: (x, z) => flightEnv(state, false).ground(x, z).h,
   });
+  const remotes = new RemotePoses((x, z) => flightEnv(state, false).ground(x, z).h);
   const hooks = mergeHooks(ctx.hooks ?? {}, {
     missileLaunch: (_t, _atMe, id, mine) => cams.launched(id, mine, performance.now()),
   });
@@ -186,7 +188,8 @@ export function startGame(ctx: GameCtx): Game {
     const mine = drawn && drawAhead(drawn, own.spin(), acc, (x, z) => env.ground(x, z).h);
     const rs = cams.replayScene(now); // the replay draws recorded planes and missiles instead
     views.setViewHeight(r.canvas.clientHeight);
-    views.sync(rs?.planes ?? planeRenders(state, rt, { fs: mine, gForce: own.gForce(), ab: !!ctl?.stick.ab && !mine?.abl, stick: ctl?.stick }), state.players.get(state.you)?.team);
+    const others = remotes.frame(state.interp, (id) => id !== state.you && !!state.planes.get(id)?.a, rt, now);
+    views.sync(rs?.planes ?? planeRenders(state, others, { fs: mine, gForce: own.gForce(), ab: !!ctl?.stick.ab && !mine?.abl, stick: ctl?.stick }), state.players.get(state.you)?.team);
     props.syncMissiles(rs?.missiles ?? state.missiles, rs ? 0 : (now - state.snapAt) / 1000, fx);
     props.syncBombs(state.bombs, (now - state.snapAt) / 1000);
     fx.flares(rs ? [] : flaresAt(state.flares, (now - state.snapAt) / 1000), dt);
@@ -196,7 +199,7 @@ export function startGame(ctx: GameCtx): Game {
     if (!rs) bullets.update(dt, fx); // live tracers wait (or expire) while the replay plays
     const me = state.planes.get(state.you);
     const fs = mine ?? (me ? toFlight(me) : null);
-    const view = cams.place(dt, now, rt, { fs, live: !!mine, lookBack: !!ctl?.lookBack, aimDir: ctl?.aimDir ?? null }, rs);
+    const view = cams.place(dt, now, others, { fs, live: !!mine, lookBack: !!ctl?.lookBack, aimDir: ctl?.aimDir ?? null }, rs);
     hooks.camera?.(view); // after place: an optional call would skip evaluating it
     fx.update(dt);
     world.update(dt, r.camera.position);
@@ -225,9 +228,7 @@ export function startGame(ctx: GameCtx): Game {
         project: (p) => r.project(p),
         backdrop,
         planeAt: (id) => {
-          const p = state.planes.get(id);
-          const buf = p?.a ? state.interp.get(id) : undefined;
-          const s = buf ? extrapolate(buf, rt) : null; // where it is drawn (view.ts)
+          const s = others.get(id)?.fs; // where it is drawn
           return s ? { pos: s.pos, vel: s.vel } : null;
         },
         planeNow: (id) => {
