@@ -94,6 +94,25 @@ ABHeat ≥ 1 → ABLock = true ; ABLock && ABHeat ≤ 0.3 → ABLock = false
 `abh` (1e-3) ve `abl` taşır, tahmin aynısını uygular. Spawn'da 0. Botlar saldırıda ısı ≥ 0.7 iken AB
 kullanmaz (kaçış ve arazi kaçınması için saklar).
 
+**Tavan yastığı (bot manevraları, 2026-10-14).** Eski tavan tek tick'lik bir kelepçeydi
+(`Pos.Y = 3000`, `Vel.Y = 0`): tırmanan uçağın yolu bir tick'te 25–88° dönüyor, hızı 20–80 m/s
+düşüyor, burnu yukarıda kalıp tavanda "kuyruğu üstünde" kayıyordu (AoA 152°'ye kadar). Artık
+`StepFlight`, hız vektörü kurulduktan sonra ve hareketten önce `ceilingCushion` uygular:
+
+```
+r = max(0, Ceiling − y)·CeilingBend/s,  b = CeilingBend·Dt        CeilingBend = 1.0 rad/s
+γmax = acos((1 − r)/√(1 + b²)) − atan b      ⇔  (s/CeilingBend)(1 − cos γ) + s·sin γ·Dt = Ceiling − y
+γ > γmax  →  yol γmax'a, yolun yatay ekseni etrafında aşağı bükülür (hız ve yön korunur)
+```
+
+Burun yolla aynı açıyla döner (AoA korunur); ama bu tick burnu tick başındaki yönünden
+`max(PitchRate·Dt, pilotun kendi burun dönüşü)`'nden fazla döndürecekse, sınırda kalan en büyük
+payla (24 adım ikiye bölme) döner. Yol neredeyse dikse (`|v_yatay| < 1e-6·s`) eksen burnun sağ
+kanadıdır; eşik görecelidir, Go ve TS aynı karara varır. Bükme **enerji harcatmaz** (indüklenmiş
+sürükleme yalnız `W`'den hesaplanır): tasarım kararı, yastık pilotun değil ince havanın itişidir;
+tavanda çekmeyi sürdüren pilot `W` üzerinden yine hız kaybeder. Eski kelepçe yalnız yedek olarak
+kalır. Sınırda uçulan tırmanış CeilingBend hızıyla düzleşir ve tavana düz uçuşla değer.
+
 ### 3.1 Uçak tablosu (v2)
 
 | Alan | F-16 | F-15 | MiG-29 | Su-27 |
