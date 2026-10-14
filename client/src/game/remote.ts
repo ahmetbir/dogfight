@@ -9,8 +9,15 @@ import { add, len, qConj, qMul, qNorm, qSlerp, scale, sub, v3, type Q, type V3 }
 
 /** How long a catch-up after a late snapshot is blended in. */
 export const BLEND_MS = 100;
-/** A catch-up larger than this is a real jump (respawn, reset): shown at once. */
-export const TELEPORT_M = 60;
+/**
+ * A catch-up larger than this is a real jump (respawn, reset): shown at
+ * once. At least TELEPORT_M, more for a fast plane: what it covers in
+ * TELEPORT_S, so a fast plane's ordinary catch-up is never popped and a
+ * slow plane's real jump is never slid.
+ */
+export const TELEPORT_M = 60, TELEPORT_S = 0.6;
+/** Height over the ground under which the server crashes a plane (internal/sim/hazards.go crashClearance). */
+export const CRASH_CLEARANCE = 2.0;
 const G = 9.81;
 const G_WINDOW_MS = 50;
 
@@ -18,10 +25,12 @@ export type RemotePose = { fs: FlightState; g: number };
 
 type Entry = { t: number; fs: FlightState };
 
+type Offset = { pos: V3; rot: Q };
+
 type Track = {
   buf: InterpBuffer;
   basis: Entry | null; // the newest snapshot the last frame was carried from (null: inside the buffer)
-  off: { pos: V3; rot: Q } | null; // catch-up still being blended in
+  off: Offset | null; // catch-up still being blended in
   offAt: number;
 };
 
@@ -29,17 +38,23 @@ const IDENTITY: Q = { w: 1, x: 0, y: 0, z: 0 };
 
 /**
  * The raw drawn state at rt: the buffer's interpolation, past its end the
- * newest state carried on (at most 500 ms), except a plane with its gear down
- * or on its wheels, which holds (a landing plane would sink through the
- * runway). Never below the ground plus gear height.
+ * newest state carried on (at most 500 ms), except a plane on its wheels,
+ * which holds. Never below the ground plus the gear height (gear down or on
+ * the wheels) or the server's crash clearance (gear up).
  */
 export function rawPose(buf: InterpBuffer, rt: number, ground: (x: number, z: number) => number): FlightState | null {
   const last = buf.newest();
   if (!last) return null;
-  const fs = rt > last.t && (last.fs.gear || last.fs.ground) ? last.fs : extrapolate(buf, rt);
+  const fs = rt > last.t && last.fs.ground ? last.fs : extrapolate(buf, rt);
   if (!fs) return null;
-  const floor = ground(fs.pos.x, fs.pos.z) + GEAR_HEIGHT;
+  const floor = ground(fs.pos.x, fs.pos.z) + (last.fs.gear || last.fs.ground ? GEAR_HEIGHT : CRASH_CLEARANCE);
   return fs.pos.y >= floor ? fs : { ...fs, pos: v3(fs.pos.x, floor, fs.pos.z) };
+}
+
+/** Where another plane is drawn this frame (lock box, radar, enemies list): its shared pose. */
+export function drawnAt(others: ReadonlyMap<number, RemotePose>, id: number): { pos: V3; vel: V3 } | null {
+  const fs = others.get(id)?.fs;
+  return fs ? { pos: fs.pos, vel: fs.vel } : null;
 }
 
 /** |Δv/dt − g| / 9.81 over the last 50 ms of the drawn track (1 without a buffer). */
@@ -53,8 +68,8 @@ export function remoteG(buf: InterpBuffer, rt: number, now: FlightState, ground:
 /**
  * Per-plane drawn poses. frame() once per rendered frame; a new snapshot
  * that lands while a plane is carried past the old newest one is blended in
- * over BLEND_MS from where the plane was being drawn, unless it is more than
- * TELEPORT_M away.
+ * over BLEND_MS from where the plane is being drawn (a blend in progress
+ * included), unless it is a real jump (TELEPORT_M, TELEPORT_S).
  */
 export class RemotePoses {
   private readonly tracks = new Map<number, Track>();
@@ -78,23 +93,32 @@ export class RemotePoses {
       if (!raw) continue;
       const newest = buf.newest() ?? null;
       if (tr.basis && newest !== tr.basis) { // a snapshot landed while this plane was carried on
-        const was = rawPose(single(tr.basis), rt, this.ground) ?? raw;
+        // from where it is drawn now: the old carry plus what is left of a blend in progress
+        const old = rawPose(single(tr.basis), rt, this.ground) ?? raw;
+        const was = applied(old, tr.off, weight(tr, nowMs));
         const d = sub(was.pos, raw.pos);
-        tr.off = len(d) > TELEPORT_M ? null : { pos: d, rot: qNorm(qMul(was.rot, qConj(raw.rot))) };
+        tr.off = len(d) > Math.max(TELEPORT_M, len(raw.vel) * TELEPORT_S) ? null : { pos: d, rot: qNorm(qMul(was.rot, qConj(raw.rot))) };
         tr.offAt = nowMs;
       }
       tr.basis = newest && rt > newest.t ? newest : null;
-      let fs = raw;
-      const k = tr.off ? 1 - (nowMs - tr.offAt) / BLEND_MS : 0;
-      if (tr.off && k > 0) {
-        fs = { ...raw, pos: add(raw.pos, scale(tr.off.pos, k)), rot: qMul(qSlerp(IDENTITY, tr.off.rot, k), raw.rot) };
-      } else {
-        tr.off = null;
-      }
+      const k = weight(tr, nowMs);
+      if (k === 0) tr.off = null;
+      const fs = applied(raw, tr.off, k);
       out.set(id, { fs, g: remoteG(buf, rt, raw, this.ground) });
     }
     return out;
   }
+}
+
+/** How much of the track's catch-up is still shown at nowMs (1 → 0 over BLEND_MS). */
+function weight(tr: Track, nowMs: number): number {
+  return tr.off ? Math.max(0, 1 - (nowMs - tr.offAt) / BLEND_MS) : 0;
+}
+
+/** fs shifted by k of the offset (position and attitude). */
+function applied(fs: FlightState, off: Offset | null, k: number): FlightState {
+  if (!off || k <= 0) return fs;
+  return { ...fs, pos: add(fs.pos, scale(off.pos, k)), rot: qMul(qSlerp(IDENTITY, off.rot, k), fs.rot) };
 }
 
 /** A buffer holding only e: e carried on, as it was being drawn. */

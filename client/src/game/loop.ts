@@ -25,7 +25,7 @@ import { OwnPlane } from "./own.ts";
 import { drawAhead } from "./ahead.ts";
 import { toFlight, type GameState } from "./state.ts";
 import { planeRenders } from "./view.ts";
-import { RemotePoses } from "./remote.ts";
+import { drawnAt, RemotePoses } from "./remote.ts";
 import { buildWorld } from "./world.ts";
 import { effectiveRange } from "../ui/lockinfo.ts";
 import { kindOf, loadoutOf, noLockNotice, otherKind, PICK_WIRE, pickedKind, type MissileKind } from "../ui/loadout.ts";
@@ -227,10 +227,7 @@ export function startGame(ctx: GameCtx): Game {
         pos: fs.pos, vel: fs.vel, fwd: qForward(fs.rot), up: qRotate(fs.rot, { x: 0, y: 1, z: 0 }), aimDir: mine ? ctl?.aimDir ?? null : null,
         project: (p) => r.project(p),
         backdrop,
-        planeAt: (id) => {
-          const s = others.get(id)?.fs; // where it is drawn
-          return s ? { pos: s.pos, vel: s.vel } : null;
-        },
+        planeAt: (id) => drawnAt(others, id),
         planeNow: (id) => {
           const buf = state.planes.get(id)?.a ? state.interp.get(id) : null;
           const s = buf ? extrapolate(buf, ServerClock.serverMs(state.tick + own.ahead()) + acc * 1000) : null;
