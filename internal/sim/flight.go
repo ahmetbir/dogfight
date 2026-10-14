@@ -60,6 +60,44 @@ const (
 // with the afterburner.
 const InducedDrag = 0.2
 
+// CeilingBend is the ceiling cushion's pull-over rate (rad/s): a climb is
+// bent level in time to arrive at the ceiling flying level, instead of
+// stopping against it in one tick.
+const CeilingBend = 1.0
+
+// ceilingCushion holds a climb's path angle γ to the steepest one that a
+// CeilingBend pull-over, started after this tick's move, still levels off
+// under the ceiling: at speed s and room d,
+// (s/CeilingBend)·(1 − cos γ) + s·sin γ·Dt ≤ d. Path and nose turn down
+// together about the horizontal axis across the path; speed, heading and
+// angle of attack are kept. Flown along the limit, a climb levels off at
+// CeilingBend and touches the ceiling flying level.
+func ceilingCushion(fs FlightState) FlightState {
+	if fs.Vel.Y <= 0 {
+		return fs
+	}
+	speed := fs.Vel.Len()
+	r := math.Max(0, Ceiling-fs.Pos.Y) * CeilingBend / speed
+	b := CeilingBend * Dt
+	if r >= 1+b { // even a vertical climb levels off in time
+		return fs
+	}
+	// (1 − cos γ) + b·sin γ = r  ⇔  cos(γ + atan b) = (1 − r)/√(1 + b²)
+	limit := math.Acos((1-r)/math.Sqrt(1+b*b)) - math.Atan(b)
+	bend := math.Asin(math.Min(1, fs.Vel.Y/speed)) - limit
+	if bend <= 0 {
+		return fs
+	}
+	axis := geom.V(fs.Vel.X, 0, fs.Vel.Z).Cross(geom.V(0, 1, 0))
+	if axis.Len() < 1e-9 { // straight up: over the nose's right wing
+		axis = fs.Rot.Right()
+	}
+	q := geom.AxisAngle(axis, -bend)
+	fs.Vel = q.Rotate(fs.Vel)
+	fs.Rot = q.Mul(fs.Rot).Norm()
+	return fs
+}
+
 // approach moves cur toward target by at most step.
 func approach(cur, target, step float64) float64 {
 	return cur + max(-step, min(step, target-cur))
@@ -151,12 +189,13 @@ func StepFlight(fs FlightState, in Input, s Spec, m FlightMods) FlightState {
 	}
 	dir = dir.Lerp(fs.Rot.Forward(), math.Min(1, Slip*Dt)).Norm()
 	fs.Vel = dir.Scale(speed)
+	fs = ceilingCushion(fs)
 	if m.Wind == (geom.Vec3{}) { // keep the v1 expression bit-for-bit without wind
 		fs.Pos = fs.Pos.Add(fs.Vel.Scale(Dt))
 	} else {
 		fs.Pos = fs.Pos.Add(fs.Vel.Add(m.Wind).Scale(Dt))
 	}
-	if fs.Pos.Y > Ceiling {
+	if fs.Pos.Y > Ceiling { // backstop: the cushion leaves at most a step's rounding
 		fs.Pos.Y = Ceiling
 		fs.Vel.Y = math.Min(fs.Vel.Y, 0)
 	}

@@ -85,12 +85,13 @@ func TestRollAndYawSigns(t *testing.T) {
 	}
 }
 
-// At the ceiling a nose-up plane cannot keep climbing: vertical speed is
-// cut, so it bleeds speed instead (soft ceiling).
+// At the ceiling a nose-up plane cannot keep climbing: even a state the
+// cushion never lets a climb reach (1 m under the lid at 250 m/s up) is bent
+// nearly level in one tick and stays under the ceiling.
 func TestCeilingCutsClimb(t *testing.T) {
 	fs := FlightState{Pos: geom.V(0, Ceiling-1, 0), Rot: geom.AxisAngle(geom.V(1, 0, 0), 1.4), Vel: geom.V(0, 250, -10), Throttle: 1}
 	fs = StepFlight(fs, Input{Throttle: 1}, SpecOf(F16), FlightMods{})
-	if fs.Pos.Y > Ceiling || fs.Vel.Y > 0 {
+	if fs.Pos.Y > Ceiling || fs.Vel.Y > 0.1*fs.Vel.Len() {
 		t.Fatalf("at ceiling: y=%v vy=%v", fs.Pos.Y, fs.Vel.Y)
 	}
 }
